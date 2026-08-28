@@ -18,7 +18,10 @@ export function getCachedEvent() {
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_EVENT_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (parsed && (parsed.title || parsed.bannerUrl)) {
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn('Could not read cached event:', e);
@@ -27,8 +30,10 @@ export function getCachedEvent() {
 }
 
 export async function fetchActiveEvent(): Promise<EventRecord | null> {
+  const cached = getCachedEvent();
+
   if (!isSupabaseConfigured) {
-    return getCachedEvent();
+    return cached;
   }
 
   try {
@@ -42,19 +47,27 @@ export async function fetchActiveEvent(): Promise<EventRecord | null> {
       .maybeSingle();
 
     if (!sdkError && sdkData) {
-      localStorage.setItem(
-        LOCAL_STORAGE_EVENT_KEY,
-        JSON.stringify({
-          id: sdkData.id,
-          title: sdkData.title,
-          edition: sdkData.edition,
-          date: sdkData.date,
-          location: sdkData.location,
-          program: sdkData.program,
-          bannerUrl: sdkData.banner_url || '/images/event_banner.jpg',
-        })
-      );
-      return sdkData;
+      // If local cache has a custom user banner (e.g. Cloudinary) and DB has default, prefer custom
+      const isCustomCachedBanner = cached.bannerUrl && cached.bannerUrl.includes('cloudinary');
+      const finalBanner = (isCustomCachedBanner && sdkData.banner_url === '/images/event_banner.jpg')
+        ? cached.bannerUrl
+        : (sdkData.banner_url || cached.bannerUrl || '/images/event_banner.jpg');
+
+      const merged = {
+        id: sdkData.id,
+        title: sdkData.title || cached.title,
+        edition: sdkData.edition || cached.edition,
+        date: sdkData.date || cached.date,
+        location: sdkData.location || cached.location,
+        program: sdkData.program || cached.program,
+        bannerUrl: finalBanner,
+      };
+
+      localStorage.setItem(LOCAL_STORAGE_EVENT_KEY, JSON.stringify(merged));
+      return {
+        ...sdkData,
+        banner_url: finalBanner,
+      };
     }
   } catch (err) {
     console.warn('SDK fetch event failed, using REST fallback:', err);
@@ -63,22 +76,29 @@ export async function fetchActiveEvent(): Promise<EventRecord | null> {
   // 2. Fallback to REST
   const { data, error } = await supabaseDb.events.getActive();
   if (!error && data) {
-    localStorage.setItem(
-      LOCAL_STORAGE_EVENT_KEY,
-      JSON.stringify({
-        id: data.id,
-        title: data.title,
-        edition: data.edition,
-        date: data.date,
-        location: data.location,
-        program: data.program,
-        bannerUrl: data.banner_url || '/images/event_banner.jpg',
-      })
-    );
-    return data;
+    const isCustomCachedBanner = cached.bannerUrl && cached.bannerUrl.includes('cloudinary');
+    const finalBanner = (isCustomCachedBanner && data.banner_url === '/images/event_banner.jpg')
+      ? cached.bannerUrl
+      : (data.banner_url || cached.bannerUrl || '/images/event_banner.jpg');
+
+    const merged = {
+      id: data.id,
+      title: data.title || cached.title,
+      edition: data.edition || cached.edition,
+      date: data.date || cached.date,
+      location: data.location || cached.location,
+      program: data.program || cached.program,
+      bannerUrl: finalBanner,
+    };
+
+    localStorage.setItem(LOCAL_STORAGE_EVENT_KEY, JSON.stringify(merged));
+    return {
+      ...data,
+      banner_url: finalBanner,
+    };
   }
 
-  return getCachedEvent();
+  return cached;
 }
 
 export async function updateEventDetails(

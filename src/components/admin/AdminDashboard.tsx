@@ -339,8 +339,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       const res = await uploadToCloudinary(file);
       if (res?.secure_url) {
-        setMemberForm((prev) => ({ ...prev, avatar: res.secure_url }));
-        showNotification('Photo avatar téléversée sur Cloudinary avec succès !');
+        const newAvatarUrl = res.secure_url;
+        setMemberForm((prev) => ({ ...prev, avatar: newAvatarUrl }));
+        if (editingMember) {
+          const updatedMember = { ...memberForm, avatar: newAvatarUrl, id: editingMember.id || String(Date.now()) };
+          const updatedList = teamMembers.map((m) =>
+            (m.id && m.id === editingMember.id) || m.name === editingMember.name
+              ? updatedMember
+              : m
+          );
+          onUpdateTeamMembers(updatedList);
+          await saveTeamMember(updatedMember, updatedList.length, updatedList);
+        }
+        showNotification('Photo avatar téléversée sur Cloudinary et enregistrée !');
       }
     } catch (err: any) {
       alert(err.message || 'Échec du téléversement sur Cloudinary.');
@@ -358,8 +369,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       const res = await uploadToCloudinary(file);
       if (res?.secure_url) {
-        setEventForm((prev) => ({ ...prev, bannerUrl: res.secure_url }));
-        showNotification('Affiche de l\'événement téléversée sur Cloudinary !');
+        const newBannerUrl = res.secure_url;
+        const updatedEvent = { ...eventForm, bannerUrl: newBannerUrl };
+        setEventForm(updatedEvent);
+        onUpdateEvent(updatedEvent);
+        await updateEventDetails(updatedEvent.id || '', updatedEvent);
+        showNotification('Affiche de l\'événement téléversée et enregistrée !');
       }
     } catch (err: any) {
       alert(err.message || 'Échec du téléversement sur Cloudinary.');

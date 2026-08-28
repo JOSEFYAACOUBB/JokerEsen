@@ -29,8 +29,10 @@ export function cacheTeam(team: TeamMember[]) {
 }
 
 export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
+  const cached = getCachedTeam();
+
   if (!isSupabaseConfigured) {
-    return getCachedTeam();
+    return cached;
   }
 
   try {
@@ -41,18 +43,25 @@ export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
       .order('order_index', { ascending: true });
 
     if (!sdkError && sdkData && sdkData.length > 0) {
-      const teamList: TeamMember[] = sdkData.map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        role: item.role,
-        suit: item.suit,
-        suitColor: item.suit_color || '#F3C4A0',
-        avatar: item.avatar,
-        socials: {
-          instagram: item.instagram || '#',
-          linkedin: item.linkedin || '#',
-        },
-      }));
+      const teamList: TeamMember[] = sdkData.map((item: any) => {
+        // Check if cached member with same name has a custom Cloudinary avatar
+        const cachedMember = cached.find((c) => c.name.toLowerCase() === item.name.toLowerCase());
+        const hasCustomCachedAvatar = cachedMember?.avatar && cachedMember.avatar.includes('cloudinary');
+        const finalAvatar = hasCustomCachedAvatar ? cachedMember.avatar : item.avatar;
+
+        return {
+          id: item.id,
+          name: item.name,
+          role: item.role,
+          suit: item.suit,
+          suitColor: item.suit_color || '#F3C4A0',
+          avatar: finalAvatar,
+          socials: {
+            instagram: item.instagram || '#',
+            linkedin: item.linkedin || '#',
+          },
+        };
+      });
 
       cacheTeam(teamList);
       return teamList;
@@ -64,24 +73,30 @@ export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
   // 2. Fallback to REST
   const { data, error } = await supabaseDb.team.getAll();
   if (!error && data && data.length > 0) {
-    const teamList: TeamMember[] = data.map((item) => ({
-      id: item.id,
-      name: item.name,
-      role: item.role,
-      suit: item.suit,
-      suitColor: item.suit_color,
-      avatar: item.avatar,
-      socials: {
-        instagram: item.instagram || '#',
-        linkedin: item.linkedin || '#',
-      },
-    }));
+    const teamList: TeamMember[] = data.map((item) => {
+      const cachedMember = cached.find((c) => c.name.toLowerCase() === item.name.toLowerCase());
+      const hasCustomCachedAvatar = cachedMember?.avatar && cachedMember.avatar.includes('cloudinary');
+      const finalAvatar = hasCustomCachedAvatar ? cachedMember.avatar : item.avatar;
+
+      return {
+        id: item.id,
+        name: item.name,
+        role: item.role,
+        suit: item.suit,
+        suitColor: item.suit_color,
+        avatar: finalAvatar,
+        socials: {
+          instagram: item.instagram || '#',
+          linkedin: item.linkedin || '#',
+        },
+      };
+    });
 
     cacheTeam(teamList);
     return teamList;
   }
 
-  return getCachedTeam();
+  return cached;
 }
 
 export async function saveTeamMember(
@@ -90,8 +105,9 @@ export async function saveTeamMember(
   currentTeamList?: TeamMember[]
 ): Promise<boolean> {
   // Update localStorage immediately
+  let updatedList: TeamMember[];
   if (currentTeamList) {
-    cacheTeam(currentTeamList);
+    updatedList = currentTeamList;
   } else {
     const existing = getCachedTeam();
     const index = existing.findIndex((m) => (m.id && m.id === member.id) || m.name === member.name);
@@ -100,8 +116,9 @@ export async function saveTeamMember(
     } else {
       existing.push(member);
     }
-    cacheTeam(existing);
+    updatedList = existing;
   }
+  cacheTeam(updatedList);
 
   if (!isSupabaseConfigured) return true;
 
