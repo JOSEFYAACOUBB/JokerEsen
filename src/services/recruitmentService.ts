@@ -1,5 +1,6 @@
 import { supabase, supabaseDb, isSupabaseConfigured } from '../lib/supabase';
 import type { RecruitmentApplication } from '../types/database';
+import { getCachedSettings } from './settingsService';
 
 export interface SubmitApplicationData {
   fullName: string;
@@ -11,6 +12,12 @@ export interface SubmitApplicationData {
 }
 
 export async function submitRecruitmentApplication(data: SubmitApplicationData): Promise<{ success: boolean; error?: string }> {
+  // Guard check: verify if recruitment is currently open
+  const settings = getCachedSettings();
+  if (settings && settings.recruitment_open === false) {
+    return { success: false, error: 'Les adhésions sont actuellement suspendues pour cette session.' };
+  }
+
   if (!isSupabaseConfigured) {
     console.info('[Supabase BaaS] Running in offline demo mode. Supabase credentials not set in .env.');
     return { success: true };

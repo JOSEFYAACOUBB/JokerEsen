@@ -124,6 +124,18 @@ export const supabaseDb = {
         }),
       });
     },
+
+    async upsert(settings: Partial<ClubSettings>) {
+      return supabaseFetch<ClubSettings[]>('club_settings', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify({
+          id: 'default',
+          ...settings,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    },
   },
 
   // 3. Events
@@ -171,6 +183,12 @@ export const supabaseDb = {
 
     async delete(id: string) {
       return supabaseFetch(`team_members?id=eq.${id}`, {
+        method: 'DELETE',
+      });
+    },
+
+    async deleteByName(name: string) {
+      return supabaseFetch(`team_members?name=eq.${encodeURIComponent(name)}`, {
         method: 'DELETE',
       });
     },

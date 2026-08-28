@@ -10,12 +10,18 @@ import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { fetchActiveEvent, getCachedEvent } from './services/eventService';
 import { fetchTeamMembers, getCachedTeam, cacheTeam } from './services/teamService';
-import { fetchClubSettings } from './services/settingsService';
+import { fetchClubSettings, getCachedSettings, cacheSettings } from './services/settingsService';
 
 export function App() {
   const [currentView, setCurrentView] = useState<'public' | 'admin'>('public');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [recruitmentOpen, setRecruitmentOpen] = useState(true);
+  const [recruitmentOpen, setRecruitmentOpen] = useState<boolean>(() => {
+    const cached = getCachedSettings();
+    if (cached && typeof cached.recruitment_open === 'boolean') {
+      return cached.recruitment_open;
+    }
+    return true;
+  });
 
   // Dynamic Event Data: Initialized immediately with local cache for zero delay
   const [eventData, setEventData] = useState(() => getCachedEvent());
@@ -42,6 +48,7 @@ export function App() {
         const settings = await fetchClubSettings();
         if (settings && typeof settings.recruitment_open === 'boolean') {
           setRecruitmentOpen(settings.recruitment_open);
+          cacheSettings({ recruitment_open: settings.recruitment_open });
         }
 
         // 2. Active Event
@@ -60,7 +67,7 @@ export function App() {
 
         // 3. Team Members
         const dbTeam = await fetchTeamMembers();
-        if (dbTeam && dbTeam.length > 0) {
+        if (dbTeam !== null) {
           setTeamMembers(dbTeam);
         }
       } catch (err) {
@@ -76,12 +83,17 @@ export function App() {
     cacheTeam(newMembers);
   };
 
+  const handleToggleRecruitment = (isOpen: boolean) => {
+    setRecruitmentOpen(isOpen);
+    cacheSettings({ recruitment_open: isOpen });
+  };
+
   if (currentView === 'admin') {
     return (
       <AdminDashboard
         onBackToPublic={() => setCurrentView('public')}
         recruitmentOpen={recruitmentOpen}
-        onToggleRecruitment={setRecruitmentOpen}
+        onToggleRecruitment={handleToggleRecruitment}
         eventData={eventData}
         onUpdateEvent={setEventData}
         teamMembers={teamMembers}

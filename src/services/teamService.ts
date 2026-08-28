@@ -43,11 +43,6 @@ export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
       .order('order_index', { ascending: true });
 
     if (!sdkError && sdkData) {
-      if (sdkData.length === 0) {
-        // If DB table is empty and user had saved cache, sync cache to DB or return cache
-        return cached.length > 0 ? cached : [];
-      }
-
       const teamList: TeamMember[] = sdkData.map((item: any) => ({
         id: item.id,
         name: item.name,
@@ -69,23 +64,27 @@ export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
   }
 
   // 2. Fallback to REST
-  const { data, error } = await supabaseDb.team.getAll();
-  if (!error && data) {
-    const teamList: TeamMember[] = data.map((item) => ({
-      id: item.id,
-      name: item.name,
-      role: item.role,
-      suit: item.suit,
-      suitColor: item.suit_color,
-      avatar: item.avatar,
-      socials: {
-        instagram: item.instagram || '#',
-        linkedin: item.linkedin || '#',
-      },
-    }));
+  try {
+    const { data, error } = await supabaseDb.team.getAll();
+    if (!error && data) {
+      const teamList: TeamMember[] = data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        role: item.role,
+        suit: item.suit,
+        suitColor: item.suit_color,
+        avatar: item.avatar,
+        socials: {
+          instagram: item.instagram || '#',
+          linkedin: item.linkedin || '#',
+        },
+      }));
 
-    cacheTeam(teamList);
-    return teamList;
+      cacheTeam(teamList);
+      return teamList;
+    }
+  } catch (err) {
+    console.warn('REST fetch team members error:', err);
   }
 
   return cached;
@@ -96,7 +95,7 @@ export async function saveTeamMember(
   orderIndex: number = 0,
   currentTeamList?: TeamMember[],
   previousName?: string
-): Promise<boolean> {
+): Promise<TeamMember> {
   // Update localStorage immediately
   let updatedList: TeamMember[];
   if (currentTeamList) {
@@ -104,7 +103,7 @@ export async function saveTeamMember(
   } else {
     const existing = getCachedTeam();
     const index = existing.findIndex(
-      (m) => (m.id && m.id === member.id) || (previousName && m.name === previousName) || m.name === member.name
+      (m) => (member.id && m.id === member.id) || (previousName && m.name === previousName) || m.name === member.name
     );
     if (index >= 0) {
       existing[index] = member;
@@ -115,7 +114,7 @@ export async function saveTeamMember(
   }
   cacheTeam(updatedList);
 
-  if (!isSupabaseConfigured) return true;
+  if (!isSupabaseConfigured) return member;
 
   const isUUID = member.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(member.id);
 
@@ -170,21 +169,51 @@ export async function saveTeamMember(
         .update(payload)
         .eq('id', targetRowId);
 
-      if (!updateError) return true;
+      if (!updateError) {
+        const savedMember = { ...member, id: targetRowId };
+        const refreshed = getCachedTeam().map(m => m.name === savedMember.name ? savedMember : m);
+        cacheTeam(refreshed);
+        return savedMember;
+      }
       console.warn('Supabase update team member error:', updateError);
     } else {
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('team_members')
-        .insert([payload]);
+        .insert([payload])
+        .select()
+        .maybeSingle();
 
-      if (!insertError) return true;
+      if (!insertError && insertData) {
+        const savedMember: TeamMember = {
+          id: insertData.id,
+          name: insertData.name,
+          role: insertData.role,
+          suit: insertData.suit,
+          suitColor: insertData.suit_color,
+          avatar: insertData.avatar,
+          socials: {
+            instagram: insertData.instagram,
+            linkedin: insertData.linkedin,
+          },
+        };
+        const refreshed = getCachedTeam().map(m => m.name === savedMember.name ? savedMember : m);
+        cacheTeam(refreshed);
+        return savedMember;
+      }
       console.warn('Supabase insert team member error:', insertError);
     }
   } catch (err) {
     console.warn('saveTeamMember exception:', err);
   }
 
-  return true;
+  // 5. REST Fallback
+  try {
+    await supabaseDb.team.upsert(payload);
+  } catch (err) {
+    console.warn('REST upsert team member error:', err);
+  }
+
+  return member;
 }
 
 export async function deleteTeamMember(
@@ -192,29 +221,45 @@ export async function deleteTeamMember(
   memberName?: string,
   currentTeamList?: TeamMember[]
 ): Promise<boolean> {
+  // Update local cache immediately with proper filter condition
   if (currentTeamList) {
     cacheTeam(currentTeamList);
   } else {
     const existing = getCachedTeam();
     const filtered = existing.filter(
-      (m) => (m.id && m.id !== id) || (memberName && m.name !== memberName)
+      (m) => (id ? m.id !== id : true) && (memberName ? m.name !== memberName : true)
     );
     cacheTeam(filtered);
   }
 
   if (!isSupabaseConfigured) return true;
 
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const isUUID = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
+  // 1. Try Supabase SDK
   try {
     if (isUUID) {
-      await supabase.from('team_members').delete().eq('id', id);
+      const { error } = await supabase.from('team_members').delete().eq('id', id);
+      if (!error) return true;
     }
     if (memberName) {
-      await supabase.from('team_members').delete().eq('name', memberName);
+      const { error } = await supabase.from('team_members').delete().eq('name', memberName);
+      if (!error) return true;
     }
   } catch (err) {
-    console.warn('Error deleting team member from Supabase:', err);
+    console.warn('Error deleting team member via SDK, trying REST fallback:', err);
+  }
+
+  // 2. Try REST Fallback
+  try {
+    if (isUUID) {
+      await supabaseDb.team.delete(id);
+    }
+    if (memberName) {
+      await supabaseDb.team.deleteByName(memberName);
+    }
+  } catch (err) {
+    console.warn('Error deleting team member via REST:', err);
   }
 
   return true;

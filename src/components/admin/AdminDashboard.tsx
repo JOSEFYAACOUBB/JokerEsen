@@ -65,30 +65,6 @@ interface AdminPhoto {
   date: string;
 }
 
-const fallbackPhotos: AdminPhoto[] = [
-  {
-    id: 1,
-    title: 'Concert Live Scène Principale',
-    album: 'Carnival Night 2025',
-    url: '/images/event_banner.jpg',
-    date: '24 Oct 2025',
-  },
-  {
-    id: 2,
-    title: 'Session Brainstorming Design',
-    album: 'Workshops 2025',
-    url: '/images/workshop.jpg',
-    date: '15 Nov 2025',
-  },
-  {
-    id: 3,
-    title: 'Photo de Famille Intégration',
-    album: 'Teambuilding 2025',
-    url: '/images/teambuilding.jpg',
-    date: '28 Sep 2025',
-  },
-];
-
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onBackToPublic,
   recruitmentOpen,
@@ -119,8 +95,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [appFilter, setAppFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'contacted'>('all');
   const [appSearch, setAppSearch] = useState('');
 
-  // Photos State
-  const [photos, setPhotos] = useState<AdminPhoto[]>(fallbackPhotos);
+  // Photos State (initialized empty — real data from Supabase/Cloudinary)
+  const [photos, setPhotos] = useState<AdminPhoto[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<string>('Tous');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -177,19 +153,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const loadPhotos = async () => {
     setLoadingPhotos(true);
     try {
-      const { images } = await galleryService.fetchImages(0, 50);
+      const { images } = await galleryService.fetchImages(0, 100);
       if (images && images.length > 0) {
         const mapped: AdminPhoto[] = images.map((img) => ({
           id: img.id,
           title: img.title || 'Photo Joker ESEN',
-          album: img.description || 'Uploads Cloudinary',
+          album: img.description || 'Général',
           url: img.display_url || img.cloudinary_url,
           date: img.created_at ? new Date(img.created_at).toLocaleDateString('fr-FR') : 'Récemment',
         }));
-        setPhotos([...mapped, ...fallbackPhotos]);
+        setPhotos(mapped);
+      } else {
+        setPhotos([]);
       }
     } catch (err) {
       console.warn('Error loading gallery photos:', err);
+      setPhotos([]);
     } finally {
       setLoadingPhotos(false);
     }
@@ -297,16 +276,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     const previousName = editingMember?.name;
 
-    let updatedList: TeamMember[];
     const memberToSave: TeamMember = {
       ...memberForm,
-      id: editingMember?.id || String(Date.now()),
+      id: editingMember?.id || memberForm.id || String(Date.now()),
       avatar: memberForm.avatar || '',
     };
 
+    let updatedList: TeamMember[];
     if (editingMember) {
       updatedList = teamMembers.map((m) =>
-        (m.id && m.id === editingMember.id) || m.name === editingMember.name
+        (editingMember.id && m.id === editingMember.id) || m.name === editingMember.name
           ? memberToSave
           : m
       );
@@ -315,9 +294,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
 
     onUpdateTeamMembers(updatedList);
-    await saveTeamMember(memberToSave, updatedList.indexOf(memberToSave), updatedList, previousName);
     setIsMemberModalOpen(false);
     setEditingMember(null);
+
+    const saved = await saveTeamMember(memberToSave, updatedList.indexOf(memberToSave), updatedList, previousName);
+    if (saved && saved.id) {
+      const refreshedList = updatedList.map(m => m.name === saved.name ? saved : m);
+      onUpdateTeamMembers(refreshedList);
+    }
     showNotification(`Membre "${memberForm.name}" enregistré avec succès !`);
   };
 
@@ -325,7 +309,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleDeleteMember = async (member: TeamMember) => {
     if (!window.confirm(`Supprimer ${member.name} du Bureau Exécutif ?`)) return;
     const updated = teamMembers.filter(
-      (m) => (m.id && m.id !== member.id) || m.name !== member.name
+      (m) => (member.id ? m.id !== member.id : true) && (member.name ? m.name !== member.name : true)
     );
     onUpdateTeamMembers(updated);
     await deleteTeamMember(member.id || '', member.name, updated);
@@ -489,11 +473,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return matchesFilter && matchesSearch;
   });
 
+  // Dynamic Albums from Photos
+  const dynamicAlbums = ['Tous', ...Array.from(new Set(photos.map((p) => p.album).filter(Boolean)))];
+
   // Filtered Photos
   const filteredPhotos =
     selectedAlbum === 'Tous'
       ? photos
-      : photos.filter((p) => p.album.toLowerCase().includes(selectedAlbum.toLowerCase()));
+      : photos.filter((p) => (p.album || '').toLowerCase() === selectedAlbum.toLowerCase());
 
   // If Not Authenticated -> Show Admin Login Form
   if (!isAuthenticated) {
@@ -1017,9 +1004,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Album Filter Tabs */}
+              {/* Album Filter Tabs (Dynamic) */}
               <div className="flex flex-wrap items-center gap-2 bg-[#1F0E18] p-3 rounded-2xl border border-[#F3C4A0]/15">
-                {['Tous', 'Carnival Night', 'Workshops', 'Teambuilding', 'Gala Masquerade'].map((album) => (
+                {dynamicAlbums.map((album) => (
                   <button
                     key={album}
                     onClick={() => setSelectedAlbum(album)}
@@ -1036,35 +1023,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {/* Photos Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {filteredPhotos.map((photo) => (
-                  <div
-                    key={photo.id}
-                    className="group relative rounded-2xl bg-[#1F0E18] border border-[#F3C4A0]/20 overflow-hidden shadow-lg flex flex-col justify-between"
-                  >
-                    <div className="relative aspect-video w-full overflow-hidden bg-black/40">
-                      <img
-                        src={photo.url}
-                        alt={photo.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <button
-                        onClick={() => handleDeletePhoto(photo.id)}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-rose-400 hover:bg-rose-600 hover:text-white transition-colors"
-                        title="Supprimer la photo"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="p-4 space-y-1">
-                      <span className="text-[10px] font-bold text-[#3B66FF] uppercase tracking-wider">
-                        {photo.album}
-                      </span>
-                      <h4 className="font-bold text-sm text-white truncate">{photo.title}</h4>
-                      <p className="text-[10px] text-[#F3C4A0]/50">{photo.date}</p>
-                    </div>
+                {loadingPhotos ? (
+                  <div className="col-span-full py-16 text-center text-[#F3C4A0]/60 space-y-2">
+                    <RefreshCw className="w-8 h-8 animate-spin text-[#3B66FF] mx-auto" />
+                    <p className="text-xs font-bold">Chargement des photos...</p>
                   </div>
-                ))}
+                ) : filteredPhotos.length === 0 ? (
+                  <div className="col-span-full py-16 text-center rounded-3xl bg-[#1F0E18]/50 border border-dashed border-[#F3C4A0]/20 space-y-3">
+                    <ImageIcon className="w-10 h-10 text-[#F3C4A0]/30 mx-auto" />
+                    <h4 className="font-bold text-white text-sm">
+                      {photos.length === 0 ? 'Aucune photo dans la galerie' : 'Aucune photo dans cet album'}
+                    </h4>
+                    <p className="text-xs text-[#F3C4A0]/50 max-w-sm mx-auto">
+                      {photos.length === 0
+                        ? 'Votre galerie est vide. Cliquez sur "Ajouter une Photo" ci-dessus pour importer des images via Cloudinary.'
+                        : 'Sélectionnez l’onglet "Tous" ou ajoutez des photos pour cet album.'}
+                    </p>
+                  </div>
+                ) : (
+                  filteredPhotos.map((photo) => (
+                    <div
+                      key={photo.id}
+                      className="group relative rounded-2xl bg-[#1F0E18] border border-[#F3C4A0]/20 overflow-hidden shadow-lg flex flex-col justify-between"
+                    >
+                      <div className="relative aspect-video w-full overflow-hidden bg-black/40">
+                        <img
+                          src={photo.url}
+                          alt={photo.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <button
+                          onClick={() => handleDeletePhoto(photo.id)}
+                          className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-rose-400 hover:bg-rose-600 hover:text-white transition-colors"
+                          title="Supprimer la photo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="p-4 space-y-1">
+                        <span className="text-[10px] font-bold text-[#3B66FF] uppercase tracking-wider">
+                          {photo.album}
+                        </span>
+                        <h4 className="font-bold text-sm text-white truncate">{photo.title}</h4>
+                        <p className="text-[10px] text-[#F3C4A0]/50">{photo.date}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
@@ -1248,11 +1254,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     className="p-5 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-4 shadow-lg flex flex-col justify-between"
                   >
                     <div className="flex items-center gap-4">
-                      <img
-                        src={member.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600'}
-                        alt={member.name}
-                        className="w-14 h-14 rounded-2xl object-cover border-2 border-[#F3C4A0]/30 shadow-md"
-                      />
+                      {member.avatar ? (
+                        <img
+                          src={member.avatar}
+                          alt={member.name}
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-[#F3C4A0]/30 shadow-md"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-2xl bg-[#11070D] border-2 border-[#F3C4A0]/30 shadow-md flex items-center justify-center text-[#F3C4A0] font-black text-lg">
+                          {member.name ? member.name.charAt(0).toUpperCase() : '?'}
+                        </div>
+                      )}
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span style={{ color: member.suitColor }} className="text-lg font-black">
@@ -1392,16 +1404,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
                   Album / Catégorie
                 </label>
-                <select
+                <input
+                  type="text"
+                  required
+                  list="album-suggestions"
                   value={newPhotoAlbum}
                   onChange={(e) => setNewPhotoAlbum(e.target.value)}
+                  placeholder="Ex: Carnival Night, Workshops, Teambuilding..."
                   className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white outline-none focus:border-[#3B66FF]"
-                >
-                  <option value="Carnival Night">Carnival Night (Soirées)</option>
-                  <option value="Workshops">Workshops (Formations)</option>
-                  <option value="Teambuilding">Teambuilding (Intégration)</option>
-                  <option value="Gala Masquerade">Gala Masquerade</option>
-                </select>
+                />
+                <datalist id="album-suggestions">
+                  <option value="Carnival Night" />
+                  <option value="Workshops" />
+                  <option value="Teambuilding" />
+                  <option value="Gala Masquerade" />
+                  {photos.map((p) => p.album).filter((a, i, arr) => a && arr.indexOf(a) === i).map((a) => (
+                    <option key={a} value={a} />
+                  ))}
+                </datalist>
               </div>
 
               {/* File Upload to Cloudinary Dropzone */}
