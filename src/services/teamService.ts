@@ -10,7 +10,7 @@ export function getCachedTeam(): TeamMember[] {
     const saved = localStorage.getItem(LOCAL_STORAGE_TEAM_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
@@ -36,61 +36,53 @@ export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
   }
 
   try {
-    // 1. Try SDK Fetch
+    // 1. Fetch from Supabase SDK
     const { data: sdkData, error: sdkError } = await supabase
       .from('team_members')
       .select('*')
       .order('order_index', { ascending: true });
 
-    if (!sdkError && sdkData && sdkData.length > 0) {
-      const teamList: TeamMember[] = sdkData.map((item: any) => {
-        // Check if cached member with same name has a custom Cloudinary avatar
-        const cachedMember = cached.find((c) => c.name.toLowerCase() === item.name.toLowerCase());
-        const hasCustomCachedAvatar = cachedMember?.avatar && cachedMember.avatar.includes('cloudinary');
-        const finalAvatar = hasCustomCachedAvatar ? cachedMember.avatar : item.avatar;
+    if (!sdkError && sdkData) {
+      if (sdkData.length === 0) {
+        // If DB table is empty and user had saved cache, sync cache to DB or return cache
+        return cached.length > 0 ? cached : [];
+      }
 
-        return {
-          id: item.id,
-          name: item.name,
-          role: item.role,
-          suit: item.suit,
-          suitColor: item.suit_color || '#F3C4A0',
-          avatar: finalAvatar,
-          socials: {
-            instagram: item.instagram || '#',
-            linkedin: item.linkedin || '#',
-          },
-        };
-      });
+      const teamList: TeamMember[] = sdkData.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        role: item.role,
+        suit: item.suit,
+        suitColor: item.suit_color || '#F3C4A0',
+        avatar: item.avatar,
+        socials: {
+          instagram: item.instagram || '#',
+          linkedin: item.linkedin || '#',
+        },
+      }));
 
       cacheTeam(teamList);
       return teamList;
     }
   } catch (err) {
-    console.warn('SDK fetch team members error, using REST fallback:', err);
+    console.warn('SDK fetch team members error, trying REST fallback:', err);
   }
 
   // 2. Fallback to REST
   const { data, error } = await supabaseDb.team.getAll();
-  if (!error && data && data.length > 0) {
-    const teamList: TeamMember[] = data.map((item) => {
-      const cachedMember = cached.find((c) => c.name.toLowerCase() === item.name.toLowerCase());
-      const hasCustomCachedAvatar = cachedMember?.avatar && cachedMember.avatar.includes('cloudinary');
-      const finalAvatar = hasCustomCachedAvatar ? cachedMember.avatar : item.avatar;
-
-      return {
-        id: item.id,
-        name: item.name,
-        role: item.role,
-        suit: item.suit,
-        suitColor: item.suit_color,
-        avatar: finalAvatar,
-        socials: {
-          instagram: item.instagram || '#',
-          linkedin: item.linkedin || '#',
-        },
-      };
-    });
+  if (!error && data) {
+    const teamList: TeamMember[] = data.map((item) => ({
+      id: item.id,
+      name: item.name,
+      role: item.role,
+      suit: item.suit,
+      suitColor: item.suit_color,
+      avatar: item.avatar,
+      socials: {
+        instagram: item.instagram || '#',
+        linkedin: item.linkedin || '#',
+      },
+    }));
 
     cacheTeam(teamList);
     return teamList;
@@ -102,7 +94,8 @@ export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
 export async function saveTeamMember(
   member: TeamMember,
   orderIndex: number = 0,
-  currentTeamList?: TeamMember[]
+  currentTeamList?: TeamMember[],
+  previousName?: string
 ): Promise<boolean> {
   // Update localStorage immediately
   let updatedList: TeamMember[];
@@ -110,7 +103,9 @@ export async function saveTeamMember(
     updatedList = currentTeamList;
   } else {
     const existing = getCachedTeam();
-    const index = existing.findIndex((m) => (m.id && m.id === member.id) || m.name === member.name);
+    const index = existing.findIndex(
+      (m) => (m.id && m.id === member.id) || (previousName && m.name === previousName) || m.name === member.name
+    );
     if (index >= 0) {
       existing[index] = member;
     } else {
@@ -136,57 +131,74 @@ export async function saveTeamMember(
   };
 
   try {
-    // 1. Check if member exists by UUID or by Name in Supabase
-    let existingRowId: string | null = null;
+    let targetRowId: string | null = null;
 
+    // 1. Find existing row by UUID
     if (isUUID) {
       const { data } = await supabase
         .from('team_members')
         .select('id')
         .eq('id', member.id)
         .maybeSingle();
-      if (data?.id) existingRowId = data.id;
+      if (data?.id) targetRowId = data.id;
     }
 
-    if (!existingRowId) {
+    // 2. If not found, find by previousName
+    if (!targetRowId && previousName) {
+      const { data } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('name', previousName)
+        .maybeSingle();
+      if (data?.id) targetRowId = data.id;
+    }
+
+    // 3. If not found, find by current name
+    if (!targetRowId) {
       const { data } = await supabase
         .from('team_members')
         .select('id')
         .eq('name', member.name)
         .maybeSingle();
-      if (data?.id) existingRowId = data.id;
+      if (data?.id) targetRowId = data.id;
     }
 
-    // 2. Perform Update or Insert
-    if (existingRowId) {
+    // 4. Update if exists, else Insert
+    if (targetRowId) {
       const { error: updateError } = await supabase
         .from('team_members')
         .update(payload)
-        .eq('id', existingRowId);
+        .eq('id', targetRowId);
 
       if (!updateError) return true;
-      console.warn('SDK update team member error:', updateError);
+      console.warn('Supabase update team member error:', updateError);
     } else {
       const { error: insertError } = await supabase
         .from('team_members')
         .insert([payload]);
 
       if (!insertError) return true;
-      console.warn('SDK insert team member error:', insertError);
+      console.warn('Supabase insert team member error:', insertError);
     }
   } catch (err) {
-    console.warn('SDK saveTeamMember exception:', err);
+    console.warn('saveTeamMember exception:', err);
   }
 
   return true;
 }
 
-export async function deleteTeamMember(id: string, memberName?: string, currentTeamList?: TeamMember[]): Promise<boolean> {
+export async function deleteTeamMember(
+  id: string,
+  memberName?: string,
+  currentTeamList?: TeamMember[]
+): Promise<boolean> {
   if (currentTeamList) {
     cacheTeam(currentTeamList);
   } else {
     const existing = getCachedTeam();
-    const filtered = existing.filter((m) => (m.id && m.id !== id) || (memberName && m.name !== memberName));
+    const filtered = existing.filter(
+      (m) => (m.id && m.id !== id) || (memberName && m.name !== memberName)
+    );
     cacheTeam(filtered);
   }
 
@@ -197,7 +209,8 @@ export async function deleteTeamMember(id: string, memberName?: string, currentT
   try {
     if (isUUID) {
       await supabase.from('team_members').delete().eq('id', id);
-    } else if (memberName) {
+    }
+    if (memberName) {
       await supabase.from('team_members').delete().eq('name', memberName);
     }
   } catch (err) {

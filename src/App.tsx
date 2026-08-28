@@ -21,7 +21,18 @@ export function App() {
   const [eventData, setEventData] = useState(() => getCachedEvent());
 
   // Dynamic Executive Team Members: Initialized immediately with local cache
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => getCachedTeam());
+  // One-time migration: clear old fake placeholder names from cache
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
+    const FAKE_DEFAULT_NAMES = ['Yasmine Ben Salem', 'Youssef Trabelsi', 'Sarra Chaabane', 'Amine Karray', 'Nour El Hoda Gharbi', 'Kahlil Ferjani'];
+    const cached = getCachedTeam();
+    const hasFakePlaceholders = cached.some((m) => FAKE_DEFAULT_NAMES.includes(m.name));
+    if (hasFakePlaceholders) {
+      // Wipe the fake cache so Supabase data (or empty) is used
+      cacheTeam([]);
+      return [];
+    }
+    return cached;
+  });
 
   // Load live data from Supabase upon initial mounting
   useEffect(() => {

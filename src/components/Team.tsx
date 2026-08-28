@@ -12,69 +12,15 @@ export interface TeamMember {
   socials: { instagram?: string; linkedin?: string };
 }
 
-export const defaultTeamMembers: TeamMember[] = [
-  {
-    id: '1',
-    name: 'Yasmine Ben Salem',
-    role: 'Présidente du Club',
-    suit: '♠',
-    suitColor: '#F3C4A0',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600&h=800',
-    socials: { instagram: '#', linkedin: '#' },
-  },
-  {
-    id: '2',
-    name: 'Youssef Trabelsi',
-    role: 'Vice-Président',
-    suit: '♥',
-    suitColor: '#B93A34',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=600&h=800',
-    socials: { instagram: '#', linkedin: '#' },
-  },
-  {
-    id: '3',
-    name: 'Sarra Chaabane',
-    role: 'Secrétaire Générale',
-    suit: '♦',
-    suitColor: '#4E4F9E',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=600&h=800',
-    socials: { instagram: '#', linkedin: '#' },
-  },
-  {
-    id: '4',
-    name: 'Amine Karray',
-    role: 'Trésorier & Logistics',
-    suit: '♣',
-    suitColor: '#F3C4A0',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=600&h=800',
-    socials: { instagram: '#', linkedin: '#' },
-  },
-  {
-    id: '5',
-    name: 'Nour El Hoda Gharbi',
-    role: 'Chef Pôle Design',
-    suit: '♦',
-    suitColor: '#A66B95',
-    avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=600&h=800',
-    socials: { instagram: '#', linkedin: '#' },
-  },
-  {
-    id: '6',
-    name: 'Kahlil Ferjani',
-    role: 'Chef Événementiel',
-    suit: '♣',
-    suitColor: '#4E4F9E',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=600&h=800',
-    socials: { instagram: '#', linkedin: '#' },
-  },
-];
+// No default placeholders — team members are managed entirely from the Admin Panel and persisted via Supabase + localStorage
+export const defaultTeamMembers: TeamMember[] = [];
 
 interface TeamProps {
   teamMembers?: TeamMember[];
 }
 
-export const Team: React.FC<TeamProps> = ({ teamMembers = defaultTeamMembers }) => {
-  const members = teamMembers.length > 0 ? teamMembers : defaultTeamMembers;
+export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
+  const members = teamMembers;
 
   const [activeIndex, setActiveIndex] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -164,35 +110,48 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = defaultTeamMembers }) 
             </p>
           </div>
 
-          {/* Right Column: Carousel Controls & Counter Pod */}
-          <div className="flex items-center gap-4 self-start md:self-end bg-white/[0.04] border border-white/10 p-2 sm:p-2.5 rounded-2xl backdrop-blur-md">
-            <div className="px-3 text-xs font-black tracking-wider text-[#F3C4A0] font-mono">
-              0{activeIndex + 1} <span className="text-white/30">/</span> 0{members.length}
-            </div>
+          {/* Right Column: Carousel Controls & Counter Pod — only shown when there are members */}
+          {members.length > 0 && (
+            <div className="flex items-center gap-4 self-start md:self-end bg-white/[0.04] border border-white/10 p-2 sm:p-2.5 rounded-2xl backdrop-blur-md">
+              <div className="px-3 text-xs font-black tracking-wider text-[#F3C4A0] font-mono">
+                0{activeIndex + 1} <span className="text-white/30">/</span> 0{members.length}
+              </div>
 
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={handlePrev}
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/10 hover:bg-[#3B66FF] text-white transition-all duration-200 flex items-center justify-center shadow-md active:scale-95"
-                title="Membre précédent"
-              >
-                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-              <button
-                onClick={handleNext}
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/10 hover:bg-[#3B66FF] text-white transition-all duration-200 flex items-center justify-center shadow-md active:scale-95"
-                title="Membre suivant"
-              >
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handlePrev}
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/10 hover:bg-[#3B66FF] text-white transition-all duration-200 flex items-center justify-center shadow-md active:scale-95"
+                  title="Membre précédent"
+                >
+                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/10 hover:bg-[#3B66FF] text-white transition-all duration-200 flex items-center justify-center shadow-md active:scale-95"
+                  title="Membre suivant"
+                >
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
       </div>
 
       {/* ── Photos Carousel Track ── */}
       <div className="max-w-7xl mx-auto">
+        {members.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+            <div className="text-5xl mb-4">♠️</div>
+            <p className="text-[#F5EDE4]/40 text-sm font-semibold uppercase tracking-widest">
+              Bureau Exécutif à configurer
+            </p>
+            <p className="text-[#F5EDE4]/25 text-xs mt-2 max-w-xs">
+              Connectez-vous au panneau d'administration pour ajouter les membres de l’équipe.
+            </p>
+          </div>
+        ) : (
         <div
           ref={trackRef}
           className="flex gap-4 sm:gap-6 overflow-x-auto px-4 sm:px-12 pt-2 sm:pt-4 pb-6 sm:pb-8 scrollbar-none scroll-smooth"
@@ -276,41 +235,44 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = defaultTeamMembers }) 
             );
           })}
         </div>
+        )}
       </div>
 
-      {/* ── Navigation Controls (Prev / Next & Dots) ── */}
-      <div className="flex items-center justify-center gap-4 mt-6">
-        <button
-          onClick={handlePrev}
-          className="w-11 h-11 rounded-full bg-[#EEF2FF] text-[#3B66FF] hover:bg-[#3B66FF] hover:text-white transition-all duration-300 shadow-md flex items-center justify-center"
-          title="Précédent"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+      {/* ── Navigation Controls (Prev / Next & Dots) — only when members exist ── */}
+      {members.length > 0 && (
+        <div className="flex items-center justify-center gap-4 mt-6">
+          <button
+            onClick={handlePrev}
+            className="w-11 h-11 rounded-full bg-[#EEF2FF] text-[#3B66FF] hover:bg-[#3B66FF] hover:text-white transition-all duration-300 shadow-md flex items-center justify-center"
+            title="Précédent"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
 
-        <div className="flex items-center gap-2">
-          {members.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => scrollTo(index)}
-              className="transition-all duration-300 rounded-full"
-              style={{
-                width: index === activeIndex ? '28px' : '8px',
-                height: '8px',
-                background: index === activeIndex ? '#3B66FF' : 'rgba(245,237,228,0.25)',
-              }}
-            />
-          ))}
+          <div className="flex items-center gap-2">
+            {members.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => scrollTo(index)}
+                className="transition-all duration-300 rounded-full"
+                style={{
+                  width: index === activeIndex ? '28px' : '8px',
+                  height: '8px',
+                  background: index === activeIndex ? '#3B66FF' : 'rgba(245,237,228,0.25)',
+                }}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={handleNext}
+            className="w-11 h-11 rounded-full bg-[#EEF2FF] text-[#3B66FF] hover:bg-[#3B66FF] hover:text-white transition-all duration-300 shadow-md flex items-center justify-center"
+            title="Suivant"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
-
-        <button
-          onClick={handleNext}
-          className="w-11 h-11 rounded-full bg-[#EEF2FF] text-[#3B66FF] hover:bg-[#3B66FF] hover:text-white transition-all duration-300 shadow-md flex items-center justify-center"
-          title="Suivant"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
+      )}
 
     </section>
   );

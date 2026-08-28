@@ -295,11 +295,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     if (!memberForm.name || !memberForm.role) return;
 
+    const previousName = editingMember?.name;
+
     let updatedList: TeamMember[];
     const memberToSave: TeamMember = {
       ...memberForm,
       id: editingMember?.id || String(Date.now()),
-      avatar: memberForm.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
+      avatar: memberForm.avatar || '',
     };
 
     if (editingMember) {
@@ -313,7 +315,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
 
     onUpdateTeamMembers(updatedList);
-    await saveTeamMember(memberToSave, updatedList.length, updatedList);
+    await saveTeamMember(memberToSave, updatedList.indexOf(memberToSave), updatedList, previousName);
     setIsMemberModalOpen(false);
     setEditingMember(null);
     showNotification(`Membre "${memberForm.name}" enregistré avec succès !`);
@@ -340,18 +342,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const res = await uploadToCloudinary(file);
       if (res?.secure_url) {
         const newAvatarUrl = res.secure_url;
+        // Update form state immediately
         setMemberForm((prev) => ({ ...prev, avatar: newAvatarUrl }));
+
         if (editingMember) {
-          const updatedMember = { ...memberForm, avatar: newAvatarUrl, id: editingMember.id || String(Date.now()) };
+          // Editing an existing member — persist immediately to Supabase + localStorage
+          const updatedMember: TeamMember = {
+            ...memberForm,
+            avatar: newAvatarUrl,
+            id: editingMember.id || String(Date.now()),
+          };
           const updatedList = teamMembers.map((m) =>
             (m.id && m.id === editingMember.id) || m.name === editingMember.name
               ? updatedMember
               : m
           );
           onUpdateTeamMembers(updatedList);
-          await saveTeamMember(updatedMember, updatedList.length, updatedList);
+          await saveTeamMember(updatedMember, updatedList.indexOf(updatedMember), updatedList, editingMember.name);
         }
-        showNotification('Photo avatar téléversée sur Cloudinary et enregistrée !');
+        showNotification('Photo avatar téléversée et enregistrée !');
       }
     } catch (err: any) {
       alert(err.message || 'Échec du téléversement sur Cloudinary.');
