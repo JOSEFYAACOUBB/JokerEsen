@@ -29,6 +29,14 @@ export function getCachedEvent() {
   return defaultEventData;
 }
 
+export function cacheEvent(event: any) {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_EVENT_KEY, JSON.stringify(event));
+  } catch (e) {
+    console.warn('Could not write cached event:', e);
+  }
+}
+
 export async function fetchActiveEvent(): Promise<EventRecord | null> {
   const cached = getCachedEvent();
 
@@ -47,7 +55,6 @@ export async function fetchActiveEvent(): Promise<EventRecord | null> {
       .maybeSingle();
 
     if (!sdkError && sdkData) {
-      // If local cache has a custom user banner (e.g. Cloudinary) and DB has default, prefer custom
       const isCustomCachedBanner = cached.bannerUrl && cached.bannerUrl.includes('cloudinary');
       const finalBanner = (isCustomCachedBanner && sdkData.banner_url === '/images/event_banner.jpg')
         ? cached.bannerUrl
@@ -63,7 +70,7 @@ export async function fetchActiveEvent(): Promise<EventRecord | null> {
         bannerUrl: finalBanner,
       };
 
-      localStorage.setItem(LOCAL_STORAGE_EVENT_KEY, JSON.stringify(merged));
+      cacheEvent(merged);
       return {
         ...sdkData,
         banner_url: finalBanner,
@@ -74,28 +81,32 @@ export async function fetchActiveEvent(): Promise<EventRecord | null> {
   }
 
   // 2. Fallback to REST
-  const { data, error } = await supabaseDb.events.getActive();
-  if (!error && data) {
-    const isCustomCachedBanner = cached.bannerUrl && cached.bannerUrl.includes('cloudinary');
-    const finalBanner = (isCustomCachedBanner && data.banner_url === '/images/event_banner.jpg')
-      ? cached.bannerUrl
-      : (data.banner_url || cached.bannerUrl || '/images/event_banner.jpg');
+  try {
+    const { data, error } = await supabaseDb.events.getActive();
+    if (!error && data) {
+      const isCustomCachedBanner = cached.bannerUrl && cached.bannerUrl.includes('cloudinary');
+      const finalBanner = (isCustomCachedBanner && data.banner_url === '/images/event_banner.jpg')
+        ? cached.bannerUrl
+        : (data.banner_url || cached.bannerUrl || '/images/event_banner.jpg');
 
-    const merged = {
-      id: data.id,
-      title: data.title || cached.title,
-      edition: data.edition || cached.edition,
-      date: data.date || cached.date,
-      location: data.location || cached.location,
-      program: data.program || cached.program,
-      bannerUrl: finalBanner,
-    };
+      const merged = {
+        id: data.id,
+        title: data.title || cached.title,
+        edition: data.edition || cached.edition,
+        date: data.date || cached.date,
+        location: data.location || cached.location,
+        program: data.program || cached.program,
+        bannerUrl: finalBanner,
+      };
 
-    localStorage.setItem(LOCAL_STORAGE_EVENT_KEY, JSON.stringify(merged));
-    return {
-      ...data,
-      banner_url: finalBanner,
-    };
+      cacheEvent(merged);
+      return {
+        ...data,
+        banner_url: finalBanner,
+      };
+    }
+  } catch (err) {
+    console.warn('REST fetch event failed:', err);
   }
 
   return cached;
@@ -113,11 +124,8 @@ export async function updateEventDetails(
   }
 ): Promise<boolean> {
   // 1. Always update local storage cache immediately
-  try {
-    localStorage.setItem(LOCAL_STORAGE_EVENT_KEY, JSON.stringify({ ...updates, id }));
-  } catch (e) {
-    console.warn('Failed to cache event to localStorage:', e);
-  }
+  const cachedMerged = { ...updates, id };
+  cacheEvent(cachedMerged);
 
   if (!isSupabaseConfigured) {
     return true;
@@ -133,10 +141,10 @@ export async function updateEventDetails(
     is_active: true,
   };
 
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const isUUID = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
   try {
-    // Check if an event exists in DB
+    // 2. Check existing event in DB
     const { data: existing } = await supabase
       .from('events')
       .select('id')
@@ -154,21 +162,34 @@ export async function updateEventDetails(
       console.warn('SDK update event failed:', error);
     } else {
       // Insert new active event
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('events')
-        .insert([payload]);
+        .insert([payload])
+        .select()
+        .maybeSingle();
 
-      if (!error) return true;
+      if (!error) {
+        if (inserted?.id) {
+          cacheEvent({ ...cachedMerged, id: inserted.id });
+        }
+        return true;
+      }
       console.warn('SDK insert event failed:', error);
     }
   } catch (err) {
     console.warn('SDK update event error, trying REST fallback:', err);
   }
 
-  // REST Fallback
-  if (isUUID) {
-    const { error } = await supabaseDb.events.update(id, payload);
-    return !error;
+  // 3. REST Fallback
+  try {
+    if (isUUID) {
+      const { error } = await supabaseDb.events.update(id, payload);
+      if (!error) return true;
+    }
+    const { error: insertError } = await supabaseDb.events.create(payload as any);
+    if (!insertError) return true;
+  } catch (restErr) {
+    console.warn('REST update event error:', restErr);
   }
 
   return true;

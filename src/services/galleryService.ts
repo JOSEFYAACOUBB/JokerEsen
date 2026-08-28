@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, supabaseDb, isSupabaseConfigured } from '../lib/supabase';
 import { uploadToCloudinary, generateCloudinaryUrl } from '../lib/cloudinary';
 import type { GalleryImage } from '../types/database';
 
@@ -190,7 +190,14 @@ export const galleryService = {
           .eq('cloudinary_public_id', imageId);
       }
     } catch (e) {
-      console.warn('Exception deleting gallery image from Supabase:', e);
+      console.warn('Exception deleting gallery image from Supabase via SDK:', e);
+    }
+
+    // REST fallback
+    try {
+      await supabaseDb.gallery.delete(imageId);
+    } catch (err) {
+      console.warn('REST delete gallery image error:', err);
     }
   },
 };

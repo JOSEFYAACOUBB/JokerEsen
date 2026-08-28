@@ -74,24 +74,43 @@ export async function updateClubSettings(settings: Partial<ClubSettings>): Promi
   };
 
   try {
-    // 1. Supabase SDK Upsert
-    const { error: sdkError } = await supabase
+    // 1. Try SDK update first
+    const { error: updateError, data: updateData } = await supabase
+      .from('club_settings')
+      .update({
+        ...settings,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 'default')
+      .select();
+
+    if (!updateError && updateData && updateData.length > 0) {
+      return true;
+    }
+
+    // 2. Try SDK upsert
+    const { error: upsertError } = await supabase
       .from('club_settings')
       .upsert(payload);
 
-    if (!sdkError) {
+    if (!upsertError) {
       return true;
     }
-    console.warn('SDK upsert settings failed, trying REST fallback:', sdkError);
+    console.warn('SDK update settings failed, trying REST fallback:', upsertError || updateError);
   } catch (err) {
-    console.warn('SDK upsert settings error:', err);
+    console.warn('SDK update settings exception:', err);
   }
 
-  // 2. REST Fallback
-  const { error } = await supabaseDb.settings.upsert(payload);
-  if (error) {
-    console.error('Failed to update club settings via REST:', error);
-    return false;
+  // 3. REST Fallback (PATCH first, then UPSERT)
+  try {
+    const { error: patchError } = await supabaseDb.settings.update(settings);
+    if (!patchError) return true;
+
+    const { error: upsertError } = await supabaseDb.settings.upsert(payload);
+    if (!upsertError) return true;
+  } catch (err) {
+    console.warn('REST update club settings error:', err);
   }
+
   return true;
 }
