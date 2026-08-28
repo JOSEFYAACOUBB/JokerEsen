@@ -83,10 +83,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Navigation state
+  // Navigation state with persistent active tab caching
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'team' | 'gallery' | 'event' | 'applications' | 'settings'
-  >('dashboard');
+  >(() => {
+    const saved = localStorage.getItem('joker_admin_active_tab');
+    if (saved && ['dashboard', 'team', 'gallery', 'event', 'applications', 'settings'].includes(saved)) {
+      return saved as any;
+    }
+    return 'dashboard';
+  });
+
+  const handleTabSelect = (tab: 'dashboard' | 'team' | 'gallery' | 'event' | 'applications' | 'settings') => {
+    setActiveTab(tab);
+    localStorage.setItem('joker_admin_active_tab', tab);
+  };
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Applications Data State
@@ -238,6 +250,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Handle Logout
   const handleLogout = () => {
     localStorage.removeItem('joker_admin_auth');
+    localStorage.removeItem('joker_view');
+    localStorage.removeItem('joker_admin_active_tab');
     setIsAuthenticated(false);
     onBackToPublic();
   };
@@ -631,7 +645,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <button
                   key={tab.id}
                   onClick={() => {
-                    setActiveTab(tab.id as any);
+                    handleTabSelect(tab.id as any);
                     setSidebarOpen(false);
                   }}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
@@ -790,7 +804,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <button
-                    onClick={() => { setActiveTab('gallery'); setIsUploadModalOpen(true); }}
+                    onClick={() => { handleTabSelect('gallery'); setIsUploadModalOpen(true); }}
                     className="p-5 rounded-2xl bg-[#B93A34]/20 border border-[#B93A34]/40 hover:bg-[#B93A34]/30 text-left transition-all space-y-2 group"
                   >
                     <Upload className="w-6 h-6 text-[#F3C4A0] group-hover:scale-110 transition-transform" />
@@ -799,7 +813,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('applications')}
+                    onClick={() => handleTabSelect('applications')}
                     className="p-5 rounded-2xl bg-[#3B66FF]/20 border border-[#3B66FF]/40 hover:bg-[#3B66FF]/30 text-left transition-all space-y-2 group"
                   >
                     <UserCheck className="w-6 h-6 text-[#93C5FD] group-hover:scale-110 transition-transform" />
@@ -808,7 +822,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('event')}
+                    onClick={() => handleTabSelect('event')}
                     className="p-5 rounded-2xl bg-[#4E4F9E]/20 border border-[#4E4F9E]/40 hover:bg-[#4E4F9E]/30 text-left transition-all space-y-2 group"
                   >
                     <Calendar className="w-6 h-6 text-[#F3C4A0] group-hover:scale-110 transition-transform" />

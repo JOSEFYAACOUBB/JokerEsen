@@ -13,7 +13,16 @@ import { fetchTeamMembers, getCachedTeam, cacheTeam } from './services/teamServi
 import { fetchClubSettings, getCachedSettings, cacheSettings } from './services/settingsService';
 
 export function App() {
-  const [currentView, setCurrentView] = useState<'public' | 'admin'>('public');
+  // Admin View State with persistent caching across refresh & hash navigation
+  const [currentView, setCurrentView] = useState<'public' | 'admin'>(() => {
+    const isAuth = localStorage.getItem('joker_admin_auth') === 'true';
+    const savedView = localStorage.getItem('joker_view');
+    if (isAuth && (window.location.hash === '#admin' || savedView === 'admin')) {
+      return 'admin';
+    }
+    return 'public';
+  });
+
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [recruitmentOpen, setRecruitmentOpen] = useState<boolean>(() => {
     const cached = getCachedSettings();
@@ -27,18 +36,43 @@ export function App() {
   const [eventData, setEventData] = useState(() => getCachedEvent());
 
   // Dynamic Executive Team Members: Initialized immediately with local cache
-  // One-time migration: clear old fake placeholder names from cache
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
     const FAKE_DEFAULT_NAMES = ['Yasmine Ben Salem', 'Youssef Trabelsi', 'Sarra Chaabane', 'Amine Karray', 'Nour El Hoda Gharbi', 'Kahlil Ferjani'];
     const cached = getCachedTeam();
     const hasFakePlaceholders = cached.some((m) => FAKE_DEFAULT_NAMES.includes(m.name));
     if (hasFakePlaceholders) {
-      // Wipe the fake cache so Supabase data (or empty) is used
       cacheTeam([]);
       return [];
     }
     return cached;
   });
+
+  const handleSetView = (view: 'public' | 'admin') => {
+    setCurrentView(view);
+    localStorage.setItem('joker_view', view);
+    if (view === 'admin') {
+      window.location.hash = '#admin';
+    } else {
+      if (window.location.hash === '#admin') {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    }
+  };
+
+  // Sync hash changes (e.g. browser back/forward buttons or direct links)
+  useEffect(() => {
+    const onHashChange = () => {
+      const isAuth = localStorage.getItem('joker_admin_auth') === 'true';
+      if (window.location.hash === '#admin' && isAuth) {
+        setCurrentView('admin');
+        localStorage.setItem('joker_view', 'admin');
+      } else if (window.location.hash !== '#admin' && localStorage.getItem('joker_view') === 'public') {
+        setCurrentView('public');
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   // Load live data from Supabase upon initial mounting
   useEffect(() => {
@@ -91,7 +125,7 @@ export function App() {
   if (currentView === 'admin') {
     return (
       <AdminDashboard
-        onBackToPublic={() => setCurrentView('public')}
+        onBackToPublic={() => handleSetView('public')}
         recruitmentOpen={recruitmentOpen}
         onToggleRecruitment={handleToggleRecruitment}
         eventData={eventData}
@@ -131,7 +165,7 @@ export function App() {
       <Footer onOpenAdmin={() => {
         const isAuth = localStorage.getItem('joker_admin_auth') === 'true';
         if (isAuth) {
-          setCurrentView('admin');
+          handleSetView('admin');
         } else {
           setIsLoginOpen(true);
         }
@@ -142,7 +176,7 @@ export function App() {
         onClose={() => setIsLoginOpen(false)}
         onLoginSuccess={(tab) => {
           if (tab === 'admin') {
-            setCurrentView('admin');
+            handleSetView('admin');
           }
         }}
       />
