@@ -113,12 +113,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [selectedAlbum, setSelectedAlbum] = useState<string>('Tous');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [newPhotoTitle, setNewPhotoTitle] = useState('');
-  const [newPhotoAlbum, setNewPhotoAlbum] = useState('Carnival Night');
+  const [newPhotoAlbum, setNewPhotoAlbum] = useState('');
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Album Modal State
+  const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
+  const [newAlbumTitle, setNewAlbumTitle] = useState('');
+  const [newAlbumCategory, setNewAlbumCategory] = useState<'Soirées' | 'Workshops' | 'Teambuilding'>('Soirées');
+  const [newAlbumCoverFile, setNewAlbumCoverFile] = useState<File | null>(null);
+  const [newAlbumCoverUrl, setNewAlbumCoverUrl] = useState('');
+  const [albumModalLoading, setAlbumModalLoading] = useState(false);
+  const [albumModalError, setAlbumModalError] = useState('');
+  const albumCoverInputRef = useRef<HTMLInputElement>(null);
 
   // Team Member Modal State
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -446,6 +456,99 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } finally {
       setUploadProgress(false);
     }
+  };
+
+  // Handle Album Create
+  const handleCreateAlbumSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAlbumModalError('');
+    if (!newAlbumTitle.trim()) {
+      setAlbumModalError('Veuillez spécifier un nom pour l\'album.');
+      return;
+    }
+
+    setAlbumModalLoading(true);
+    const albumName = newAlbumTitle.trim();
+
+    try {
+      if (newAlbumCoverFile) {
+        const newImg = await galleryService.uploadImage(newAlbumCoverFile, {
+          title: `Couverture - ${albumName}`,
+          description: albumName,
+        });
+
+        const newPhotoItem: AdminPhoto = {
+          id: newImg.id,
+          title: `Couverture - ${albumName}`,
+          album: albumName,
+          url: newImg.display_url || newImg.cloudinary_url,
+          date: 'Aujourd\'hui',
+        };
+
+        setPhotos((prev) => [newPhotoItem, ...prev]);
+      } else if (newAlbumCoverUrl) {
+        const newImg = await galleryService.addPhotoByUrl(newAlbumCoverUrl, {
+          title: `Couverture - ${albumName}`,
+          description: albumName,
+        });
+
+        const newPhotoItem: AdminPhoto = {
+          id: newImg.id,
+          title: `Couverture - ${albumName}`,
+          album: albumName,
+          url: newAlbumCoverUrl,
+          date: 'Aujourd\'hui',
+        };
+
+        setPhotos((prev) => [newPhotoItem, ...prev]);
+      } else {
+        // Create an initial placeholder item so the album exists
+        const placeholderImg = await galleryService.addPhotoByUrl('/images/event_banner.jpg', {
+          title: `Couverture - ${albumName}`,
+          description: albumName,
+        });
+
+        const newPhotoItem: AdminPhoto = {
+          id: placeholderImg.id,
+          title: `Couverture - ${albumName}`,
+          album: albumName,
+          url: '/images/event_banner.jpg',
+          date: 'Aujourd\'hui',
+        };
+
+        setPhotos((prev) => [newPhotoItem, ...prev]);
+      }
+
+      setSelectedAlbum(albumName);
+      setIsAlbumModalOpen(false);
+      setNewAlbumTitle('');
+      setNewAlbumCoverFile(null);
+      setNewAlbumCoverUrl('');
+      showNotification(`Album "${albumName}" créé avec succès ! Vous pouvez maintenant y ajouter des photos.`);
+    } catch (err: any) {
+      setAlbumModalError(err.message || 'Erreur lors de la création de l\'album.');
+    } finally {
+      setAlbumModalLoading(false);
+    }
+  };
+
+  // Handle Delete Entire Album
+  const handleDeleteAlbum = async (albumName: string) => {
+    if (!window.confirm(`Supprimer l'album "${albumName}" et TOUTES les photos qu'il contient ?`)) return;
+
+    const photosInAlbum = photos.filter((p) => (p.album || '').toLowerCase() === albumName.toLowerCase());
+    setPhotos((prev) => prev.filter((p) => (p.album || '').toLowerCase() !== albumName.toLowerCase()));
+    setSelectedAlbum('Tous');
+
+    for (const photo of photosInAlbum) {
+      try {
+        await galleryService.deleteImage(String(photo.id));
+      } catch (e) {
+        console.warn('Error deleting photo in album:', e);
+      }
+    }
+
+    showNotification(`Album "${albumName}" et ses ${photosInAlbum.length} photos supprimés.`);
   };
 
   // Handle Photo Delete
@@ -998,7 +1101,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 self-start">
+                <div className="flex items-center gap-2 self-start flex-wrap">
                   <button
                     onClick={loadPhotos}
                     disabled={loadingPhotos}
@@ -1009,7 +1112,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </button>
 
                   <button
-                    onClick={() => setIsUploadModalOpen(true)}
+                    onClick={() => setIsAlbumModalOpen(true)}
+                    className="px-4 py-2 rounded-full bg-[#4E4F9E] hover:bg-[#4E4F9E]/90 text-white text-xs font-bold flex items-center gap-1.5 shadow-md"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Créer un Album</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setNewPhotoAlbum(selectedAlbum !== 'Tous' ? selectedAlbum : (dynamicAlbums[1] || 'Carnival Night'));
+                      setIsUploadModalOpen(true);
+                    }}
                     className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90"
                   >
                     <Plus className="w-4 h-4" />
@@ -1019,20 +1133,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               {/* Album Filter Tabs (Dynamic) */}
-              <div className="flex flex-wrap items-center gap-2 bg-[#1F0E18] p-3 rounded-2xl border border-[#F3C4A0]/15">
-                {dynamicAlbums.map((album) => (
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#1F0E18] p-3 rounded-2xl border border-[#F3C4A0]/15">
+                <div className="flex flex-wrap items-center gap-2">
+                  {dynamicAlbums.map((album) => (
+                    <button
+                      key={album}
+                      onClick={() => setSelectedAlbum(album)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                        selectedAlbum === album
+                          ? 'bg-[#3B66FF] text-white'
+                          : 'bg-white/5 text-[#F3C4A0]/70 hover:text-white'
+                      }`}
+                    >
+                      {album}
+                    </button>
+                  ))}
+                </div>
+
+                {selectedAlbum !== 'Tous' && (
                   <button
-                    key={album}
-                    onClick={() => setSelectedAlbum(album)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                      selectedAlbum === album
-                        ? 'bg-[#3B66FF] text-white'
-                        : 'bg-white/5 text-[#F3C4A0]/70 hover:text-white'
-                    }`}
+                    onClick={() => handleDeleteAlbum(selectedAlbum)}
+                    className="text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-500/10 border border-rose-500/20"
+                    title="Supprimer tout l'album"
                   >
-                    {album}
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Supprimer l'Album "{selectedAlbum}"</span>
                   </button>
-                ))}
+                )}
               </div>
 
               {/* Photos Grid */}
@@ -1376,6 +1503,130 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         </div>
       </main>
+
+      {/* ══════════════════════ MODAL: CREATE ALBUM ══════════════════════ */}
+      {isAlbumModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="relative w-full max-w-lg bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black font-display uppercase text-white">
+                  Créer un Nouvel Album Photo
+                </h3>
+                <p className="text-xs text-[#F3C4A0]/70">
+                  Créez un album thématique pour regrouper les photos de vos événements.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAlbumModalOpen(false)}
+                className="p-1 text-[#F3C4A0] hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {albumModalError && (
+              <div className="p-3 rounded-xl bg-[#B93A34]/20 border border-[#B93A34]/40 text-xs text-rose-200">
+                {albumModalError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateAlbumSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                  Nom / Titre de l'Album *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newAlbumTitle}
+                  onChange={(e) => setNewAlbumTitle(e.target.value)}
+                  placeholder="Ex: Carnival Night 2026, Workshop IA & Design..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white outline-none focus:border-[#3B66FF]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                  Catégorie
+                </label>
+                <select
+                  value={newAlbumCategory}
+                  onChange={(e) => setNewAlbumCategory(e.target.value as any)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white outline-none focus:border-[#3B66FF]"
+                >
+                  <option value="Soirées">Soirées & Concerts</option>
+                  <option value="Workshops">Workshops & Formations</option>
+                  <option value="Teambuilding">Teambuilding & Intégration</option>
+                </select>
+              </div>
+
+              {/* Cover Photo Upload */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                  Photo de Couverture (Optionnelle)
+                </label>
+                <input
+                  type="file"
+                  ref={albumCoverInputRef}
+                  onChange={(e) => setNewAlbumCoverFile(e.target.files?.[0] || null)}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <div
+                  onClick={() => albumCoverInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-[#F3C4A0]/30 hover:border-[#3B66FF] rounded-2xl p-5 text-center cursor-pointer transition-colors space-y-2 bg-[#14080F]"
+                >
+                  <Upload className="w-7 h-7 text-[#3B66FF] mx-auto" />
+                  <p className="text-xs font-bold text-white">
+                    {newAlbumCoverFile ? newAlbumCoverFile.name : 'Sélectionner l\'affiche / photo de couverture'}
+                  </p>
+                  <p className="text-[10px] text-[#F3C4A0]/50">
+                    PNG, JPG ou WebP téléversé directement sur Cloudinary
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-[#F3C4A0]/70 mb-1">
+                  Ou URL d'image externe
+                </label>
+                <input
+                  type="url"
+                  value={newAlbumCoverUrl}
+                  onChange={(e) => setNewAlbumCoverUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full px-4 py-2 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#F3C4A0]/15">
+                <button
+                  type="button"
+                  onClick={() => setIsAlbumModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-[#F3C4A0]/70 hover:text-white"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={albumModalLoading}
+                  className="px-6 py-2.5 rounded-full bg-[#4E4F9E] text-white text-xs font-bold shadow-lg hover:bg-[#4E4F9E]/90 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {albumModalLoading ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Création de l'album...</span>
+                    </>
+                  ) : (
+                    <span>Créer l'Album</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════ MODAL: ADD / UPLOAD PHOTO ══════════════════════ */}
       {isUploadModalOpen && (
