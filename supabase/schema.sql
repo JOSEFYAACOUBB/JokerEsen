@@ -110,7 +110,17 @@ create table if not exists public.gallery_images (
 );
 
 -- ------------------------------------------------------------------------------
--- 6. ROW LEVEL SECURITY (RLS) POLICIES
+-- 6. GRANT TABLE PERMISSIONS TO PUBLIC ROLES
+-- ------------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated, postgres, service_role;
+grant all on table public.club_settings to anon, authenticated, postgres, service_role;
+grant all on table public.events to anon, authenticated, postgres, service_role;
+grant all on table public.team_members to anon, authenticated, postgres, service_role;
+grant all on table public.recruitment_applications to anon, authenticated, postgres, service_role;
+grant all on table public.gallery_images to anon, authenticated, postgres, service_role;
+
+-- ------------------------------------------------------------------------------
+-- 7. ROW LEVEL SECURITY (RLS) POLICIES
 -- ------------------------------------------------------------------------------
 
 -- Enable RLS on all tables
@@ -120,75 +130,114 @@ alter table public.team_members enable row level security;
 alter table public.recruitment_applications enable row level security;
 alter table public.gallery_images enable row level security;
 
--- Policies for club_settings
-create policy "Anyone can read club settings"
+-- Drop existing policies to prevent conflicts
+drop policy if exists "Anyone can read club settings" on public.club_settings;
+drop policy if exists "Authenticated users can update club settings" on public.club_settings;
+drop policy if exists "Public read club settings" on public.club_settings;
+drop policy if exists "Public update club settings" on public.club_settings;
+
+drop policy if exists "Anyone can view active events" on public.events;
+drop policy if exists "Authenticated users can insert/update/delete events" on public.events;
+drop policy if exists "Public read events" on public.events;
+drop policy if exists "Public manage events" on public.events;
+
+drop policy if exists "Anyone can view team members" on public.team_members;
+drop policy if exists "Authenticated users can manage team members" on public.team_members;
+drop policy if exists "Public read team members" on public.team_members;
+drop policy if exists "Public manage team members" on public.team_members;
+
+drop policy if exists "Anyone can submit a recruitment application" on public.recruitment_applications;
+drop policy if exists "Authenticated users can view recruitment applications" on public.recruitment_applications;
+drop policy if exists "Authenticated users can update application status" on public.recruitment_applications;
+drop policy if exists "Authenticated users can delete applications" on public.recruitment_applications;
+drop policy if exists "Public insert recruitment" on public.recruitment_applications;
+drop policy if exists "Public select recruitment" on public.recruitment_applications;
+drop policy if exists "Public update recruitment" on public.recruitment_applications;
+drop policy if exists "Public delete recruitment" on public.recruitment_applications;
+
+drop policy if exists "Anyone can read gallery" on public.gallery_images;
+drop policy if exists "Only authenticated can upload gallery images" on public.gallery_images;
+drop policy if exists "Users can delete gallery images" on public.gallery_images;
+drop policy if exists "Public read gallery" on public.gallery_images;
+drop policy if exists "Public insert gallery" on public.gallery_images;
+drop policy if exists "Public delete gallery" on public.gallery_images;
+
+-- ── Club Settings Policies ──
+create policy "Public read club settings"
   on public.club_settings for select
+  to anon, authenticated, public
   using (true);
 
-create policy "Authenticated users can update club settings"
+create policy "Public update club settings"
   on public.club_settings for update
-  to authenticated
+  to anon, authenticated, public
   using (true)
   with check (true);
 
--- Policies for events
-create policy "Anyone can view active events"
+-- ── Events Policies ──
+create policy "Public read events"
   on public.events for select
+  to anon, authenticated, public
   using (true);
 
-create policy "Authenticated users can insert/update/delete events"
+create policy "Public manage events"
   on public.events for all
-  to authenticated
+  to anon, authenticated, public
   using (true)
   with check (true);
 
--- Policies for team_members
-create policy "Anyone can view team members"
+-- ── Team Members Policies ──
+create policy "Public read team members"
   on public.team_members for select
+  to anon, authenticated, public
   using (true);
 
-create policy "Authenticated users can manage team members"
+create policy "Public manage team members"
   on public.team_members for all
-  to authenticated
+  to anon, authenticated, public
   using (true)
   with check (true);
 
--- Policies for recruitment_applications
-create policy "Anyone can submit a recruitment application"
+-- ── Recruitment Applications Policies ──
+create policy "Public insert recruitment"
   on public.recruitment_applications for insert
+  to anon, authenticated, public
   with check (true);
 
-create policy "Authenticated users can view recruitment applications"
+create policy "Public select recruitment"
   on public.recruitment_applications for select
-  to authenticated
+  to anon, authenticated, public
   using (true);
 
-create policy "Authenticated users can update application status"
+create policy "Public update recruitment"
   on public.recruitment_applications for update
-  to authenticated
+  to anon, authenticated, public
   using (true)
   with check (true);
 
-create policy "Authenticated users can delete applications"
+create policy "Public delete recruitment"
   on public.recruitment_applications for delete
-  to authenticated
+  to anon, authenticated, public
   using (true);
 
--- Policies for gallery_images
-create policy "Anyone can read gallery"
+-- ── Gallery Images Policies ──
+create policy "Public read gallery"
   on public.gallery_images for select
+  to anon, authenticated, public
   using (true);
 
-create policy "Only authenticated can upload gallery images"
+create policy "Public insert gallery"
   on public.gallery_images for insert
-  with check (auth.role() = 'authenticated' or true); -- Allows client/admin upload
+  to anon, authenticated, public
+  with check (true);
 
-create policy "Users can delete gallery images"
+create policy "Public delete gallery"
   on public.gallery_images for delete
-  using (auth.uid() = uploaded_by or auth.role() = 'authenticated' or true);
+  to anon, authenticated, public
+  using (true);
 
 -- ------------------------------------------------------------------------------
--- 7. REALTIME REPLICATION
+-- 8. REALTIME REPLICATION
 -- ------------------------------------------------------------------------------
 alter publication supabase_realtime add table public.club_settings;
 alter publication supabase_realtime add table public.events;

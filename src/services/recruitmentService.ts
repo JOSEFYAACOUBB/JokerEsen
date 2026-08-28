@@ -1,4 +1,4 @@
-import { supabaseDb, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, supabaseDb, isSupabaseConfigured } from '../lib/supabase';
 import type { RecruitmentApplication } from '../types/database';
 
 export interface SubmitApplicationData {
@@ -16,26 +16,63 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
     return { success: true };
   }
 
-  const { error } = await supabaseDb.recruitment.submit({
-    full_name: data.fullName,
-    email: data.email,
-    phone: data.phone,
-    major: data.major,
-    department: data.department,
-    motivation: data.motivation || '',
-  });
+  try {
+    // 1. Try official SDK insert (without .select() to avoid requiring SELECT permissions on anon insert)
+    const { error: sdkError } = await supabase
+      .from('recruitment_applications')
+      .insert({
+        full_name: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        major: data.major,
+        department: data.department,
+        motivation: data.motivation || '',
+        status: 'pending',
+      });
 
-  if (error) {
-    console.error('Failed to submit application to Supabase:', error);
-    return { success: false, error: error.message };
+    if (!sdkError) {
+      return { success: true };
+    }
+
+    console.warn('SDK insert failed, trying REST fallback:', sdkError);
+
+    // 2. Fallback to native REST with minimal return header
+    const { error: restError } = await supabaseDb.recruitment.submit({
+      full_name: data.fullName,
+      email: data.email,
+      phone: data.phone,
+      major: data.major,
+      department: data.department,
+      motivation: data.motivation || '',
+    });
+
+    if (restError) {
+      console.error('Failed to submit application to Supabase:', restError);
+      return { success: false, error: restError.message || sdkError.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Erreur lors de l\'envoi de la candidature' };
   }
-
-  return { success: true };
 }
 
 export async function fetchRecruitmentApplications(): Promise<RecruitmentApplication[]> {
   if (!isSupabaseConfigured) {
     return [];
+  }
+
+  try {
+    const { data: sdkData, error: sdkError } = await supabase
+      .from('recruitment_applications')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!sdkError && sdkData) {
+      return sdkData;
+    }
+  } catch (err) {
+    console.warn('SDK fetch applications failed, using REST fallback:', err);
   }
 
   const { data, error } = await supabaseDb.recruitment.getAll();
@@ -53,6 +90,17 @@ export async function updateRecruitmentStatus(
 ): Promise<boolean> {
   if (!isSupabaseConfigured) return true;
 
+  try {
+    const { error: sdkError } = await supabase
+      .from('recruitment_applications')
+      .update({ status })
+      .eq('id', id);
+
+    if (!sdkError) return true;
+  } catch (err) {
+    console.warn('SDK update status failed, using REST fallback:', err);
+  }
+
   const { error } = await supabaseDb.recruitment.updateStatus(id, status);
   if (error) {
     console.error('Failed to update status in Supabase:', error);
@@ -63,6 +111,17 @@ export async function updateRecruitmentStatus(
 
 export async function deleteRecruitmentApplication(id: string): Promise<boolean> {
   if (!isSupabaseConfigured) return true;
+
+  try {
+    const { error: sdkError } = await supabase
+      .from('recruitment_applications')
+      .delete()
+      .eq('id', id);
+
+    if (!sdkError) return true;
+  } catch (err) {
+    console.warn('SDK delete application failed, using REST fallback:', err);
+  }
 
   const { error } = await supabaseDb.recruitment.delete(id);
   if (error) {

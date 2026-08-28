@@ -24,7 +24,7 @@ export const supabase = createClient(
 );
 
 /**
- * Lightweight REST fallback client for Supabase BaaS.
+ * Lightweight REST client for Supabase BaaS.
  */
 async function supabaseFetch<T>(
   endpoint: string,
@@ -39,12 +39,13 @@ async function supabaseFetch<T>(
 
   try {
     const url = `${supabaseUrl}/rest/v1/${endpoint}`;
+    const customHeaders = (options.headers as Record<string, string>) || {};
     const headers: Record<string, string> = {
       'apikey': supabaseAnonKey,
       'Authorization': `Bearer ${supabaseAnonKey}`,
       'Content-Type': 'application/json',
       'Prefer': 'return=representation',
-      ...(options.headers as Record<string, string> || {}),
+      ...customHeaders,
     };
 
     const res = await fetch(url, {
@@ -57,7 +58,12 @@ async function supabaseFetch<T>(
       return { data: null, error: new Error(`Supabase Error (${res.status}): ${errorText}`) };
     }
 
-    const data = await res.json();
+    if (res.status === 204 || res.headers.get('content-length') === '0') {
+      return { data: null, error: null };
+    }
+
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : null;
     return { data, error: null };
   } catch (err: any) {
     return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
@@ -74,6 +80,9 @@ export const supabaseDb = {
     async submit(application: Omit<RecruitmentApplication, 'id' | 'created_at' | 'status'>) {
       return supabaseFetch<RecruitmentApplication[]>('recruitment_applications', {
         method: 'POST',
+        headers: {
+          'Prefer': 'return=minimal',
+        },
         body: JSON.stringify({
           ...application,
           status: 'pending',
