@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Hero } from './components/Hero';
 import { About } from './components/About';
 import { Team, defaultTeamMembers, type TeamMember } from './components/Team';
@@ -8,14 +8,18 @@ import { MembershipForm } from './components/MembershipForm';
 import { LoginModal } from './components/LoginModal';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { fetchActiveEvent } from './services/eventService';
+import { fetchTeamMembers } from './services/teamService';
+import { fetchClubSettings } from './services/settingsService';
 
 export function App() {
   const [currentView, setCurrentView] = useState<'public' | 'admin'>('public');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [recruitmentOpen, setRecruitmentOpen] = useState(true);
 
-  // Dynamic Event Data managed by Admin Panel
+  // Dynamic Event Data managed by Admin Panel & Supabase
   const [eventData, setEventData] = useState({
+    id: '',
     title: 'Joker Carnival Night 2026',
     edition: 'Édition Spéciale · 10ème Anniversaire',
     date: 'Samedi 26 Octobre 2026 · 20h00',
@@ -24,8 +28,45 @@ export function App() {
     bannerUrl: '/images/event_banner.jpg',
   });
 
-  // Dynamic Executive Team Members managed by Admin Panel
+  // Dynamic Executive Team Members managed by Admin Panel & Supabase
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(defaultTeamMembers);
+
+  // Load live data from Supabase upon initial mounting
+  useEffect(() => {
+    async function loadInitialData() {
+      try {
+        // 1. Settings (Recruitment Status)
+        const settings = await fetchClubSettings();
+        if (settings && typeof settings.recruitment_open === 'boolean') {
+          setRecruitmentOpen(settings.recruitment_open);
+        }
+
+        // 2. Active Event
+        const event = await fetchActiveEvent();
+        if (event) {
+          setEventData({
+            id: event.id,
+            title: event.title,
+            edition: event.edition,
+            date: event.date,
+            location: event.location,
+            program: event.program,
+            bannerUrl: event.banner_url || '/images/event_banner.jpg',
+          });
+        }
+
+        // 3. Team Members
+        const dbTeam = await fetchTeamMembers();
+        if (dbTeam && dbTeam.length > 0) {
+          setTeamMembers(dbTeam);
+        }
+      } catch (err) {
+        console.warn('Error loading initial data from Supabase:', err);
+      }
+    }
+
+    loadInitialData();
+  }, []);
 
   if (currentView === 'admin') {
     return (
@@ -67,7 +108,14 @@ export function App() {
         )}
       </main>
 
-      <Footer onOpenAdmin={() => setCurrentView('admin')} />
+      <Footer onOpenAdmin={() => {
+        const isAuth = localStorage.getItem('joker_admin_auth') === 'true';
+        if (isAuth) {
+          setCurrentView('admin');
+        } else {
+          setIsLoginOpen(true);
+        }
+      }} />
 
       <LoginModal
         isOpen={isLoginOpen}
@@ -83,4 +131,3 @@ export function App() {
 }
 
 export default App;
-

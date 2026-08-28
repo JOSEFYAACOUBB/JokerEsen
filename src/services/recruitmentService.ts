@@ -13,7 +13,6 @@ export interface SubmitApplicationData {
 export async function submitRecruitmentApplication(data: SubmitApplicationData): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured) {
     console.info('[Supabase BaaS] Running in offline demo mode. Supabase credentials not set in .env.');
-    // Simulated success for demo/offline
     return { success: true };
   }
 
@@ -46,4 +45,29 @@ export async function fetchRecruitmentApplications(): Promise<RecruitmentApplica
   }
 
   return data;
+}
+
+export async function updateRecruitmentStatus(
+  id: string,
+  status: 'pending' | 'accepted' | 'rejected' | 'contacted'
+): Promise<boolean> {
+  if (!isSupabaseConfigured) return true;
+
+  const { error } = await supabaseDb.recruitment.updateStatus(id, status);
+  if (error) {
+    console.error('Failed to update status in Supabase:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteRecruitmentApplication(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return true;
+
+  const { error } = await supabaseDb.recruitment.delete(id);
+  if (error) {
+    console.error('Failed to delete application in Supabase:', error);
+    return false;
+  }
+  return true;
 }

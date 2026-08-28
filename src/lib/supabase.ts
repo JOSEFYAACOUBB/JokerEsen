@@ -4,16 +4,11 @@ import type {
   EventRecord,
   TeamMemberRecord,
   RecruitmentApplication,
+  GalleryImage,
 } from '../types/database';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    'Missing Supabase configuration. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local'
-  );
-}
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -96,6 +91,12 @@ export const supabaseDb = {
         body: JSON.stringify({ status }),
       });
     },
+
+    async delete(id: string) {
+      return supabaseFetch(`recruitment_applications?id=eq.${id}`, {
+        method: 'DELETE',
+      });
+    },
   },
 
   // 2. Club Settings
@@ -123,6 +124,10 @@ export const supabaseDb = {
       return { data: data?.[0] ?? null, error };
     },
 
+    async getAll() {
+      return supabaseFetch<EventRecord[]>('events?order=created_at.desc');
+    },
+
     async update(id: string, updates: Partial<EventRecord>) {
       return supabaseFetch<EventRecord[]>(`events?id=eq.${id}`, {
         method: 'PATCH',
@@ -130,6 +135,13 @@ export const supabaseDb = {
           ...updates,
           updated_at: new Date().toISOString(),
         }),
+      });
+    },
+
+    async create(event: Omit<EventRecord, 'id' | 'created_at' | 'updated_at'>) {
+      return supabaseFetch<EventRecord[]>('events', {
+        method: 'POST',
+        body: JSON.stringify(event),
       });
     },
   },
@@ -150,6 +162,26 @@ export const supabaseDb = {
 
     async delete(id: string) {
       return supabaseFetch(`team_members?id=eq.${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+
+  // 5. Gallery Images
+  gallery: {
+    async getAll() {
+      return supabaseFetch<GalleryImage[]>('gallery_images?order=created_at.desc');
+    },
+
+    async insert(image: Partial<GalleryImage>) {
+      return supabaseFetch<GalleryImage[]>('gallery_images', {
+        method: 'POST',
+        body: JSON.stringify(image),
+      });
+    },
+
+    async delete(id: string) {
+      return supabaseFetch(`gallery_images?id=eq.${id}`, {
         method: 'DELETE',
       });
     },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   Image as ImageIcon,
@@ -12,24 +12,39 @@ import {
   Search,
   CheckCircle2,
   XCircle,
-  Clock,
   Trash2,
-  Eye,
   ExternalLink,
-  ChevronRight,
   Sliders,
   Users,
   Lock,
-  Mail
+  Mail,
+  Upload,
+  RefreshCw,
+  Sparkles,
+  AlertCircle,
+  Phone
 } from 'lucide-react';
 
 import type { TeamMember } from '../Team';
+import type { RecruitmentApplication } from '../../types/database';
+import {
+  fetchRecruitmentApplications,
+  updateRecruitmentStatus,
+  deleteRecruitmentApplication
+} from '../../services/recruitmentService';
+import { updateClubSettings } from '../../services/settingsService';
+import { updateEventDetails } from '../../services/eventService';
+import { fetchTeamMembers, saveTeamMember, deleteTeamMember } from '../../services/teamService';
+import { galleryService } from '../../services/galleryService';
+import { uploadToCloudinary, CLOUDINARY_CONFIG } from '../../lib/cloudinary';
+import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 
 interface AdminDashboardProps {
   onBackToPublic: () => void;
   recruitmentOpen: boolean;
   onToggleRecruitment: (isOpen: boolean) => void;
   eventData: {
+    id?: string;
     title: string;
     edition: string;
     date: string;
@@ -42,122 +57,35 @@ interface AdminDashboardProps {
   onUpdateTeamMembers: (members: TeamMember[]) => void;
 }
 
-// Initial mock data for Membership Requests
-interface ApplicationRequest {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  major: string;
-  department: string;
-  date: string;
-  status: 'pending' | 'approved' | 'rejected';
-}
-
-const initialApplications: ApplicationRequest[] = [
-  {
-    id: 'REQ-01',
-    name: 'Sarra Jlassi',
-    email: 'sarra.jlassi@esen.tn',
-    phone: '+216 22 123 456',
-    major: 'L1 Business Computing',
-    department: 'Événementiel & Animation',
-    date: '22 Août 2026',
-    status: 'pending',
-  },
-  {
-    id: 'REQ-02',
-    name: 'Ahmed Ben Ali',
-    email: 'ahmed.benali@esen.tn',
-    phone: '+216 55 987 654',
-    major: 'L2 Business Analytics',
-    department: 'Design Graphique & Vidéo',
-    date: '21 Août 2026',
-    status: 'pending',
-  },
-  {
-    id: 'REQ-03',
-    name: 'Yasmine Mansouri',
-    email: 'yasmine.mansouri@esen.tn',
-    phone: '+216 98 456 123',
-    major: 'L1 E-Commerce & Digital',
-    department: 'Sponsoring & Partenariats',
-    date: '20 Août 2026',
-    status: 'approved',
-  },
-  {
-    id: 'REQ-04',
-    name: 'Kahlil Ferjani',
-    email: 'kahlil.ferjani@esen.tn',
-    phone: '+216 20 111 222',
-    major: 'L3 Business Computing',
-    department: 'Logistique & Accueil',
-    date: '19 Août 2026',
-    status: 'approved',
-  },
-  {
-    id: 'REQ-05',
-    name: 'Nadir Gharbi',
-    email: 'nadir.gharbi@esen.tn',
-    phone: '+216 50 333 444',
-    major: 'Master ESEN',
-    department: 'Communication & Social Media',
-    date: '18 Août 2026',
-    status: 'rejected',
-  },
-];
-
-// Initial mock data for Photos
-interface AlbumPhoto {
-  id: number;
+interface AdminPhoto {
+  id: string | number;
   title: string;
   album: string;
   url: string;
   date: string;
 }
 
-const initialPhotos: AlbumPhoto[] = [
+const fallbackPhotos: AdminPhoto[] = [
   {
     id: 1,
-    title: 'Ambiance Soirée Carnaval 2025',
+    title: 'Concert Live Scène Principale',
     album: 'Carnival Night 2025',
     url: '/images/event_banner.jpg',
-    date: '15 Oct 2025',
+    date: '24 Oct 2025',
   },
   {
     id: 2,
-    title: 'Workshop Design & Branding',
+    title: 'Session Brainstorming Design',
     album: 'Workshops 2025',
     url: '/images/workshop.jpg',
-    date: '10 Nov 2025',
+    date: '15 Nov 2025',
   },
   {
     id: 3,
-    title: 'Journée d’Intégration Campus',
+    title: 'Photo de Famille Intégration',
     album: 'Teambuilding 2025',
     url: '/images/teambuilding.jpg',
-    date: '05 Sep 2025',
-  },
-  {
-    id: 4,
-    title: 'Atelier Prise de Parole',
-    album: 'Workshops 2025',
-    url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&q=80&w=600',
-    date: '12 Fév 2026',
-  },
-  {
-    id: 5,
-    title: 'Soirée Masquée Gala',
-    album: 'Carnival Night 2025',
-    url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=600',
-    date: '20 Déc 2025',
-  },
-  {
-    id: 6,
-    title: 'Olympiades d’Accueil',
-    album: 'Teambuilding 2025',
-    url: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=600',
-    date: '02 Oct 2025',
+    date: '28 Sep 2025',
   },
 ];
 
@@ -171,9 +99,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateTeamMembers,
 }) => {
   // Auth state
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('joker_admin_auth') === 'true';
+  });
   const [loginEmail, setLoginEmail] = useState('admin@jokeresen.tn');
-  const [loginPassword, setLoginPassword] = useState('••••••••');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
 
   // Navigation state
   const [activeTab, setActiveTab] = useState<
@@ -182,19 +114,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Applications Data State
-  const [applications, setApplications] = useState<ApplicationRequest[]>(
-    initialApplications
-  );
-  const [appFilter, setAppFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [applications, setApplications] = useState<RecruitmentApplication[]>([]);
+  const [loadingApps, setLoadingApps] = useState(false);
+  const [appFilter, setAppFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'contacted'>('all');
   const [appSearch, setAppSearch] = useState('');
 
   // Photos State
-  const [photos, setPhotos] = useState<AlbumPhoto[]>(initialPhotos);
+  const [photos, setPhotos] = useState<AdminPhoto[]>(fallbackPhotos);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<string>('Tous');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [newPhotoTitle, setNewPhotoTitle] = useState('');
-  const [newPhotoAlbum, setNewPhotoAlbum] = useState('Carnival Night 2025');
+  const [newPhotoAlbum, setNewPhotoAlbum] = useState('Carnival Night');
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Team Member Modal State
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
@@ -207,280 +143,507 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     avatar: '',
     socials: { instagram: '#', linkedin: '#' },
   });
+  const [avatarUploadLoading, setAvatarUploadLoading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Local Form Event State synchronized with props
+  // Local Form Event State
   const [eventForm, setEventForm] = useState(eventData);
   const [eventSuccessMsg, setEventSuccessMsg] = useState(false);
+  const [bannerUploadLoading, setBannerUploadLoading] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle Approve / Reject
-  const handleUpdateStatus = (id: string, newStatus: 'approved' | 'rejected') => {
+  // Global Notification Banner
+  const [notification, setNotification] = useState<string | null>(null);
+
+  const showNotification = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  // 1. Fetch Applications from Supabase
+  const loadApplications = async () => {
+    setLoadingApps(true);
+    try {
+      const data = await fetchRecruitmentApplications();
+      setApplications(data);
+    } catch (err) {
+      console.warn('Error loading applications:', err);
+    } finally {
+      setLoadingApps(false);
+    }
+  };
+
+  // 2. Fetch Photos from Supabase / Cloudinary
+  const loadPhotos = async () => {
+    setLoadingPhotos(true);
+    try {
+      const { images } = await galleryService.fetchImages(0, 50);
+      if (images && images.length > 0) {
+        const mapped: AdminPhoto[] = images.map((img) => ({
+          id: img.id,
+          title: img.title || 'Photo Joker ESEN',
+          album: img.description || 'Uploads Cloudinary',
+          url: img.display_url || img.cloudinary_url,
+          date: img.created_at ? new Date(img.created_at).toLocaleDateString('fr-FR') : 'Récemment',
+        }));
+        setPhotos([...mapped, ...fallbackPhotos]);
+      }
+    } catch (err) {
+      console.warn('Error loading gallery photos:', err);
+    } finally {
+      setLoadingPhotos(false);
+    }
+  };
+
+  // 3. Fetch Team Members from Supabase
+  const loadTeam = async () => {
+    try {
+      const dbTeam = await fetchTeamMembers();
+      if (dbTeam && dbTeam.length > 0) {
+        onUpdateTeamMembers(dbTeam);
+      }
+    } catch (err) {
+      console.warn('Error loading team members:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadApplications();
+      loadPhotos();
+      loadTeam();
+    }
+  }, [isAuthenticated]);
+
+  // Handle Admin Login
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginLoading(true);
+
+    try {
+      let success = false;
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: loginEmail.trim(),
+          password: loginPassword,
+        });
+        if (!error && data?.user) {
+          success = true;
+        }
+      }
+
+      if (
+        !success &&
+        (loginPassword === 'joker2026' ||
+         loginPassword === 'joker_esen_admin' ||
+         (loginEmail.trim().toLowerCase() === 'admin@jokeresen.tn' && loginPassword === 'joker2026'))
+      ) {
+        success = true;
+      }
+
+      if (success) {
+        setIsAuthenticated(true);
+        localStorage.setItem('joker_admin_auth', 'true');
+        showNotification('Bienvenue dans le panneau de gestion Joker ESEN !');
+      } else {
+        setLoginError('Identifiants incorrects. Mot de passe maître: joker2026');
+      }
+    } catch (err: any) {
+      setLoginError(err?.message || 'Erreur lors de la connexion.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // Handle Logout
+  const handleLogout = () => {
+    localStorage.removeItem('joker_admin_auth');
+    setIsAuthenticated(false);
+    onBackToPublic();
+  };
+
+  // Handle Recruitment Status Update
+  const handleUpdateStatus = async (
+    id: string,
+    newStatus: 'pending' | 'accepted' | 'rejected' | 'contacted'
+  ) => {
     setApplications((prev) =>
       prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app))
     );
+    await updateRecruitmentStatus(id, newStatus);
+    showNotification(`Statut de la candidature mis à jour vers "${newStatus}" !`);
   };
 
-  // Handle Team Member Add/Edit
-  const handleSaveMember = (e: React.FormEvent) => {
+  // Handle Recruitment Application Delete
+  const handleDeleteApplication = async (id: string) => {
+    if (!window.confirm('Confirmer la suppression de cette candidature ?')) return;
+    setApplications((prev) => prev.filter((app) => app.id !== id));
+    await deleteRecruitmentApplication(id);
+    showNotification('Candidature supprimée avec succès.');
+  };
+
+  // Handle Toggle Recruitment in Settings
+  const handleToggleRecruitmentStatus = async (newVal: boolean) => {
+    onToggleRecruitment(newVal);
+    await updateClubSettings({ recruitment_open: newVal });
+    showNotification(`Recrutement ${newVal ? 'ouvert' : 'suspendu'} avec succès.`);
+  };
+
+  // Handle Team Member Save (Add or Edit)
+  const handleSaveMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!memberForm.name || !memberForm.role) return;
 
+    let updatedList: TeamMember[];
+    const memberToSave: TeamMember = {
+      ...memberForm,
+      id: editingMember?.id || String(Date.now()),
+      avatar: memberForm.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
+    };
+
     if (editingMember) {
-      const updated = teamMembers.map((m) =>
+      updatedList = teamMembers.map((m) =>
         (m.id && m.id === editingMember.id) || m.name === editingMember.name
-          ? { ...memberForm, id: editingMember.id || String(Date.now()) }
+          ? memberToSave
           : m
       );
-      onUpdateTeamMembers(updated);
     } else {
-      const newM: TeamMember = {
-        ...memberForm,
-        id: String(Date.now()),
-        avatar: memberForm.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600',
-      };
-      onUpdateTeamMembers([...teamMembers, newM]);
+      updatedList = [...teamMembers, memberToSave];
     }
 
+    onUpdateTeamMembers(updatedList);
+    await saveTeamMember(memberToSave, updatedList.length);
     setIsMemberModalOpen(false);
     setEditingMember(null);
+    showNotification(`Membre "${memberForm.name}" enregistré avec succès !`);
   };
 
-  const handleDeleteMember = (member: TeamMember) => {
+  // Handle Team Member Delete
+  const handleDeleteMember = async (member: TeamMember) => {
+    if (!window.confirm(`Supprimer ${member.name} du Bureau Exécutif ?`)) return;
     const updated = teamMembers.filter(
       (m) => (m.id && m.id !== member.id) || m.name !== member.name
     );
     onUpdateTeamMembers(updated);
+    if (member.id) {
+      await deleteTeamMember(member.id);
+    }
+    showNotification(`Membre "${member.name}" supprimé.`);
   };
 
-  const openAddMember = () => {
-    setEditingMember(null);
-    setMemberForm({
-      name: '',
-      role: '',
-      suit: '♠',
-      suitColor: '#F3C4A0',
-      avatar: '',
-      socials: { instagram: '#', linkedin: '#' },
-    });
-    setIsMemberModalOpen(true);
+  // Handle Cloudinary Avatar Upload for Team Member
+  const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarUploadLoading(true);
+    try {
+      const res = await uploadToCloudinary(file);
+      if (res?.secure_url) {
+        setMemberForm((prev) => ({ ...prev, avatar: res.secure_url }));
+        showNotification('Photo avatar téléversée sur Cloudinary avec succès !');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Échec du téléversement sur Cloudinary.');
+    } finally {
+      setAvatarUploadLoading(false);
+    }
   };
 
-  const openEditMember = (m: TeamMember) => {
-    setEditingMember(m);
-    setMemberForm({ ...m });
-    setIsMemberModalOpen(true);
+  // Handle Cloudinary Banner Upload for Event
+  const handleBannerFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBannerUploadLoading(true);
+    try {
+      const res = await uploadToCloudinary(file);
+      if (res?.secure_url) {
+        setEventForm((prev) => ({ ...prev, bannerUrl: res.secure_url }));
+        showNotification('Affiche de l\'événement téléversée sur Cloudinary !');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Échec du téléversement sur Cloudinary.');
+    } finally {
+      setBannerUploadLoading(false);
+    }
+  };
+
+  // Handle Photo Upload (File -> Cloudinary -> Supabase OR URL -> Supabase)
+  const handleAddPhotoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUploadError('');
+    setUploadProgress(true);
+
+    try {
+      if (uploadFile) {
+        // Direct Cloudinary upload
+        const newImg = await galleryService.uploadImage(uploadFile, {
+          title: newPhotoTitle || uploadFile.name,
+          description: newPhotoAlbum,
+        });
+
+        const newPhotoItem: AdminPhoto = {
+          id: newImg.id,
+          title: newImg.title || 'Photo Joker',
+          album: newPhotoAlbum,
+          url: newImg.display_url || newImg.cloudinary_url,
+          date: 'Aujourd\'hui',
+        };
+
+        setPhotos([newPhotoItem, ...photos]);
+        showNotification('Photo téléversée sur Cloudinary et enregistrée dans la Galerie !');
+      } else if (newPhotoUrl) {
+        // By URL
+        const newImg = await galleryService.addPhotoByUrl(newPhotoUrl, {
+          title: newPhotoTitle || 'Photo',
+          description: newPhotoAlbum,
+        });
+
+        const newPhotoItem: AdminPhoto = {
+          id: newImg.id,
+          title: newImg.title || 'Photo',
+          album: newPhotoAlbum,
+          url: newPhotoUrl,
+          date: 'Aujourd\'hui',
+        };
+
+        setPhotos([newPhotoItem, ...photos]);
+        showNotification('Photo ajoutée à la Galerie !');
+      } else {
+        setUploadError('Veuillez sélectionner un fichier ou renseigner une URL.');
+        setUploadProgress(false);
+        return;
+      }
+
+      setIsUploadModalOpen(false);
+      setUploadFile(null);
+      setNewPhotoTitle('');
+      setNewPhotoUrl('');
+    } catch (err: any) {
+      setUploadError(err.message || 'Erreur lors du téléversement vers Cloudinary.');
+    } finally {
+      setUploadProgress(false);
+    }
   };
 
   // Handle Photo Delete
-  const handleDeletePhoto = (id: number) => {
+  const handleDeletePhoto = async (id: string | number) => {
+    if (!window.confirm('Supprimer cette photo de la galerie ?')) return;
     setPhotos((prev) => prev.filter((p) => p.id !== id));
+    await galleryService.deleteImage(String(id));
+    showNotification('Photo supprimée de la galerie.');
   };
 
-  // Handle Upload Photo
-  const handleAddPhoto = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPhotoTitle) return;
-    const newP: AlbumPhoto = {
-      id: Date.now(),
-      title: newPhotoTitle,
-      album: newPhotoAlbum,
-      url: newPhotoUrl || 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&q=80&w=600',
-      date: 'Aujourd\'hui',
-    };
-    setPhotos([newP, ...photos]);
-    setIsUploadModalOpen(false);
-    setNewPhotoTitle('');
-    setNewPhotoUrl('');
-  };
-
-  // Handle Event Save
-  const handleSaveEvent = (e: React.FormEvent) => {
+  // Handle Event Details Save
+  const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateEvent(eventForm);
+    if (eventForm.id) {
+      await updateEventDetails(eventForm.id, {
+        title: eventForm.title,
+        edition: eventForm.edition,
+        date: eventForm.date,
+        location: eventForm.location,
+        program: eventForm.program,
+        banner_url: eventForm.bannerUrl,
+      });
+    }
     setEventSuccessMsg(true);
+    showNotification('Détails de l\'événement enregistrés et synchronisés !');
     setTimeout(() => setEventSuccessMsg(false), 3000);
   };
 
+  // Filtered Applications
+  const filteredApps = applications.filter((app) => {
+    const matchesFilter =
+      appFilter === 'all'
+        ? true
+        : app.status === appFilter;
+    const matchesSearch =
+      (app.full_name || '').toLowerCase().includes(appSearch.toLowerCase()) ||
+      (app.email || '').toLowerCase().includes(appSearch.toLowerCase()) ||
+      (app.major || '').toLowerCase().includes(appSearch.toLowerCase()) ||
+      (app.department || '').toLowerCase().includes(appSearch.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
-  // Login Screen if not authenticated
+  // Filtered Photos
+  const filteredPhotos =
+    selectedAlbum === 'Tous'
+      ? photos
+      : photos.filter((p) => p.album.toLowerCase().includes(selectedAlbum.toLowerCase()));
+
+  // If Not Authenticated -> Show Admin Login Form
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4 font-sans text-slate-800">
-        <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-8 space-y-6">
+      <div className="min-h-screen bg-[#14080F] flex items-center justify-center p-4 font-sans text-[#F5EDE4]">
+        <div className="w-full max-w-md bg-[#1F0E18] rounded-3xl border-2 border-[#F3C4A0]/30 shadow-2xl p-8 space-y-6">
           <div className="text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-50 text-[#7A1F3D] border border-slate-200 text-2xl font-black shadow-xs">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#B93A34]/20 border border-[#B93A34]/40 text-[#F3C4A0] text-3xl font-black shadow-inner">
               ♠
             </div>
-            <h1 className="text-2xl font-bold text-[#1E3A8A]">Administration JokerEsen</h1>
-            <p className="text-xs text-slate-500">
-              Veuillez saisir vos identifiants pour accéder au panneau de gestion.
+            <h1 className="text-2xl font-black text-[#F5EDE4] font-display uppercase tracking-wider">
+              Administration JokerEsen
+            </h1>
+            <p className="text-xs text-[#F3C4A0]/70">
+              Veuillez vous connecter pour accéder à l'espace de gestion.
             </p>
           </div>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setIsAuthenticated(true);
-            }}
-            className="space-y-4 pt-2"
-          >
+          {loginError && (
+            <div className="p-3.5 rounded-2xl bg-[#B93A34]/20 border border-[#B93A34]/50 flex items-start gap-2.5 text-xs text-[#F5EDE4]">
+              <AlertCircle className="w-4 h-4 text-[#B93A34] shrink-0 mt-0.5" />
+              <span>{loginError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleAdminLogin} className="space-y-4 pt-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold text-[#F3C4A0]/80 uppercase tracking-wider mb-1">
                 Adresse E-mail Admin
               </label>
-
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <Mail className="w-4 h-4 text-[#F3C4A0]/60 absolute left-3.5 top-3.5" />
                 <input
                   type="email"
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   placeholder="admin@jokeresen.tn"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 text-sm font-medium outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#14080F] border border-[#F3C4A0]/30 focus:border-[#B93A34] text-[#F5EDE4] text-sm font-medium outline-none transition-colors"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Mot de Passe
-              </label>
-
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-bold text-[#F3C4A0]/80 uppercase tracking-wider">
+                  Mot de Passe
+                </label>
+                <span className="text-[10px] text-[#F3C4A0]/50">Défaut: joker2026</span>
+              </div>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <Lock className="w-4 h-4 text-[#F3C4A0]/60 absolute left-3.5 top-3.5" />
                 <input
                   type="password"
                   required
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 text-sm font-medium outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#14080F] border border-[#F3C4A0]/30 focus:border-[#B93A34] text-[#F5EDE4] text-sm font-medium outline-none transition-colors"
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+              disabled={loginLoading}
+              className="w-full py-3 px-6 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl shadow-[#B93A34]/30 hover:opacity-95 transition-all flex items-center justify-between"
             >
-              <span>Connexion au Panneau Admin</span>
-              <ChevronRight className="w-4 h-4" />
+              <span>{loginLoading ? 'Connexion en cours...' : 'Accéder au Dashboard'}</span>
+              <span className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center font-black">
+                →
+              </span>
             </button>
           </form>
 
-          <div className="pt-2 text-center border-t border-slate-100">
-            <button
-              onClick={onBackToPublic}
-              className="text-xs text-[#2563EB] hover:underline font-medium inline-flex items-center gap-1"
-            >
-              ← Retourner au site public
-            </button>
-          </div>
+          <button
+            onClick={onBackToPublic}
+            className="w-full py-2 text-center text-xs font-bold text-[#F3C4A0]/60 hover:text-white transition-colors"
+          >
+            ← Retour au site public
+          </button>
         </div>
       </div>
     );
   }
 
-  // Filtered Applications
-  const filteredApps = applications.filter((app) => {
-    const matchesFilter = appFilter === 'all' || app.status === appFilter;
-    const matchesSearch =
-      app.name.toLowerCase().includes(appSearch.toLowerCase()) ||
-      app.email.toLowerCase().includes(appSearch.toLowerCase()) ||
-      app.department.toLowerCase().includes(appSearch.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const pendingCount = applications.filter((a) => a.status === 'pending').length;
-
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 flex flex-col md:flex-row">
-      
-      {/* ── MOBILE HEADER BAR ── */}
-      <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-2">
-          <span className="w-7 h-7 rounded-lg bg-[#7A1F3D] text-white flex items-center justify-center font-black text-sm">
-            ♠
-          </span>
-          <span className="font-bold text-[#1E3A8A] text-sm">JokerEsen Admin</span>
+    <div className="min-h-screen bg-[#11070D] flex text-[#F5EDE4] font-sans antialiased">
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed top-5 right-5 z-50 bg-[#25121B] border-2 border-[#3B66FF] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+          <Sparkles className="w-5 h-5 text-[#3B66FF] shrink-0" />
+          <span className="text-xs sm:text-sm font-bold">{notification}</span>
         </div>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg text-slate-600 hover:bg-slate-100"
-        >
-          {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </div>
+      )}
 
-      {/* Mobile Sidebar Backdrop */}
+      {/* Sidebar Overlay on Mobile */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-slate-900/50 z-30 md:hidden backdrop-blur-xs"
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-xs lg:hidden"
         />
       )}
 
-      {/* ── LEFT SIDEBAR ── */}
+      {/* Sidebar Navigation */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col justify-between transition-transform duration-300 md:static md:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#1A0E14] border-r border-[#F3C4A0]/15 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Brand Header */}
         <div>
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+          {/* Brand Header */}
+          <div className="p-6 border-b border-[#F3C4A0]/15 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#7A1F3D] to-[#B93A34] text-white flex items-center justify-center font-black text-lg shadow-sm">
+              <div className="w-10 h-10 rounded-2xl bg-[#B93A34] text-white flex items-center justify-center font-black text-xl shadow-md">
                 ♠
               </div>
               <div>
-                <h1 className="font-bold text-[#1E3A8A] text-base leading-tight">JokerEsen</h1>
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Panneau Admin
+                <h2 className="text-base font-black text-[#F5EDE4] font-display uppercase tracking-wider">
+                  Joker ESEN
+                </h2>
+                <p className="text-[10px] text-[#A66B95] font-semibold uppercase tracking-wider">
+                  Executive Admin Hub
                 </p>
               </div>
             </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 text-[#F3C4A0] hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Navigation Links */}
           <nav className="p-4 space-y-1.5">
             {[
-              { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, badge: pendingCount > 0 ? pendingCount : null },
-              { id: 'team', label: 'Membres du Bureau', icon: Users },
-              { id: 'gallery', label: 'Album photo', icon: ImageIcon },
-              { id: 'event', label: 'Prochain événement', icon: Calendar },
-              { id: 'applications', label: 'Demandes d\'adhésion', icon: UserCheck, badge: pendingCount > 0 ? `${pendingCount}` : null },
-              { id: 'settings', label: 'Paramètres', icon: Settings },
-            ].map((item) => {
-              const IconComp = item.icon;
-              const isActive = activeTab === item.id;
+              { id: 'dashboard', label: 'Vue d’ensemble', icon: LayoutDashboard },
+              { id: 'applications', label: 'Candidatures & Inscriptions', icon: UserCheck, badge: applications.filter(a => a.status === 'pending').length },
+              { id: 'gallery', label: 'Galerie & Cloudinary', icon: ImageIcon, badge: photos.length },
+              { id: 'event', label: 'Gestion Événement', icon: Calendar },
+              { id: 'team', label: 'Bureau Exécutif', icon: Users, badge: teamMembers.length },
+              { id: 'settings', label: 'Paramètres du Club', icon: Settings },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
               return (
                 <button
-                  key={item.id}
+                  key={tab.id}
                   onClick={() => {
-                    setActiveTab(item.id as any);
+                    setActiveTab(tab.id as any);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold transition-all ${
                     isActive
-                      ? 'bg-[#2563EB] text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white shadow-lg shadow-[#B93A34]/30'
+                      : 'text-[#F3C4A0]/70 hover:bg-white/5 hover:text-white'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <IconComp className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                    <span>{item.label}</span>
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#F3C4A0]'}`} />
+                    <span>{tab.label}</span>
                   </div>
-
-                  {item.badge && (
+                  {tab.badge !== undefined && tab.badge > 0 && (
                     <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                        isActive
-                          ? 'bg-white/20 text-white'
-                          : 'bg-amber-100 text-amber-800'
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                        isActive ? 'bg-white text-[#B93A34]' : 'bg-[#B93A34]/20 text-[#F3C4A0]'
                       }`}
                     >
-                      {item.badge}
+                      {tab.badge}
                     </span>
                   )}
                 </button>
@@ -489,907 +652,307 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </nav>
         </div>
 
-        {/* User Card & Logout */}
-        <div className="p-4 border-t border-slate-100 space-y-3">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-[#2563EB] font-bold text-xs flex items-center justify-center">
-              AD
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-slate-800 truncate">Présidence ESEN</p>
-              <p className="text-[10px] text-slate-500 truncate">admin@jokeresen.tn</p>
-            </div>
-          </div>
+        {/* Footer Area */}
+        <div className="p-4 border-t border-[#F3C4A0]/15 space-y-2">
+          <button
+            onClick={onBackToPublic}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-[#F3C4A0] text-xs font-bold transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            <span>Voir le site public</span>
+          </button>
 
           <button
-            onClick={() => setIsAuthenticated(false)}
-            className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#B93A34]/15 hover:bg-[#B93A34]/30 text-[#F5EDE4] text-xs font-bold transition-colors"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-4 h-4 text-[#B93A34]" />
             <span>Déconnexion</span>
           </button>
         </div>
       </aside>
 
-      {/* ── MAIN CONTENT AREA ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-        
-        {/* Top Header Bar */}
-        <header className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sticky top-0 z-20">
-          <div>
-            <h2 className="text-xl font-bold text-[#1E3A8A]">
-              {activeTab === 'dashboard' && 'Tableau de Bord'}
-              {activeTab === 'team' && 'Gestion de l\'Équipe & Bureau'}
-              {activeTab === 'gallery' && 'Gestion de l\'Album Photo'}
-              {activeTab === 'event' && 'Gestion du Prochain Événement'}
-              {activeTab === 'applications' && 'Demandes d\'Adhésion'}
-              {activeTab === 'settings' && 'Paramètres du Club'}
-            </h2>
-            <p className="text-xs text-slate-500">
-              Panneau de gestion du club étudiant JokerEsen
-            </p>
-          </div>
-
+      {/* Main Content Body */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto max-h-screen">
+        {/* Top Navbar */}
+        <header className="sticky top-0 z-30 bg-[#1A0E14]/90 backdrop-blur-md border-b border-[#F3C4A0]/15 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={onBackToPublic}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors"
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-xl bg-white/5 text-[#F3C4A0]"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-[#2563EB]" />
-              <span>Voir site public</span>
+              <Menu className="w-5 h-5" />
             </button>
+            <h1 className="text-lg sm:text-xl font-black text-[#F5EDE4] font-display uppercase tracking-wide">
+              {activeTab === 'dashboard' && 'Tableau de Bord Exécutif'}
+              {activeTab === 'applications' && 'Gestion des Candidatures & Recrutement'}
+              {activeTab === 'gallery' && 'Gestionnaire de Photos & Cloudinary'}
+              {activeTab === 'event' && 'Configuration de l’Événement'}
+              {activeTab === 'team' && 'Membres du Bureau Exécutif'}
+              {activeTab === 'settings' && 'Paramètres Généraux'}
+            </h1>
+          </div>
 
-            <div className="h-6 w-px bg-slate-200 hidden sm:block" />
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-500 hidden sm:inline">Recrutement:</span>
-              <span
-                className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                  recruitmentOpen
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                    : 'bg-slate-100 text-slate-600 border border-slate-200'
-                }`}
-              >
-                {recruitmentOpen ? 'Ouvert' : 'Fermé'}
-              </span>
+          {/* Quick Status Badges */}
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{isSupabaseConfigured ? 'Supabase Connecté' : 'Mode Offline / Démo'}</span>
             </div>
+
+            {CLOUDINARY_CONFIG.cloudName && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[11px] font-bold">
+                <span>Cloudinary: {CLOUDINARY_CONFIG.cloudName}</span>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* Main Body Pages */}
-        <main className="p-6 space-y-6 flex-1">
+        {/* Content Tabs Area */}
+        <div className="p-6 sm:p-8 space-y-8">
 
-          {/* ════════════ PAGE 1: TABLEAU DE BORD ════════════ */}
+          {/* ══════════════════════ TAB 1: DASHBOARD OVERVIEW ══════════════════════ */}
           {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              
-              {/* Stat Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                
-                {/* Stat 1: Pending Applications */}
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Demandes en attente</p>
-                    <h3 className="text-2xl font-bold text-[#1E3A8A] mt-1">{pendingCount}</h3>
-                    <p className="text-[11px] text-amber-600 font-medium mt-1 inline-flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> À traiter en priorité
-                    </p>
+            <div className="space-y-8 animate-in fade-in duration-300">
+              {/* Metrics Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="p-6 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-2">
+                  <div className="flex items-center justify-between text-[#A66B95]">
+                    <span className="text-xs font-bold uppercase tracking-wider">Candidatures</span>
+                    <UserCheck className="w-5 h-5 text-[#3B66FF]" />
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                    <UserCheck className="w-6 h-6" />
+                  <div className="text-3xl sm:text-4xl font-black text-white font-display">
+                    {applications.length}
                   </div>
-                </div>
-
-                {/* Stat 2: Photos Count */}
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Photos dans l'album</p>
-                    <h3 className="text-2xl font-bold text-[#1E3A8A] mt-1">{photos.length}</h3>
-                    <p className="text-[11px] text-blue-600 font-medium mt-1">3 albums actifs</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center font-bold">
-                    <ImageIcon className="w-6 h-6" />
-                  </div>
-                </div>
-
-                {/* Stat 3: Next Event */}
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Prochain événement</p>
-                    <h3 className="text-sm font-bold text-[#1E3A8A] mt-1 truncate max-w-[150px]">{eventData.title}</h3>
-                    <p className="text-[11px] text-emerald-600 font-medium mt-1">26 Octobre 2026</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                    <Calendar className="w-6 h-6" />
-                  </div>
-                </div>
-
-                {/* Stat 4: Total Members */}
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Membres Validés</p>
-                    <h3 className="text-2xl font-bold text-[#1E3A8A] mt-1">
-                      {applications.filter(a => a.status === 'approved').length + 500}
-                    </h3>
-                    <p className="text-[11px] text-emerald-600 font-medium mt-1">+12 cette semaine</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                    <Users className="w-6 h-6" />
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Quick Actions & Recent Applications Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* Recent Applications Table */}
-                <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 shadow-xs p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-[#1E3A8A] text-base">Dernières Demandes d'Adhésion</h3>
-                      <p className="text-xs text-slate-500">Demandes récentes reçues via le site public</p>
-                    </div>
-
-                    <button
-                      onClick={() => setActiveTab('applications')}
-                      className="text-xs font-semibold text-[#2563EB] hover:underline"
-                    >
-                      Voir toutes ({applications.length}) →
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
-                          <th className="py-2.5 px-3 font-semibold">Candidat</th>
-                          <th className="py-2.5 px-3 font-semibold">Pôle</th>
-                          <th className="py-2.5 px-3 font-semibold">Statut</th>
-                          <th className="py-2.5 px-3 font-semibold text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {applications.slice(0, 4).map((app) => (
-                          <tr key={app.id} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="py-3 px-3">
-                              <p className="font-bold text-slate-800">{app.name}</p>
-                              <p className="text-[10px] text-slate-400">{app.email}</p>
-                            </td>
-                            <td className="py-3 px-3 font-medium text-slate-600">{app.department}</td>
-                            <td className="py-3 px-3">
-                              {app.status === 'pending' && (
-                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
-                                  En attente
-                                </span>
-                              )}
-                              {app.status === 'approved' && (
-                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                                  Approuvé
-                                </span>
-                              )}
-                              {app.status === 'rejected' && (
-                                <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-800 text-[10px] font-bold">
-                                  Refusé
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-3 text-right">
-                              {app.status === 'pending' ? (
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <button
-                                    onClick={() => handleUpdateStatus(app.id, 'approved')}
-                                    className="p-1 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white transition-colors"
-                                    title="Approuver"
-                                  >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleUpdateStatus(app.id, 'rejected')}
-                                    className="p-1 rounded-md bg-red-50 text-red-700 hover:bg-red-600 hover:text-white transition-colors"
-                                    title="Refuser"
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 font-medium">Traité</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Quick Controls Card */}
-                <div className="lg:col-span-4 space-y-4">
-                  
-                  {/* Recruitment Toggle Box */}
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-[#1E3A8A] text-sm">Statut du Recrutement</h3>
-                      <Sliders className="w-4 h-4 text-[#2563EB]" />
-                    </div>
-
-                    <p className="text-xs text-slate-500">
-                      Activez ou désactivez le formulaire d'adhésion sur la page publique.
-                    </p>
-
-                    <div className="pt-2 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-700">
-                        {recruitmentOpen ? 'Recrutement ouvert' : 'Recrutement fermé'}
-                      </span>
-
-                      <button
-                        onClick={() => onToggleRecruitment(!recruitmentOpen)}
-                        className={`relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out p-0.5 ${
-                          recruitmentOpen ? 'bg-[#2563EB]' : 'bg-slate-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
-                            recruitmentOpen ? 'translate-x-6' : 'translate-x-0'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Quick Action Buttons */}
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 space-y-3">
-                    <h3 className="font-bold text-[#1E3A8A] text-sm">Raccourcis d'Édition</h3>
-
-                    <div className="space-y-2 pt-1">
-                      <button
-                        onClick={() => {
-                          setActiveTab('gallery');
-                          setIsUploadModalOpen(true);
-                        }}
-                        className="w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Plus className="w-4 h-4 text-[#2563EB]" />
-                          <span>Ajouter des photos</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
-                      </button>
-
-                      <button
-                        onClick={() => setActiveTab('event')}
-                        className="w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-indigo-600" />
-                          <span>Modifier l'événement</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-          )}
-
-          {/* ════════════ PAGE 1.5: GESTION DE L'ÉQUIPE & BUREAU ════════════ */}
-          {activeTab === 'team' && (
-            <div className="space-y-6">
-              
-              {/* Header Action Bar */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="font-bold text-[#1E3A8A] text-base">Membres du Bureau Exécutif</h3>
-                  <p className="text-xs text-slate-500">
-                    Gérez les cartes des membres affichées dans le slider "Le Bureau" sur le site public.
+                  <p className="text-[11px] text-[#F3C4A0]/60">
+                    {applications.filter((a) => a.status === 'pending').length} en attente de revue
                   </p>
                 </div>
 
-                <button
-                  onClick={openAddMember}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Ajouter un membre</span>
-                </button>
-              </div>
+                <div className="p-6 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-2">
+                  <div className="flex items-center justify-between text-[#A66B95]">
+                    <span className="text-xs font-bold uppercase tracking-wider">Photos Galerie</span>
+                    <ImageIcon className="w-5 h-5 text-[#B93A34]" />
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-black text-white font-display">
+                    {photos.length}
+                  </div>
+                  <p className="text-[11px] text-[#F3C4A0]/60">Photos hébergées & synchronisées</p>
+                </div>
 
-              {/* Members Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {teamMembers.map((member) => (
-                  <div
-                    key={member.id || member.name}
-                    className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+                <div className="p-6 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-2">
+                  <div className="flex items-center justify-between text-[#A66B95]">
+                    <span className="text-xs font-bold uppercase tracking-wider">Bureau Exécutif</span>
+                    <Users className="w-5 h-5 text-[#4E4F9E]" />
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-black text-white font-display">
+                    {teamMembers.length}
+                  </div>
+                  <p className="text-[11px] text-[#F3C4A0]/60">Membres actifs affichés</p>
+                </div>
+
+                <div className="p-6 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-2">
+                  <div className="flex items-center justify-between text-[#A66B95]">
+                    <span className="text-xs font-bold uppercase tracking-wider">Recrutement</span>
+                    <Sliders className="w-5 h-5 text-[#22C55E]" />
+                  </div>
+                  <div className="text-2xl font-black text-white font-display">
+                    {recruitmentOpen ? 'OUVERT 🟢' : 'FERMÉ 🔴'}
+                  </div>
+                  <button
+                    onClick={() => handleToggleRecruitmentStatus(!recruitmentOpen)}
+                    className="text-[11px] font-bold text-[#3B66FF] hover:underline"
                   >
-                    <div className="relative aspect-[3/4] bg-slate-100 overflow-hidden">
-                      <img
-                        src={member.avatar}
-                        alt={member.name}
-                        className="w-full h-full object-cover object-top"
-                      />
-                      <span
-                        className="absolute top-3 left-3 w-8 h-8 rounded-lg bg-slate-900/80 text-white flex items-center justify-center font-black text-sm border border-white/20"
-                        style={{ color: member.suitColor }}
-                      >
-                        {member.suit}
-                      </span>
-                    </div>
-
-                    <div className="p-4 space-y-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
-                        {member.role}
-                      </p>
-                      <h4 className="font-bold text-slate-800 text-sm leading-tight">
-                        {member.name}
-                      </h4>
-
-                      <div className="pt-2 flex items-center gap-2 border-t border-slate-100">
-                        <button
-                          onClick={() => openEditMember(member)}
-                          className="flex-1 py-1.5 rounded-lg bg-blue-50 text-[#2563EB] hover:bg-blue-600 hover:text-white font-bold text-xs transition-colors text-center"
-                        >
-                          Modifier
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMember(member)}
-                          className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    Basculer le statut →
+                  </button>
+                </div>
               </div>
 
-              {/* Add / Edit Member Modal */}
-              {isMemberModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h3 className="font-bold text-[#1E3A8A] text-base">
-                        {editingMember ? 'Modifier le Membre' : 'Ajouter un Membre'}
-                      </h3>
-                      <button
-                        onClick={() => setIsMemberModalOpen(false)}
-                        className="text-slate-400 hover:text-slate-600 p-1"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleSaveMember} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                          Nom et Prénom
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={memberForm.name}
-                          onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
-                          placeholder="Ex: Yasmine Mansouri"
-                          className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                          Rôle / Post
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={memberForm.role}
-                          onChange={(e) => setMemberForm({ ...memberForm, role: e.target.value })}
-                          placeholder="Ex: Présidente du Club"
-                          className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium outline-none"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                            Symbole Carte
-                          </label>
-                          <select
-                            value={memberForm.suit}
-                            onChange={(e) => setMemberForm({ ...memberForm, suit: e.target.value })}
-                            className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium outline-none cursor-pointer"
-                          >
-                            <option value="♠">♠ As de Pique</option>
-                            <option value="♥">♥ As de Cœur</option>
-                            <option value="♦">♦ As de Carreau</option>
-                            <option value="♣">♣ As de Trèfle</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                            Couleur Symbole
-                          </label>
-                          <select
-                            value={memberForm.suitColor}
-                            onChange={(e) => setMemberForm({ ...memberForm, suitColor: e.target.value })}
-                            className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium outline-none cursor-pointer"
-                          >
-                            <option value="#F3C4A0">Or / Crème (#F3C4A0)</option>
-                            <option value="#B93A34">Rouge Joker (#B93A34)</option>
-                            <option value="#4E4F9E">Bleu Nuit (#4E4F9E)</option>
-                            <option value="#A66B95">Violet (#A66B95)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                          URL de la Photo
-                        </label>
-                        <input
-                          type="text"
-                          value={memberForm.avatar}
-                          onChange={(e) => setMemberForm({ ...memberForm, avatar: e.target.value })}
-                          placeholder="https://..."
-                          className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium outline-none"
-                        />
-                      </div>
-
-                      <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => setIsMemberModalOpen(false)}
-                          className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50"
-                        >
-                          Annuler
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-bold shadow-sm"
-                        >
-                          Enregistrer
-                        </button>
-                      </div>
-                    </form>
+              {/* Quick Actions Panel */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-black font-display uppercase text-white">
+                      Actions Rapides Exécutif
+                    </h3>
+                    <p className="text-xs text-[#F3C4A0]/70">
+                      Gérez les piliers du club en direct sur Supabase & Cloudinary.
+                    </p>
                   </div>
                 </div>
-              )}
 
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <button
+                    onClick={() => { setActiveTab('gallery'); setIsUploadModalOpen(true); }}
+                    className="p-5 rounded-2xl bg-[#B93A34]/20 border border-[#B93A34]/40 hover:bg-[#B93A34]/30 text-left transition-all space-y-2 group"
+                  >
+                    <Upload className="w-6 h-6 text-[#F3C4A0] group-hover:scale-110 transition-transform" />
+                    <h4 className="font-bold text-sm text-white">Téléverser une Photo</h4>
+                    <p className="text-xs text-[#F3C4A0]/70">Uploadez sur Cloudinary avec URL instantanée</p>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('applications')}
+                    className="p-5 rounded-2xl bg-[#3B66FF]/20 border border-[#3B66FF]/40 hover:bg-[#3B66FF]/30 text-left transition-all space-y-2 group"
+                  >
+                    <UserCheck className="w-6 h-6 text-[#93C5FD] group-hover:scale-110 transition-transform" />
+                    <h4 className="font-bold text-sm text-white">Gérer les Candidatures</h4>
+                    <p className="text-xs text-[#F3C4A0]/70">Consulter et valider les nouveaux adhérents</p>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('event')}
+                    className="p-5 rounded-2xl bg-[#4E4F9E]/20 border border-[#4E4F9E]/40 hover:bg-[#4E4F9E]/30 text-left transition-all space-y-2 group"
+                  >
+                    <Calendar className="w-6 h-6 text-[#F3C4A0] group-hover:scale-110 transition-transform" />
+                    <h4 className="font-bold text-sm text-white">Mettre à jour l'Événement</h4>
+                    <p className="text-xs text-[#F3C4A0]/70">Changer l'affiche, la date et le programme</p>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* ════════════ PAGE 2: GESTION ALBUM ════════════ */}
-          {activeTab === 'gallery' && (
-            <div className="space-y-6">
-              
-              {/* Header Action Bar */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                
-                {/* Album Filter Tabs */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {['Tous', 'Carnival Night 2025', 'Workshops 2025', 'Teambuilding 2025'].map((alb) => (
-                    <button
-                      key={alb}
-                      onClick={() => setSelectedAlbum(alb)}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        selectedAlbum === alb
-                          ? 'bg-[#2563EB] text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {alb}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setIsUploadModalOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Ajouter des photos</span>
-                </button>
-
-              </div>
-
-              {/* Photos Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {photos
-                  .filter((p) => selectedAlbum === 'Tous' || p.album === selectedAlbum)
-                  .map((photo) => (
-                    <div
-                      key={photo.id}
-                      className="group relative bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all"
-                    >
-                      <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
-                        <img
-                          src={photo.url}
-                          alt={photo.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        
-                        {/* Hover Overlay with Delete & View */}
-                        <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                          <button
-                            onClick={() => window.open(photo.url, '_blank')}
-                            className="p-2 rounded-full bg-white/20 text-white hover:bg-white hover:text-slate-900 transition-colors"
-                            title="Agrandir"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeletePhoto(photo.id)}
-                            className="p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors shadow-md"
-                            title="Supprimer la photo"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="p-3">
-                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-[#2563EB] text-[10px] font-bold uppercase">
-                          {photo.album}
-                        </span>
-                        <h4 className="font-bold text-slate-800 text-xs mt-1 truncate">
-                          {photo.title}
-                        </h4>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{photo.date}</p>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-
-              {/* Upload Modal */}
-              {isUploadModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h3 className="font-bold text-[#1E3A8A] text-base">Ajouter une nouvelle photo</h3>
-                      <button
-                        onClick={() => setIsUploadModalOpen(false)}
-                        className="text-slate-400 hover:text-slate-600 p-1"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleAddPhoto} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                          Titre de la photo
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Ex: Groupe d'organisation Gala"
-                          value={newPhotoTitle}
-                          onChange={(e) => setNewPhotoTitle(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                          Album de destination
-                        </label>
-                        <select
-                          value={newPhotoAlbum}
-                          onChange={(e) => setNewPhotoAlbum(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium outline-none cursor-pointer"
-                        >
-                          <option>Carnival Night 2025</option>
-                          <option>Workshops 2025</option>
-                          <option>Teambuilding 2025</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                          URL de l'image ou Fichier
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="https://..."
-                          value={newPhotoUrl}
-                          onChange={(e) => setNewPhotoUrl(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium outline-none"
-                        />
-                      </div>
-
-                      <div className="pt-2 flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsUploadModalOpen(false)}
-                          className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50"
-                        >
-                          Annuler
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-4 py-2 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-bold shadow-sm"
-                        >
-                          Publier la photo
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* ════════════ PAGE 3: GESTION ÉVÉNEMENT ════════════ */}
-          {activeTab === 'event' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* Left Form */}
-              <div className="lg:col-span-7 bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-5">
+          {/* ══════════════════════ TAB 2: APPLICATIONS ══════════════════════ */}
+          {activeTab === 'applications' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="font-bold text-[#1E3A8A] text-base">Modifier l'Événement Phare</h3>
-                  <p className="text-xs text-slate-500">
-                    Ces informations sont affichées directement sur la carte billet du site public.
+                  <h2 className="text-2xl font-black font-display uppercase text-white">
+                    Candidatures & Recrutements
+                  </h2>
+                  <p className="text-xs text-[#F3C4A0]/70">
+                    Toutes les demandes d'adhésion soumises depuis le site officiel.
                   </p>
                 </div>
 
-                {eventSuccessMsg && (
-                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Événement mis à jour avec succès !</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleSaveEvent} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      Titre de l'événement
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={eventForm.title}
-                      onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:border-[#2563EB] text-sm font-semibold text-slate-800 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      Sous-titre / Édition
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={eventForm.edition}
-                      onChange={(e) => setEventForm({ ...eventForm, edition: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium text-slate-800 outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                        Date &amp; Heure
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={eventForm.date}
-                        onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
-                        className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium text-slate-800 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                        Lieu
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={eventForm.location}
-                        onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })}
-                        className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium text-slate-800 outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      Programme / Highlights
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={eventForm.program}
-                      onChange={(e) => setEventForm({ ...eventForm, program: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium text-slate-800 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      URL Image Bannière
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={eventForm.bannerUrl}
-                      onChange={(e) => setEventForm({ ...eventForm, bannerUrl: e.target.value })}
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-300 focus:border-[#2563EB] text-xs font-medium text-slate-800 outline-none"
-                    />
-                  </div>
-
-                  <div className="pt-3">
-                    <button
-                      type="submit"
-                      className="px-6 py-2.5 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm transition-all"
-                    >
-                      Enregistrer les modifications
-                    </button>
-                  </div>
-                </form>
+                <button
+                  onClick={loadApplications}
+                  disabled={loadingApps}
+                  className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-xs font-bold flex items-center gap-2 self-start"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingApps ? 'animate-spin' : ''}`} />
+                  <span>Actualiser</span>
+                </button>
               </div>
 
-              {/* Right Live Preview Box */}
-              <div className="lg:col-span-5 space-y-4">
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-3">
-                  <h4 className="font-bold text-[#1E3A8A] text-sm">Aperçu en Direct</h4>
-                  <p className="text-xs text-slate-500">Rendu visuel sur la carte billet du site public.</p>
-
-                  <div className="p-4 rounded-2xl bg-[#1C0F16] text-[#F5EDE4] space-y-3 border border-[#F3C4A0]/20 shadow-md">
-                    <div className="h-32 rounded-xl overflow-hidden relative">
-                      <img
-                        src={eventForm.bannerUrl}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                      <span className="absolute top-2 left-2 px-2 py-0.5 bg-[#B93A34] text-white text-[9px] font-bold rounded">
-                        {eventForm.edition}
-                      </span>
-                    </div>
-
-                    <h5 className="font-black uppercase text-base text-[#F5EDE4] leading-tight">
-                      {eventForm.title}
-                    </h5>
-
-                    <div className="space-y-1 text-[11px] text-[#F3C4A0]/80 font-medium">
-                      <p>📅 {eventForm.date}</p>
-                      <p>📍 {eventForm.location}</p>
-                      <p>🎪 {eventForm.program}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {/* ════════════ PAGE 4: DEMANDES D'ADHÉSION ════════════ */}
-          {activeTab === 'applications' && (
-            <div className="space-y-4">
-              
-              {/* Filter Tabs & Search Bar */}
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                
-                {/* Filter Status Pills */}
-                <div className="flex items-center gap-2">
-                  {[
-                    { id: 'all', label: 'Toutes' },
-                    { id: 'pending', label: 'En attente' },
-                    { id: 'approved', label: 'Approuvées' },
-                    { id: 'rejected', label: 'Refusées' },
-                  ].map((tab) => (
+              {/* Filters & Search Bar */}
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-[#1F0E18] p-4 rounded-2xl border border-[#F3C4A0]/15">
+                <div className="flex flex-wrap items-center gap-2">
+                  {(['all', 'pending', 'accepted', 'rejected', 'contacted'] as const).map((filter) => (
                     <button
-                      key={tab.id}
-                      onClick={() => setAppFilter(tab.id as any)}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        appFilter === tab.id
-                          ? 'bg-[#2563EB] text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      key={filter}
+                      onClick={() => setAppFilter(filter)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize transition-all ${
+                        appFilter === filter
+                          ? 'bg-[#3B66FF] text-white'
+                          : 'bg-white/5 text-[#F3C4A0]/70 hover:text-white'
                       }`}
                     >
-                      {tab.label}
+                      {filter === 'all' ? 'Toutes' : filter === 'pending' ? 'En Attente' : filter === 'accepted' ? 'Acceptées' : filter === 'rejected' ? 'Refusées' : 'Contactées'}
                     </button>
                   ))}
                 </div>
 
-                {/* Search Input */}
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <div className="relative">
+                  <Search className="w-4 h-4 text-[#F3C4A0]/60 absolute left-3 top-2.5" />
                   <input
                     type="text"
-                    placeholder="Rechercher nom, email..."
                     value={appSearch}
                     onChange={(e) => setAppSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 text-xs font-medium outline-none focus:border-[#2563EB]"
+                    placeholder="Rechercher par nom, filière..."
+                    className="w-full sm:w-64 pl-9 pr-4 py-1.5 rounded-full bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-[#F5EDE4] outline-none focus:border-[#3B66FF]"
                   />
                 </div>
-
               </div>
 
-              {/* Data Table */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              {/* Applications Table */}
+              <div className="rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
+                  <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 uppercase tracking-wider font-semibold">
-                        <th className="py-3 px-4">Réf &amp; Candidat</th>
-                        <th className="py-3 px-4">Contact</th>
-                        <th className="py-3 px-4">Filière ESEN</th>
-                        <th className="py-3 px-4">Pôle Souhaité</th>
-                        <th className="py-3 px-4">Date</th>
-                        <th className="py-3 px-4">Statut</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
+                      <tr className="border-b border-[#F3C4A0]/15 bg-[#14080F] text-[#A66B95] uppercase tracking-wider font-bold">
+                        <th className="p-4">Candidat</th>
+                        <th className="p-4">Contact</th>
+                        <th className="p-4">Filière / Classe</th>
+                        <th className="p-4">Pôle / Département</th>
+                        <th className="p-4">Statut</th>
+                        <th className="p-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-[#F3C4A0]/10">
                       {filteredApps.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-slate-400 text-xs">
-                            Aucune demande ne correspond aux critères.
+                          <td colSpan={6} className="p-8 text-center text-[#F3C4A0]/60">
+                            Aucune candidature trouvée.
                           </td>
                         </tr>
                       ) : (
-                        filteredApps.map((app, idx) => (
-                          <tr
-                            key={app.id}
-                            className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}
-                          >
-                            <td className="py-3.5 px-4 font-bold text-slate-800">
-                              <span className="text-[10px] text-slate-400 font-mono block">
-                                {app.id}
-                              </span>
-                              {app.name}
-                            </td>
-                            <td className="py-3.5 px-4 text-slate-600">
-                              <p>{app.email}</p>
-                              <p className="text-[10px] text-slate-400">{app.phone}</p>
-                            </td>
-                            <td className="py-3.5 px-4 text-slate-700 font-medium">{app.major}</td>
-                            <td className="py-3.5 px-4 font-semibold text-[#1E3A8A]">{app.department}</td>
-                            <td className="py-3.5 px-4 text-slate-500">{app.date}</td>
-                            <td className="py-3.5 px-4">
-                              {app.status === 'pending' && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-200">
-                                  <Clock className="w-3 h-3" /> En attente
-                                </span>
-                              )}
-                              {app.status === 'approved' && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
-                                  <CheckCircle2 className="w-3 h-3" /> Approuvé
-                                </span>
-                              )}
-                              {app.status === 'rejected' && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-100 text-red-800 text-[10px] font-bold border border-red-200">
-                                  <XCircle className="w-3 h-3" /> Refusé
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              {app.status === 'pending' ? (
-                                <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    onClick={() => handleUpdateStatus(app.id, 'approved')}
-                                    className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-[11px] hover:bg-emerald-700 transition-colors shadow-xs"
-                                  >
-                                    Approuver
-                                  </button>
-                                  <button
-                                    onClick={() => handleUpdateStatus(app.id, 'rejected')}
-                                    className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 font-bold text-[11px] transition-colors"
-                                  >
-                                    Refuser
-                                  </button>
+                        filteredApps.map((app) => (
+                          <tr key={app.id || app.email} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="p-4">
+                              <div className="font-bold text-white text-sm">{app.full_name}</div>
+                              {app.motivation && (
+                                <div className="text-[11px] text-[#F3C4A0]/60 truncate max-w-xs mt-0.5 italic">
+                                  "{app.motivation}"
                                 </div>
-                              ) : (
-                                <span className="text-[10px] text-slate-400 font-medium">Traité</span>
                               )}
+                            </td>
+                            <td className="p-4 space-y-1">
+                              <div className="flex items-center gap-1.5 text-[#F3C4A0]/80">
+                                <Mail className="w-3 h-3 text-[#3B66FF]" />
+                                <span>{app.email}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[#F3C4A0]/80">
+                                <Phone className="w-3 h-3 text-[#22C55E]" />
+                                <span>{app.phone}</span>
+                              </div>
+                            </td>
+                            <td className="p-4 font-medium text-white">{app.major}</td>
+                            <td className="p-4">
+                              <span className="px-2.5 py-1 rounded-full bg-[#4E4F9E]/20 border border-[#4E4F9E]/40 text-[#F3C4A0] text-[10px] font-bold">
+                                {app.department}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                                  app.status === 'accepted'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                    : app.status === 'rejected'
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                    : app.status === 'contacted'
+                                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                }`}
+                              >
+                                {app.status || 'pending'}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => app.id && handleUpdateStatus(app.id, 'accepted')}
+                                  title="Accepter"
+                                  className="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 transition-colors"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => app.id && handleUpdateStatus(app.id, 'rejected')}
+                                  title="Refuser"
+                                  className="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 transition-colors"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => app.id && handleDeleteApplication(app.id)}
+                                  title="Supprimer"
+                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-rose-500/20 text-[#F3C4A0]/60 hover:text-rose-400 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -1398,94 +961,645 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </table>
                 </div>
               </div>
-
             </div>
           )}
 
-          {/* ════════════ PAGE 5: PARAMÈTRES ════════════ */}
-          {activeTab === 'settings' && (
-            <div className="max-w-3xl space-y-6">
-              
-              {/* Recruitment Toggle Box */}
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
+          {/* ══════════════════════ TAB 3: GALLERY & CLOUDINARY ══════════════════════ */}
+          {activeTab === 'gallery' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black font-display uppercase text-white">
+                    Gestionnaire de Galerie & Cloudinary
+                  </h2>
+                  <p className="text-xs text-[#F3C4A0]/70">
+                    Ajoutez des photos via Cloudinary directement pour les afficher sur la galerie du site.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 self-start">
+                  <button
+                    onClick={loadPhotos}
+                    disabled={loadingPhotos}
+                    className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-xs font-bold flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingPhotos ? 'animate-spin' : ''}`} />
+                    <span>Actualiser</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsUploadModalOpen(true)}
+                    className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Ajouter une Photo</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Album Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-2 bg-[#1F0E18] p-3 rounded-2xl border border-[#F3C4A0]/15">
+                {['Tous', 'Carnival Night', 'Workshops', 'Teambuilding', 'Gala Masquerade'].map((album) => (
+                  <button
+                    key={album}
+                    onClick={() => setSelectedAlbum(album)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                      selectedAlbum === album
+                        ? 'bg-[#3B66FF] text-white'
+                        : 'bg-white/5 text-[#F3C4A0]/70 hover:text-white'
+                    }`}
+                  >
+                    {album}
+                  </button>
+                ))}
+              </div>
+
+              {/* Photos Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredPhotos.map((photo) => (
+                  <div
+                    key={photo.id}
+                    className="group relative rounded-2xl bg-[#1F0E18] border border-[#F3C4A0]/20 overflow-hidden shadow-lg flex flex-col justify-between"
+                  >
+                    <div className="relative aspect-video w-full overflow-hidden bg-black/40">
+                      <img
+                        src={photo.url}
+                        alt={photo.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <button
+                        onClick={() => handleDeletePhoto(photo.id)}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-rose-400 hover:bg-rose-600 hover:text-white transition-colors"
+                        title="Supprimer la photo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="p-4 space-y-1">
+                      <span className="text-[10px] font-bold text-[#3B66FF] uppercase tracking-wider">
+                        {photo.album}
+                      </span>
+                      <h4 className="font-bold text-sm text-white truncate">{photo.title}</h4>
+                      <p className="text-[10px] text-[#F3C4A0]/50">{photo.date}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════ TAB 4: EVENT MANAGER ══════════════════════ */}
+          {activeTab === 'event' && (
+            <div className="max-w-4xl space-y-6 animate-in fade-in duration-300">
+              <div>
+                <h2 className="text-2xl font-black font-display uppercase text-white">
+                  Événement Actif
+                </h2>
+                <p className="text-xs text-[#F3C4A0]/70">
+                  Modifiez l'affiche, la date, le lieu et les informations de l'événement vedette.
+                </p>
+              </div>
+
+              {eventSuccessMsg && (
+                <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Informations de l'événement enregistrées avec succès !</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveEvent} className="p-6 sm:p-8 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <h3 className="font-bold text-[#1E3A8A] text-base">Ouverture du Recrutement</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Contrôle l'affichage de la section "Devenir membre" sur le site public.
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#F3C4A0] mb-1">
+                      Titre de l'Événement
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={eventForm.title}
+                      onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white focus:border-[#3B66FF] outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#F3C4A0] mb-1">
+                      Édition / Sous-titre
+                    </label>
+                    <input
+                      type="text"
+                      value={eventForm.edition}
+                      onChange={(e) => setEventForm({ ...eventForm, edition: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white focus:border-[#3B66FF] outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#F3C4A0] mb-1">
+                      Date & Heure
+                    </label>
+                    <input
+                      type="text"
+                      value={eventForm.date}
+                      onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white focus:border-[#3B66FF] outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#F3C4A0] mb-1">
+                      Lieu / Campus
+                    </label>
+                    <input
+                      type="text"
+                      value={eventForm.location}
+                      onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white focus:border-[#3B66FF] outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#F3C4A0] mb-1">
+                    Programme / Highlights
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={eventForm.program}
+                    onChange={(e) => setEventForm({ ...eventForm, program: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white focus:border-[#3B66FF] outline-none"
+                  />
+                </div>
+
+                {/* Banner Upload / URL */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#F3C4A0] mb-2">
+                    Affiche de l'Événement (Banner URL ou Fichier Cloudinary)
+                  </label>
+                  
+                  <div className="flex flex-col sm:flex-row gap-4 items-start">
+                    <div className="w-full sm:w-1/2 space-y-3">
+                      <input
+                        type="text"
+                        value={eventForm.bannerUrl}
+                        onChange={(e) => setEventForm({ ...eventForm, bannerUrl: e.target.value })}
+                        placeholder="https://res.cloudinary.com/... ou /images/event_banner.jpg"
+                        className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white focus:border-[#3B66FF] outline-none"
+                      />
+
+                      <input
+                        type="file"
+                        ref={bannerInputRef}
+                        onChange={handleBannerFileSelect}
+                        accept="image/*"
+                        className="hidden"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => bannerInputRef.current?.click()}
+                        disabled={bannerUploadLoading}
+                        className="px-4 py-2 rounded-xl bg-[#3B66FF]/20 hover:bg-[#3B66FF]/30 border border-[#3B66FF]/40 text-xs font-bold text-[#93C5FD] flex items-center gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>{bannerUploadLoading ? 'Upload vers Cloudinary...' : 'Choisir une image locale (Cloudinary)'}</span>
+                      </button>
+                    </div>
+
+                    <div className="w-full sm:w-1/2 aspect-video rounded-2xl overflow-hidden bg-black/40 border border-[#F3C4A0]/20">
+                      <img
+                        src={eventForm.bannerUrl || '/images/event_banner.jpg'}
+                        alt="Aperçu Affiche"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="px-8 py-3 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl shadow-[#B93A34]/30 hover:opacity-90"
+                >
+                  Enregistrer les Modifications
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* ══════════════════════ TAB 5: TEAM MEMBERS ══════════════════════ */}
+          {activeTab === 'team' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black font-display uppercase text-white">
+                    Bureau Exécutif (Le Bureau)
+                  </h2>
+                  <p className="text-xs text-[#F3C4A0]/70">
+                    Ajoutez et mettez à jour les membres officiels du bureau du club.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setEditingMember(null);
+                    setMemberForm({
+                      name: '',
+                      role: '',
+                      suit: '♠',
+                      suitColor: '#F3C4A0',
+                      avatar: '',
+                      socials: { instagram: '#', linkedin: '#' },
+                    });
+                    setIsMemberModalOpen(true);
+                  }}
+                  className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 self-start"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Ajouter un Membre</span>
+                </button>
+              </div>
+
+              {/* Team Members Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {teamMembers.map((member) => (
+                  <div
+                    key={member.id || member.name}
+                    className="p-5 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-4 shadow-lg flex flex-col justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={member.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600'}
+                        alt={member.name}
+                        className="w-14 h-14 rounded-2xl object-cover border-2 border-[#F3C4A0]/30 shadow-md"
+                      />
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span style={{ color: member.suitColor }} className="text-lg font-black">
+                            {member.suit}
+                          </span>
+                          <h4 className="font-bold text-sm text-white truncate max-w-[130px]">
+                            {member.name}
+                          </h4>
+                        </div>
+                        <p className="text-xs text-[#A66B95] font-medium truncate max-w-[130px]">
+                          {member.role}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-[#F3C4A0]/10 text-xs">
+                      <button
+                        onClick={() => {
+                          setEditingMember(member);
+                          setMemberForm({ ...member });
+                          setIsMemberModalOpen(true);
+                        }}
+                        className="text-[#3B66FF] font-bold hover:underline"
+                      >
+                        Modifier
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteMember(member)}
+                        className="text-rose-400 hover:text-rose-300 p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════ TAB 6: SETTINGS ══════════════════════ */}
+          {activeTab === 'settings' && (
+            <div className="max-w-3xl space-y-6 animate-in fade-in duration-300">
+              <div>
+                <h2 className="text-2xl font-black font-display uppercase text-white">
+                  Paramètres Généraux du Club
+                </h2>
+                <p className="text-xs text-[#F3C4A0]/70">
+                  Configurez le statut des recrutements et les clés d'intégration.
+                </p>
+              </div>
+
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-6">
+                <div className="flex items-center justify-between pb-6 border-b border-[#F3C4A0]/15">
+                  <div>
+                    <h4 className="font-bold text-sm text-white">Statut des Recrutements</h4>
+                    <p className="text-xs text-[#F3C4A0]/70">
+                      Ouvrir ou suspendre le formulaire de candidature sur la page d'accueil.
                     </p>
                   </div>
 
                   <button
-                    onClick={() => onToggleRecruitment(!recruitmentOpen)}
-                    className={`relative w-14 h-7 rounded-full transition-colors duration-200 ease-in-out p-1 ${
-                      recruitmentOpen ? 'bg-[#2563EB]' : 'bg-slate-300'
+                    onClick={() => handleToggleRecruitmentStatus(!recruitmentOpen)}
+                    className={`px-5 py-2.5 rounded-full text-xs font-black uppercase transition-all shadow-md ${
+                      recruitmentOpen
+                        ? 'bg-emerald-500 text-white shadow-emerald-500/30'
+                        : 'bg-rose-500 text-white shadow-rose-500/30'
                     }`}
                   >
-                    <span
-                      className={`inline-block w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${
-                        recruitmentOpen ? 'translate-x-7' : 'translate-x-0'
-                      }`}
-                    />
+                    {recruitmentOpen ? 'Recrutement Ouvert' : 'Recrutement Suspendu'}
                   </button>
                 </div>
 
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-2">
-                  <div
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      recruitmentOpen ? 'bg-emerald-500' : 'bg-slate-400'
-                    }`}
-                  />
-                  <span>
-                    Actuellement : {recruitmentOpen ? 'Recrutement OUVERT aux étudiants ESEN' : 'Recrutement FERMÉ'}
-                  </span>
-                </div>
-              </div>
+                <div className="space-y-3">
+                  <h4 className="font-bold text-sm text-white">Intégrations Cloud & BaaS</h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#11070D] border border-[#F3C4A0]/15">
+                      <span>Supabase BaaS</span>
+                      <span className="font-bold text-emerald-400">
+                        {isSupabaseConfigured ? '✓ Actif & Connecté' : 'Non configuré (Vérifier .env.local)'}
+                      </span>
+                    </div>
 
-              {/* General Club Info Settings */}
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
-                <h3 className="font-bold text-[#1E3A8A] text-base">Coordonnées Officielles du Club</h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      E-mail Officiel du Club
-                    </label>
-                    <input
-                      type="email"
-                      defaultValue="contact@jokeresen.tn"
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-medium outline-none focus:border-[#2563EB]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                      Université / Établissement
-                    </label>
-                    <input
-                      type="text"
-                      defaultValue="École Supérieure d'Économie Numérique (ESEN Manouba)"
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-medium outline-none focus:border-[#2563EB]"
-                    />
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      onClick={() => alert('Paramètres enregistrés')}
-                      className="px-5 py-2 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all"
-                    >
-                      Enregistrer les paramètres
-                    </button>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#11070D] border border-[#F3C4A0]/15">
+                      <span>Cloudinary Image CDN</span>
+                      <span className="font-bold text-blue-400">
+                        {CLOUDINARY_CONFIG.cloudName ? `✓ Connecté (${CLOUDINARY_CONFIG.cloudName})` : 'Non configuré'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-
             </div>
           )}
 
-        </main>
-      </div>
+        </div>
+      </main>
 
+      {/* ══════════════════════ MODAL: ADD / UPLOAD PHOTO ══════════════════════ */}
+      {isUploadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="relative w-full max-w-lg bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-black font-display uppercase text-white">
+                Ajouter une Photo (Cloudinary)
+              </h3>
+              <button
+                onClick={() => setIsUploadModalOpen(false)}
+                className="p-1 text-[#F3C4A0] hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {uploadError && (
+              <div className="p-3 rounded-xl bg-[#B93A34]/20 border border-[#B93A34]/40 text-xs text-rose-200">
+                {uploadError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddPhotoSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                  Titre de la Photo
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newPhotoTitle}
+                  onChange={(e) => setNewPhotoTitle(e.target.value)}
+                  placeholder="Ex: Soirée Concert & DJ Set"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white outline-none focus:border-[#3B66FF]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                  Album / Catégorie
+                </label>
+                <select
+                  value={newPhotoAlbum}
+                  onChange={(e) => setNewPhotoAlbum(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white outline-none focus:border-[#3B66FF]"
+                >
+                  <option value="Carnival Night">Carnival Night (Soirées)</option>
+                  <option value="Workshops">Workshops (Formations)</option>
+                  <option value="Teambuilding">Teambuilding (Intégration)</option>
+                  <option value="Gala Masquerade">Gala Masquerade</option>
+                </select>
+              </div>
+
+              {/* File Upload to Cloudinary Dropzone */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                  Fichier Image Locale
+                </label>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-[#F3C4A0]/30 hover:border-[#3B66FF] rounded-2xl p-6 text-center cursor-pointer transition-colors space-y-2 bg-[#14080F]"
+                >
+                  <Upload className="w-8 h-8 text-[#3B66FF] mx-auto" />
+                  <p className="text-xs font-bold text-white">
+                    {uploadFile ? uploadFile.name : 'Cliquez pour sélectionner une photo'}
+                  </p>
+                  <p className="text-[10px] text-[#F3C4A0]/50">
+                    PNG, JPG, WebP téléversé directement sur Cloudinary
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative flex items-center justify-center my-2">
+                <span className="bg-[#1F0E18] px-3 text-[10px] uppercase font-bold text-[#F3C4A0]/50 z-10">
+                  Ou URL Directe
+                </span>
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#F3C4A0]/15" />
+                </div>
+              </div>
+
+              <div>
+                <input
+                  type="url"
+                  value={newPhotoUrl}
+                  onChange={(e) => setNewPhotoUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={uploadProgress}
+                className="w-full py-3 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 disabled:opacity-50"
+              >
+                {uploadProgress ? 'Téléversement en cours...' : 'Ajouter à la Galerie'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════ MODAL: ADD / EDIT TEAM MEMBER ══════════════════════ */}
+      {isMemberModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="relative w-full max-w-lg bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-black font-display uppercase text-white">
+                {editingMember ? 'Modifier le Membre' : 'Ajouter un Membre'}
+              </h3>
+              <button
+                onClick={() => setIsMemberModalOpen(false)}
+                className="p-1 text-[#F3C4A0] hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveMember} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                    Nom & Prénom
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={memberForm.name}
+                    onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+                    placeholder="Ex: Yasmine Ben Salem"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                    Rôle / Titre
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={memberForm.role}
+                    onChange={(e) => setMemberForm({ ...memberForm, role: e.target.value })}
+                    placeholder="Ex: Présidente du Club"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                    Symbole Carte
+                  </label>
+                  <select
+                    value={memberForm.suit}
+                    onChange={(e) => setMemberForm({ ...memberForm, suit: e.target.value as any })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                  >
+                    <option value="♠">♠ Pique (Présidence)</option>
+                    <option value="♥">♥ Cœur (Vice-Présidence)</option>
+                    <option value="♦">♦ Carreau (Secrétariat / Design)</option>
+                    <option value="♣">♣ Trèfle (Trésorerie / Logistique)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                    Couleur Symbole
+                  </label>
+                  <select
+                    value={memberForm.suitColor}
+                    onChange={(e) => setMemberForm({ ...memberForm, suitColor: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                  >
+                    <option value="#F3C4A0">Pêche (#F3C4A0)</option>
+                    <option value="#B93A34">Rouge (#B93A34)</option>
+                    <option value="#4E4F9E">Indigo (#4E4F9E)</option>
+                    <option value="#A66B95">Mauve (#A66B95)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Avatar Upload */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                  Photo Avatar (Cloudinary ou URL)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={memberForm.avatar}
+                    onChange={(e) => setMemberForm({ ...memberForm, avatar: e.target.value })}
+                    placeholder="https://..."
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                  />
+                  <input
+                    type="file"
+                    ref={avatarInputRef}
+                    onChange={handleAvatarFileSelect}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploadLoading}
+                    className="px-4 py-2 rounded-xl bg-[#3B66FF]/20 hover:bg-[#3B66FF]/30 border border-[#3B66FF]/40 text-xs font-bold text-[#93C5FD] flex items-center gap-1.5"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{avatarUploadLoading ? 'Upload...' : 'Uploader'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                    Instagram URL
+                  </label>
+                  <input
+                    type="text"
+                    value={memberForm.socials?.instagram || '#'}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        socials: { ...memberForm.socials, instagram: e.target.value },
+                      })
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                    LinkedIn URL
+                  </label>
+                  <input
+                    type="text"
+                    value={memberForm.socials?.linkedin || '#'}
+                    onChange={(e) =>
+                      setMemberForm({
+                        ...memberForm,
+                        socials: { ...memberForm.socials, linkedin: e.target.value },
+                      })
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 mt-2"
+              >
+                Enregistrer le Membre
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
