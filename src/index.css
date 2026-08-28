@@ -1,0 +1,135 @@
+@import url('https://fonts.cdnfonts.com/css/groste');
+@import url('https://fonts.cdnfonts.com/css/lemon-tea');
+@import url('https://fonts.cdnfonts.com/css/fluctuation');
+@import url('https://fonts.cdnfonts.com/css/utendo');
+@import url('https://fonts.cdnfonts.com/css/kg-red-hands');
+@import url('https://fonts.cdnfonts.com/css/sunny-spells');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-dark: #1A0E14;
+    --bg-dark-secondary: #2B1420;
+    --text-light: #F5EDE4;
+    --rouge-vif: #B93A34;
+    --bordeaux: #7A1F3D;
+    --indigo: #4E4F9E;
+    --mauve: #A66B95;
+    --peche: #F3C4A0;
+  }
+
+  body {
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  h1, h2, h3, .font-display, .font-normal-text {
+    font-family: 'Plus Jakarta Sans', 'Bebas Neue', sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  p, .font-description, .font-desc, .font-fluctuation, .font-kgredhands {
+    font-family: 'Fluctuation', 'KG Red Hands', 'Chalkboard SE', 'Comic Sans MS', cursive, sans-serif;
+  }
+
+  button, a.btn, a.button, a[href="#join"], .cta-button, .font-button, .font-btn {
+    font-family: 'Plus Jakarta Sans', 'Groste', sans-serif !important;
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+    line-height: 1.2 !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+}
+
+/* ── UI BUTTON DESIGN SYSTEM (Matching Reference Screenshot) ── */
+.btn-pill-primary {
+  background-color: #3B66FF !important;
+  color: #FFFFFF !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 4px 14px rgba(59, 102, 255, 0.35) !important;
+}
+.btn-pill-primary:hover {
+  background-color: #2552E0 !important;
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 6px 20px rgba(59, 102, 255, 0.45) !important;
+}
+
+.btn-pill-secondary {
+  background-color: #EEF2FF !important;
+  color: #3B66FF !important;
+  border-radius: 9999px !important;
+}
+.btn-pill-secondary:hover {
+  background-color: #E0E7FF !important;
+  transform: translateY(-1px) scale(1.02) !important;
+}
+
+.btn-pill-outline {
+  background-color: #FFFFFF !important;
+  border: 2px solid #3B66FF !important;
+  color: #3B66FF !important;
+  border-radius: 9999px !important;
+}
+.btn-pill-outline:hover {
+  background-color: #F8FAFC !important;
+  transform: translateY(-1px) scale(1.02) !important;
+}
+
+/* Custom Watermark Suit Pattern */
+.bg-suits-dark-watermark {
+  background-color: #1A0E14;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140' opacity='0.035'%3E%3Ctext x='15' y='40' font-size='28' fill='%23F3C4A0'%3E♠%3C/text%3E%3Ctext x='85' y='40' font-size='28' fill='%23B93A34'%3E♥%3C/text%3E%3Ctext x='50' y='100' font-size='28' fill='%23B93A34'%3E♦%3C/text%3E%3Ctext x='110' y='100' font-size='28' fill='%234E4F9E'%3E♣%3C/text%3E%3C/svg%3E");
+}
+
+.bg-cabaret-alt {
+  background-color: #2B1420;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140' opacity='0.025'%3E%3Ctext x='15' y='40' font-size='28' fill='%23F5EDE4'%3E♠%3C/text%3E%3Ctext x='85' y='40' font-size='28' fill='%23B93A34'%3E♥%3C/text%3E%3Ctext x='50' y='100' font-size='28' fill='%23B93A34'%3E♦%3C/text%3E%3Ctext x='110' y='100' font-size='28' fill='%234E4F9E'%3E♣%3C/text%3E%3C/svg%3E");
+}
+
+/* Playing Card Frame */
+.playing-card-dark {
+  background: #25121B;
+  border: 2px solid rgba(243, 196, 160, 0.25);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.65), inset 0 0 20px rgba(122, 31, 61, 0.2);
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.playing-card-dark:hover {
+  border-color: #B93A34;
+  box-shadow: 0 24px 50px rgba(185, 58, 52, 0.35), inset 0 0 30px rgba(185, 58, 52, 0.15);
+  transform: translateY(-8px) rotate(0deg) scale(1.02) !important;
+  z-index: 30;
+}
+
+/* Marquee Infinite Scroll Animation */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  animation: marquee 40s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #1A0E14;
+}
+::-webkit-scrollbar-thumb {
+  background: #B93A34;
+  border-radius: 9999px;
+  border: 2px solid #1A0E14;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #F3C4A0;
+}
