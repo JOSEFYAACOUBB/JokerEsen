@@ -313,7 +313,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
 
     onUpdateTeamMembers(updatedList);
-    await saveTeamMember(memberToSave, updatedList.length);
+    await saveTeamMember(memberToSave, updatedList.length, updatedList);
     setIsMemberModalOpen(false);
     setEditingMember(null);
     showNotification(`Membre "${memberForm.name}" enregistré avec succès !`);
@@ -326,9 +326,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       (m) => (m.id && m.id !== member.id) || m.name !== member.name
     );
     onUpdateTeamMembers(updated);
-    if (member.id) {
-      await deleteTeamMember(member.id);
-    }
+    await deleteTeamMember(member.id || '', member.name, updated);
     showNotification(`Membre "${member.name}" supprimé.`);
   };
 
@@ -440,16 +438,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateEvent(eventForm);
-    if (eventForm.id) {
-      await updateEventDetails(eventForm.id, {
-        title: eventForm.title,
-        edition: eventForm.edition,
-        date: eventForm.date,
-        location: eventForm.location,
-        program: eventForm.program,
-        banner_url: eventForm.bannerUrl,
-      });
-    }
+    await updateEventDetails(eventForm.id || '', {
+      title: eventForm.title,
+      edition: eventForm.edition,
+      date: eventForm.date,
+      location: eventForm.location,
+      program: eventForm.program,
+      bannerUrl: eventForm.bannerUrl,
+    });
     setEventSuccessMsg(true);
     showNotification('Détails de l\'événement enregistrés et synchronisés !');
     setTimeout(() => setEventSuccessMsg(false), 3000);

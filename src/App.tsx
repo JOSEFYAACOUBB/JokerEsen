@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Hero } from './components/Hero';
 import { About } from './components/About';
-import { Team, defaultTeamMembers, type TeamMember } from './components/Team';
+import { Team, type TeamMember } from './components/Team';
 import { Event } from './components/Event';
 import { Gallery } from './components/Gallery';
 import { MembershipForm } from './components/MembershipForm';
 import { LoginModal } from './components/LoginModal';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { fetchActiveEvent } from './services/eventService';
-import { fetchTeamMembers } from './services/teamService';
+import { fetchActiveEvent, getCachedEvent } from './services/eventService';
+import { fetchTeamMembers, getCachedTeam, cacheTeam } from './services/teamService';
 import { fetchClubSettings } from './services/settingsService';
 
 export function App() {
@@ -17,19 +17,11 @@ export function App() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [recruitmentOpen, setRecruitmentOpen] = useState(true);
 
-  // Dynamic Event Data managed by Admin Panel & Supabase
-  const [eventData, setEventData] = useState({
-    id: '',
-    title: 'Joker Carnival Night 2026',
-    edition: 'Édition Spéciale · 10ème Anniversaire',
-    date: 'Samedi 26 Octobre 2026 · 20h00',
-    location: 'Grand Cour & Amphi ESEN, Campus Manouba',
-    program: 'Concerts live · DJ set · Buffet · Tombola',
-    bannerUrl: '/images/event_banner.jpg',
-  });
+  // Dynamic Event Data: Initialized immediately with local cache for zero delay
+  const [eventData, setEventData] = useState(() => getCachedEvent());
 
-  // Dynamic Executive Team Members managed by Admin Panel & Supabase
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(defaultTeamMembers);
+  // Dynamic Executive Team Members: Initialized immediately with local cache
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => getCachedTeam());
 
   // Load live data from Supabase upon initial mounting
   useEffect(() => {
@@ -68,6 +60,11 @@ export function App() {
     loadInitialData();
   }, []);
 
+  const handleUpdateTeam = (newMembers: TeamMember[]) => {
+    setTeamMembers(newMembers);
+    cacheTeam(newMembers);
+  };
+
   if (currentView === 'admin') {
     return (
       <AdminDashboard
@@ -77,7 +74,7 @@ export function App() {
         eventData={eventData}
         onUpdateEvent={setEventData}
         teamMembers={teamMembers}
-        onUpdateTeamMembers={setTeamMembers}
+        onUpdateTeamMembers={handleUpdateTeam}
       />
     );
   }
