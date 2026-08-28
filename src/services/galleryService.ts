@@ -3,6 +3,14 @@ import { uploadToCloudinary, generateCloudinaryUrl } from '../lib/cloudinary';
 import type { GalleryImage } from '../types/database';
 
 const LOCAL_STORAGE_GALLERY_KEY = 'joker_gallery_cache';
+const LOCAL_STORAGE_ALBUMS_KEY = 'joker_albums_meta';
+
+export interface AlbumMeta {
+  name: string;
+  category: 'Soirées' | 'Workshops' | 'Teambuilding';
+  coverUrl?: string;
+  date?: string;
+}
 
 export function getCachedGallery(): GalleryImage[] {
   try {
@@ -27,6 +35,46 @@ export function cacheGallery(images: GalleryImage[]) {
   }
 }
 
+export function getSavedAlbums(): AlbumMeta[] {
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_ALBUMS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not read saved albums:', e);
+  }
+  return [];
+}
+
+export function saveAlbumMeta(album: AlbumMeta) {
+  try {
+    const current = getSavedAlbums();
+    const existingIndex = current.findIndex((a) => a.name.toLowerCase() === album.name.toLowerCase());
+    if (existingIndex >= 0) {
+      current[existingIndex] = { ...current[existingIndex], ...album };
+    } else {
+      current.push(album);
+    }
+    localStorage.setItem(LOCAL_STORAGE_ALBUMS_KEY, JSON.stringify(current));
+  } catch (e) {
+    console.warn('Could not save album meta:', e);
+  }
+}
+
+export function removeAlbumMeta(albumName: string) {
+  try {
+    const current = getSavedAlbums();
+    const filtered = current.filter((a) => a.name.toLowerCase() !== albumName.toLowerCase());
+    localStorage.setItem(LOCAL_STORAGE_ALBUMS_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.warn('Could not remove album meta:', e);
+  }
+}
+
 export const galleryService = {
   uploadImage: async (
     file: File,
@@ -39,7 +87,7 @@ export const galleryService = {
       id: cloudinaryData.public_id || String(Date.now()),
       cloudinary_url: cloudinaryData.secure_url,
       cloudinary_public_id: cloudinaryData.public_id,
-      title: metadata?.title || file.name,
+      title: metadata?.title || file.name.replace(/\.[^/.]+$/, ''),
       description: metadata?.description,
       display_url: cloudinaryData.secure_url,
       thumbnail_url: cloudinaryData.secure_url,
@@ -78,6 +126,33 @@ export const galleryService = {
     cacheGallery([savedItem, ...currentCached]);
 
     return savedItem;
+  },
+
+  uploadMultipleImages: async (
+    files: File[],
+    albumName: string,
+    onProgress?: (done: number, total: number) => void
+  ): Promise<GalleryImage[]> => {
+    const results: GalleryImage[] = [];
+    let completed = 0;
+
+    for (const file of files) {
+      try {
+        const img = await galleryService.uploadImage(file, {
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          description: albumName,
+        });
+        results.push(img);
+      } catch (err) {
+        console.error(`Failed to upload ${file.name}:`, err);
+      }
+      completed++;
+      if (onProgress) {
+        onProgress(completed, files.length);
+      }
+    }
+
+    return results;
   },
 
   addPhotoByUrl: async (
@@ -126,7 +201,7 @@ export const galleryService = {
     return savedItem;
   },
 
-  fetchImages: async (page: number = 0, pageSize: number = 50) => {
+  fetchImages: async (page: number = 0, pageSize: number = 100) => {
     const cached = getCachedGallery();
 
     if (!isSupabaseConfigured) {
@@ -198,6 +273,25 @@ export const galleryService = {
       await supabaseDb.gallery.delete(imageId);
     } catch (err) {
       console.warn('REST delete gallery image error:', err);
+    }
+  },
+
+  deleteAlbum: async (albumName: string) => {
+    removeAlbumMeta(albumName);
+
+    const cached = getCachedGallery();
+    const toDelete = cached.filter((img) => (img.description || '').toLowerCase() === albumName.toLowerCase());
+    const remaining = cached.filter((img) => (img.description || '').toLowerCase() !== albumName.toLowerCase());
+    cacheGallery(remaining);
+
+    if (!isSupabaseConfigured) return;
+
+    for (const img of toDelete) {
+      try {
+        await supabase.from('gallery_images').delete().eq('id', img.id);
+      } catch (err) {
+        console.warn('Failed to delete image in album:', err);
+      }
     }
   },
 };

@@ -22,7 +22,12 @@ import {
   RefreshCw,
   Sparkles,
   AlertCircle,
-  Phone
+  Phone,
+  FolderPlus,
+  Folder,
+  Layers,
+  ArrowLeft,
+  Eye
 } from 'lucide-react';
 
 import type { TeamMember } from '../Team';
@@ -35,7 +40,13 @@ import {
 import { updateClubSettings } from '../../services/settingsService';
 import { updateEventDetails } from '../../services/eventService';
 import { fetchTeamMembers, saveTeamMember, deleteTeamMember } from '../../services/teamService';
-import { galleryService } from '../../services/galleryService';
+import {
+  galleryService,
+  getSavedAlbums,
+  saveAlbumMeta,
+  removeAlbumMeta,
+  type AlbumMeta
+} from '../../services/galleryService';
 import { uploadToCloudinary, CLOUDINARY_CONFIG } from '../../lib/cloudinary';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 
@@ -107,18 +118,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [appFilter, setAppFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'contacted'>('all');
   const [appSearch, setAppSearch] = useState('');
 
-  // Photos State (initialized empty — real data from Supabase/Cloudinary)
+  // Photos & Albums State
   const [photos, setPhotos] = useState<AdminPhoto[]>([]);
+  const [savedAlbums, setSavedAlbums] = useState<AlbumMeta[]>(() => getSavedAlbums());
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<string>('Tous');
+  
+  // Upload Modal State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [newPhotoTitle, setNewPhotoTitle] = useState('');
   const [newPhotoAlbum, setNewPhotoAlbum] = useState('');
+  const [isCreatingNewAlbumInUploadModal, setIsCreatingNewAlbumInUploadModal] = useState(false);
+  const [newCustomAlbumName, setNewCustomAlbumName] = useState('');
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState('');
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const directDropzoneInputRef = useRef<HTMLInputElement>(null);
 
   // Album Modal State
   const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
@@ -400,61 +418,123 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Handle Photo Upload (File -> Cloudinary -> Supabase OR URL -> Supabase)
+  // Handle Multi-Photo Upload (Files -> Cloudinary -> Supabase OR URL -> Supabase)
   const handleAddPhotoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError('');
+
+    const targetAlbum = isCreatingNewAlbumInUploadModal
+      ? newCustomAlbumName.trim()
+      : (newPhotoAlbum.trim() || 'Événements Joker');
+
+    if (!targetAlbum) {
+      setUploadError('Veuillez sélectionner ou créer un nom d\'album pour vos photos.');
+      return;
+    }
+
+    if (uploadFiles.length === 0 && !newPhotoUrl.trim()) {
+      setUploadError('Veuillez sélectionner au moins une photo ou renseigner une URL.');
+      return;
+    }
+
     setUploadProgress(true);
+    setUploadProgressText(`Téléversement de 1 / ${uploadFiles.length || 1}...`);
 
     try {
-      if (uploadFile) {
-        // Direct Cloudinary upload
-        const newImg = await galleryService.uploadImage(uploadFile, {
-          title: newPhotoTitle || uploadFile.name,
-          description: newPhotoAlbum,
-        });
+      if (uploadFiles.length > 0) {
+        // Upload batch of files
+        const newImages = await galleryService.uploadMultipleImages(
+          uploadFiles,
+          targetAlbum,
+          (done, total) => {
+            setUploadProgressText(`Téléversement de ${done} / ${total} photos...`);
+          }
+        );
 
-        const newPhotoItem: AdminPhoto = {
-          id: newImg.id,
-          title: newImg.title || 'Photo Joker',
-          album: newPhotoAlbum,
-          url: newImg.display_url || newImg.cloudinary_url,
+        const newPhotoItems: AdminPhoto[] = newImages.map((img) => ({
+          id: img.id,
+          title: img.title || targetAlbum,
+          album: targetAlbum,
+          url: img.display_url || img.cloudinary_url,
           date: 'Aujourd\'hui',
-        };
+        }));
 
-        setPhotos([newPhotoItem, ...photos]);
-        showNotification('Photo téléversée sur Cloudinary et enregistrée dans la Galerie !');
+        setPhotos((prev) => [...newPhotoItems, ...prev]);
+        saveAlbumMeta({ name: targetAlbum, category: 'Soirées' });
+        setSavedAlbums(getSavedAlbums());
+        showNotification(`${newImages.length} photo(s) ajoutée(s) avec succès à l'album "${targetAlbum}" !`);
       } else if (newPhotoUrl) {
-        // By URL
+        // Single URL upload
         const newImg = await galleryService.addPhotoByUrl(newPhotoUrl, {
           title: newPhotoTitle || 'Photo',
-          description: newPhotoAlbum,
+          description: targetAlbum,
         });
 
         const newPhotoItem: AdminPhoto = {
           id: newImg.id,
           title: newImg.title || 'Photo',
-          album: newPhotoAlbum,
+          album: targetAlbum,
           url: newPhotoUrl,
           date: 'Aujourd\'hui',
         };
 
-        setPhotos([newPhotoItem, ...photos]);
-        showNotification('Photo ajoutée à la Galerie !');
-      } else {
-        setUploadError('Veuillez sélectionner un fichier ou renseigner une URL.');
-        setUploadProgress(false);
-        return;
+        setPhotos((prev) => [newPhotoItem, ...prev]);
+        saveAlbumMeta({ name: targetAlbum, category: 'Soirées' });
+        setSavedAlbums(getSavedAlbums());
+        showNotification(`Photo ajoutée à l'album "${targetAlbum}" !`);
       }
 
       setIsUploadModalOpen(false);
-      setUploadFile(null);
+      setUploadFiles([]);
       setNewPhotoTitle('');
       setNewPhotoUrl('');
+      setIsCreatingNewAlbumInUploadModal(false);
+      setNewCustomAlbumName('');
+      setSelectedAlbum(targetAlbum);
     } catch (err: any) {
       setUploadError(err.message || 'Erreur lors du téléversement vers Cloudinary.');
     } finally {
       setUploadProgress(false);
+      setUploadProgressText('');
+    }
+  };
+
+  // Handle Direct Dropzone Upload inside an Album
+  const handleDirectAlbumUpload = async (e: React.ChangeEvent<HTMLInputElement>, albumName: string) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const filesArray = Array.from(files);
+    setUploadProgress(true);
+    setUploadProgressText(`Téléversement de 1 / ${filesArray.length}...`);
+
+    try {
+      const newImages = await galleryService.uploadMultipleImages(
+        filesArray,
+        albumName,
+        (done, total) => {
+          setUploadProgressText(`Téléversement de ${done} / ${total} photos...`);
+        }
+      );
+
+      const newPhotoItems: AdminPhoto[] = newImages.map((img) => ({
+        id: img.id,
+        title: img.title || albumName,
+        album: albumName,
+        url: img.display_url || img.cloudinary_url,
+        date: 'Aujourd\'hui',
+      }));
+
+      setPhotos((prev) => [...newPhotoItems, ...prev]);
+      saveAlbumMeta({ name: albumName, category: 'Soirées' });
+      setSavedAlbums(getSavedAlbums());
+      showNotification(`${newImages.length} photo(s) ajoutée(s) à "${albumName}" !`);
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors du téléversement.');
+    } finally {
+      setUploadProgress(false);
+      setUploadProgressText('');
+      if (directDropzoneInputRef.current) directDropzoneInputRef.current.value = '';
     }
   };
 
@@ -471,17 +551,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const albumName = newAlbumTitle.trim();
 
     try {
+      let coverUrl = '';
+
       if (newAlbumCoverFile) {
         const newImg = await galleryService.uploadImage(newAlbumCoverFile, {
           title: `Couverture - ${albumName}`,
           description: albumName,
         });
+        coverUrl = newImg.display_url || newImg.cloudinary_url;
 
         const newPhotoItem: AdminPhoto = {
           id: newImg.id,
           title: `Couverture - ${albumName}`,
           album: albumName,
-          url: newImg.display_url || newImg.cloudinary_url,
+          url: coverUrl,
           date: 'Aujourd\'hui',
         };
 
@@ -491,6 +574,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           title: `Couverture - ${albumName}`,
           description: albumName,
         });
+        coverUrl = newAlbumCoverUrl;
 
         const newPhotoItem: AdminPhoto = {
           id: newImg.id,
@@ -501,30 +585,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         };
 
         setPhotos((prev) => [newPhotoItem, ...prev]);
-      } else {
-        // Create an initial placeholder item so the album exists
-        const placeholderImg = await galleryService.addPhotoByUrl('/images/event_banner.jpg', {
-          title: `Couverture - ${albumName}`,
-          description: albumName,
-        });
-
-        const newPhotoItem: AdminPhoto = {
-          id: placeholderImg.id,
-          title: `Couverture - ${albumName}`,
-          album: albumName,
-          url: '/images/event_banner.jpg',
-          date: 'Aujourd\'hui',
-        };
-
-        setPhotos((prev) => [newPhotoItem, ...prev]);
       }
 
+      saveAlbumMeta({
+        name: albumName,
+        category: newAlbumCategory,
+        coverUrl: coverUrl || undefined,
+        date: new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+      });
+
+      setSavedAlbums(getSavedAlbums());
       setSelectedAlbum(albumName);
       setIsAlbumModalOpen(false);
       setNewAlbumTitle('');
       setNewAlbumCoverFile(null);
       setNewAlbumCoverUrl('');
-      showNotification(`Album "${albumName}" créé avec succès ! Vous pouvez maintenant y ajouter des photos.`);
+      showNotification(`Album "${albumName}" créé avec succès !`);
     } catch (err: any) {
       setAlbumModalError(err.message || 'Erreur lors de la création de l\'album.');
     } finally {
@@ -536,19 +612,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleDeleteAlbum = async (albumName: string) => {
     if (!window.confirm(`Supprimer l'album "${albumName}" et TOUTES les photos qu'il contient ?`)) return;
 
-    const photosInAlbum = photos.filter((p) => (p.album || '').toLowerCase() === albumName.toLowerCase());
+    await galleryService.deleteAlbum(albumName);
+    removeAlbumMeta(albumName);
+    setSavedAlbums(getSavedAlbums());
     setPhotos((prev) => prev.filter((p) => (p.album || '').toLowerCase() !== albumName.toLowerCase()));
     setSelectedAlbum('Tous');
-
-    for (const photo of photosInAlbum) {
-      try {
-        await galleryService.deleteImage(String(photo.id));
-      } catch (e) {
-        console.warn('Error deleting photo in album:', e);
-      }
-    }
-
-    showNotification(`Album "${albumName}" et ses ${photosInAlbum.length} photos supprimés.`);
+    showNotification(`Album "${albumName}" et ses photos supprimés.`);
   };
 
   // Handle Photo Delete
@@ -590,8 +659,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return matchesFilter && matchesSearch;
   });
 
-  // Dynamic Albums from Photos
-  const dynamicAlbums = ['Tous', ...Array.from(new Set(photos.map((p) => p.album).filter(Boolean)))];
+  const allAlbumNames = Array.from(
+    new Set([
+      ...savedAlbums.map((a) => a.name),
+      ...photos.map((p) => p.album).filter(Boolean),
+    ])
+  );
+
+  // Rich Album Cards
+  const richAlbums = allAlbumNames.map((name) => {
+    const albumPhotos = photos.filter((p) => (p.album || '').toLowerCase() === name.toLowerCase());
+    const meta = savedAlbums.find((a) => a.name.toLowerCase() === name.toLowerCase());
+    const coverUrl = meta?.coverUrl || albumPhotos[0]?.url || '';
+    const category = meta?.category || (name.toLowerCase().includes('workshop') ? 'Workshops' : name.toLowerCase().includes('teambuilding') ? 'Teambuilding' : 'Soirées');
+    return {
+      name,
+      category,
+      coverUrl,
+      photosCount: albumPhotos.length,
+      photos: albumPhotos,
+      date: meta?.date || (albumPhotos[0]?.date ? albumPhotos[0].date : 'Session en cours'),
+    };
+  });
 
   // Filtered Photos
   const filteredPhotos =
@@ -1088,24 +1177,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* ══════════════════════ TAB 3: GALLERY & CLOUDINARY ══════════════════════ */}
+          {/* ══════════════════════ TAB 3: GALLERY & CLOUDINARY STUDIO ══════════════════════ */}
           {activeTab === 'gallery' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-8 animate-in fade-in duration-300">
+              
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 shadow-xl">
                 <div>
-                  <h2 className="text-2xl font-black font-display uppercase text-white">
-                    Gestionnaire de Galerie & Cloudinary
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#3B66FF]/15 border border-[#3B66FF]/35 text-[#93C5FD] text-[10px] font-black uppercase tracking-widest mb-2">
+                    <Sparkles className="w-3 h-3" />
+                    <span>Studio Multimédia Cloudinary & Supabase</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black font-display uppercase text-white">
+                    {selectedAlbum === 'Tous' ? 'Gestionnaire d\'Albums & Photos' : `Album : ${selectedAlbum}`}
                   </h2>
                   <p className="text-xs text-[#F3C4A0]/70">
-                    Ajoutez des photos via Cloudinary directement pour les afficher sur la galerie du site.
+                    {selectedAlbum === 'Tous'
+                      ? `${allAlbumNames.length} albums disponibles &middot; ${photos.length} photos au total dans la base de données.`
+                      : `Gérez les photos, l'affiche et les souvenirs associés à cet album.`}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 self-start flex-wrap">
+                  {selectedAlbum !== 'Tous' && (
+                    <button
+                      onClick={() => setSelectedAlbum('Tous')}
+                      className="px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Tous les albums</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={loadPhotos}
                     disabled={loadingPhotos}
-                    className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-xs font-bold flex items-center gap-2"
+                    className="px-4 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-xs font-bold flex items-center gap-2 text-[#F3C4A0] hover:text-white transition-colors"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${loadingPhotos ? 'animate-spin' : ''}`} />
                     <span>Actualiser</span>
@@ -1113,106 +1220,309 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                   <button
                     onClick={() => setIsAlbumModalOpen(true)}
-                    className="px-4 py-2 rounded-full bg-[#4E4F9E] hover:bg-[#4E4F9E]/90 text-white text-xs font-bold flex items-center gap-1.5 shadow-md"
+                    className="px-4 py-2.5 rounded-full bg-[#4E4F9E] hover:bg-[#4E4F9E]/90 text-white text-xs font-bold flex items-center gap-2 shadow-md transition-transform hover:scale-102"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>Créer un Album</span>
+                    <FolderPlus className="w-4 h-4" />
+                    <span>+ Créer un Album</span>
                   </button>
 
                   <button
                     onClick={() => {
-                      setNewPhotoAlbum(selectedAlbum !== 'Tous' ? selectedAlbum : (dynamicAlbums[1] || 'Carnival Night'));
+                      setNewPhotoAlbum(selectedAlbum !== 'Tous' ? selectedAlbum : (allAlbumNames[0] || ''));
                       setIsUploadModalOpen(true);
                     }}
-                    className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90"
+                    className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-95 transition-transform hover:scale-102"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Ajouter une Photo</span>
+                    <span>+ Ajouter des Photos</span>
                   </button>
                 </div>
               </div>
 
-              {/* Album Filter Tabs (Dynamic) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#1F0E18] p-3 rounded-2xl border border-[#F3C4A0]/15">
-                <div className="flex flex-wrap items-center gap-2">
-                  {dynamicAlbums.map((album) => (
-                    <button
-                      key={album}
-                      onClick={() => setSelectedAlbum(album)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                        selectedAlbum === album
-                          ? 'bg-[#3B66FF] text-white'
-                          : 'bg-white/5 text-[#F3C4A0]/70 hover:text-white'
-                      }`}
-                    >
-                      {album}
-                    </button>
-                  ))}
-                </div>
-
-                {selectedAlbum !== 'Tous' && (
-                  <button
-                    onClick={() => handleDeleteAlbum(selectedAlbum)}
-                    className="text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-500/10 border border-rose-500/20"
-                    title="Supprimer tout l'album"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Supprimer l'Album "{selectedAlbum}"</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Photos Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {loadingPhotos ? (
-                  <div className="col-span-full py-16 text-center text-[#F3C4A0]/60 space-y-2">
-                    <RefreshCw className="w-8 h-8 animate-spin text-[#3B66FF] mx-auto" />
-                    <p className="text-xs font-bold">Chargement des photos...</p>
-                  </div>
-                ) : filteredPhotos.length === 0 ? (
-                  <div className="col-span-full py-16 text-center rounded-3xl bg-[#1F0E18]/50 border border-dashed border-[#F3C4A0]/20 space-y-3">
-                    <ImageIcon className="w-10 h-10 text-[#F3C4A0]/30 mx-auto" />
-                    <h4 className="font-bold text-white text-sm">
-                      {photos.length === 0 ? 'Aucune photo dans la galerie' : 'Aucune photo dans cet album'}
-                    </h4>
-                    <p className="text-xs text-[#F3C4A0]/50 max-w-sm mx-auto">
-                      {photos.length === 0
-                        ? 'Votre galerie est vide. Cliquez sur "Ajouter une Photo" ci-dessus pour importer des images via Cloudinary.'
-                        : 'Sélectionnez l’onglet "Tous" ou ajoutez des photos pour cet album.'}
-                    </p>
-                  </div>
-                ) : (
-                  filteredPhotos.map((photo) => (
-                    <div
-                      key={photo.id}
-                      className="group relative rounded-2xl bg-[#1F0E18] border border-[#F3C4A0]/20 overflow-hidden shadow-lg flex flex-col justify-between"
-                    >
-                      <div className="relative aspect-video w-full overflow-hidden bg-black/40">
-                        <img
-                          src={photo.url}
-                          alt={photo.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <button
-                          onClick={() => handleDeletePhoto(photo.id)}
-                          className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-rose-400 hover:bg-rose-600 hover:text-white transition-colors"
-                          title="Supprimer la photo"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="p-4 space-y-1">
-                        <span className="text-[10px] font-bold text-[#3B66FF] uppercase tracking-wider">
-                          {photo.album}
-                        </span>
-                        <h4 className="font-bold text-sm text-white truncate">{photo.title}</h4>
-                        <p className="text-[10px] text-[#F3C4A0]/50">{photo.date}</p>
-                      </div>
+              {/* ─── VUE 1 : TOUS LES ALBUMS ─── */}
+              {selectedAlbum === 'Tous' && (
+                <div className="space-y-8">
+                  {/* Albums Section */}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-black uppercase text-white font-display flex items-center gap-2">
+                        <Folder className="w-5 h-5 text-[#3B66FF]" />
+                        <span>Vos Albums Thématiques ({richAlbums.length})</span>
+                      </h3>
+                      <span className="text-xs text-[#F3C4A0]/60">
+                        Cliquez sur un album pour voir ses photos ou y ajouter du contenu
+                      </span>
                     </div>
-                  ))
-                )}
-              </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {/* Interactive Card: Add New Album */}
+                      <div
+                        onClick={() => setIsAlbumModalOpen(true)}
+                        className="group rounded-3xl border-2 border-dashed border-[#F3C4A0]/25 hover:border-[#3B66FF] p-6 flex flex-col items-center justify-center text-center cursor-pointer min-h-[220px] transition-all bg-[#14080F]/40 hover:bg-[#3B66FF]/5"
+                      >
+                        <div className="w-14 h-14 rounded-2xl bg-[#4E4F9E]/20 group-hover:bg-[#3B66FF]/20 border border-[#4E4F9E]/40 group-hover:border-[#3B66FF]/50 flex items-center justify-center text-[#93C5FD] mb-3 transition-colors">
+                          <FolderPlus className="w-7 h-7" />
+                        </div>
+                        <h4 className="font-bold text-white text-sm uppercase group-hover:text-[#93C5FD] transition-colors">
+                          Créer un Nouvel Album
+                        </h4>
+                        <p className="text-xs text-[#F3C4A0]/60 mt-1 max-w-[220px]">
+                          Soirées, workshops, formations ou teambuilding.
+                        </p>
+                      </div>
+
+                      {/* Album Cards */}
+                      {richAlbums.map((album) => (
+                        <div
+                          key={album.name}
+                          className="group relative rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 overflow-hidden shadow-xl hover:shadow-2xl hover:border-[#3B66FF]/50 transition-all flex flex-col justify-between min-h-[220px]"
+                        >
+                          {/* Background Cover */}
+                          {album.coverUrl ? (
+                            <img
+                              src={album.coverUrl}
+                              alt={album.name}
+                              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-35"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-[#1F0E18] via-[#14080F] to-[#2A0E1F]" />
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#1F0E18] via-[#1F0E18]/85 to-transparent" />
+
+                          {/* Top Badges */}
+                          <div className="relative z-10 p-5 flex items-center justify-between">
+                            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase text-white bg-[#3B66FF] shadow-md">
+                              {album.category}
+                            </span>
+                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/10 backdrop-blur-md text-[#F3C4A0]">
+                              <Layers className="w-3.5 h-3.5" />
+                              <span>{album.photosCount} photos</span>
+                            </div>
+                          </div>
+
+                          {/* Bottom Info & Quick Actions */}
+                          <div className="relative z-10 p-5 space-y-3">
+                            <div>
+                              <span className="text-[10px] uppercase font-bold text-[#F3C4A0]/60">
+                                {album.date}
+                              </span>
+                              <h4 className="text-lg font-black font-display uppercase text-white leading-tight truncate group-hover:text-[#93C5FD] transition-colors">
+                                {album.name}
+                              </h4>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-2 border-t border-[#F3C4A0]/15">
+                              <button
+                                onClick={() => setSelectedAlbum(album.name)}
+                                className="flex-1 py-2 px-3 rounded-xl bg-white/10 hover:bg-[#3B66FF] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Ouvrir l'Album</span>
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setNewPhotoAlbum(album.name);
+                                  setIsUploadModalOpen(true);
+                                }}
+                                className="p-2 rounded-xl bg-white/10 hover:bg-[#B93A34] text-[#F3C4A0] hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                                title="Ajouter des photos à cet album"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteAlbum(album.name)}
+                                className="p-2 rounded-xl bg-white/10 hover:bg-rose-600 text-rose-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                                title="Supprimer cet album"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* All Recent Photos Grid */}
+                  <div className="space-y-4 pt-6 border-t border-[#F3C4A0]/15">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <h3 className="text-lg font-black uppercase text-white font-display flex items-center gap-2">
+                        <ImageIcon className="w-5 h-5 text-[#B93A34]" />
+                        <span>Toutes les Photos Importées ({photos.length})</span>
+                      </h3>
+                      <p className="text-xs text-[#F3C4A0]/60">
+                        Aperçu global de toutes les images enregistrées
+                      </p>
+                    </div>
+
+                    {loadingPhotos ? (
+                      <div className="py-16 text-center text-[#F3C4A0]/60 space-y-2">
+                        <RefreshCw className="w-8 h-8 animate-spin text-[#3B66FF] mx-auto" />
+                        <p className="text-xs font-bold">Chargement des photos...</p>
+                      </div>
+                    ) : photos.length === 0 ? (
+                      <div className="py-16 text-center rounded-3xl bg-[#1F0E18]/50 border border-dashed border-[#F3C4A0]/20 space-y-3 p-6">
+                        <ImageIcon className="w-10 h-10 text-[#F3C4A0]/30 mx-auto" />
+                        <h4 className="font-bold text-white text-sm">
+                          Aucune photo dans la galerie
+                        </h4>
+                        <p className="text-xs text-[#F3C4A0]/50 max-w-sm mx-auto">
+                          Votre galerie est vide. Cliquez sur "+ Créer un Album" ou "+ Ajouter des Photos" ci-dessus pour importer vos premiers clichés !
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {photos.map((photo) => (
+                          <div
+                            key={photo.id}
+                            className="group relative rounded-2xl bg-[#1F0E18] border border-[#F3C4A0]/20 overflow-hidden shadow-lg flex flex-col justify-between"
+                          >
+                            <div className="relative aspect-square w-full overflow-hidden bg-black/40">
+                              <img
+                                src={photo.url}
+                                alt={photo.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <button
+                                onClick={() => handleDeletePhoto(photo.id)}
+                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/80 text-rose-400 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
+                                title="Supprimer la photo"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="p-3 space-y-0.5">
+                              <span className="text-[9px] font-bold text-[#3B66FF] uppercase tracking-wider block truncate">
+                                {photo.album}
+                              </span>
+                              <h4 className="font-bold text-xs text-white truncate">{photo.title}</h4>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ─── VUE 2 : DANS UN ALBUM SPÉCIFIQUE (DRILL-DOWN) ─── */}
+              {selectedAlbum !== 'Tous' && (
+                <div className="space-y-6">
+                  {/* Inside Album Banner */}
+                  <div className="p-6 rounded-3xl bg-[#14080F] border border-[#F3C4A0]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase text-white bg-[#3B66FF]">
+                          {richAlbums.find((a) => a.name === selectedAlbum)?.category || 'Soirées'}
+                        </span>
+                        <span className="text-xs font-bold text-[#F3C4A0]/70">
+                          {filteredPhotos.length} photo(s) dans cet album
+                        </span>
+                      </div>
+                      <h3 className="text-2xl font-black font-display uppercase text-white">
+                        {selectedAlbum}
+                      </h3>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => {
+                          setNewPhotoAlbum(selectedAlbum);
+                          setIsUploadModalOpen(true);
+                        }}
+                        className="px-5 py-2.5 rounded-full bg-[#B93A34] hover:bg-[#B93A34]/90 text-white text-xs font-bold flex items-center gap-2 shadow-md"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>+ Ajouter des Photos à cet Album</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteAlbum(selectedAlbum)}
+                        className="px-4 py-2.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Supprimer cet Album</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Direct Dropzone Banner */}
+                  <input
+                    type="file"
+                    multiple
+                    ref={directDropzoneInputRef}
+                    onChange={(e) => handleDirectAlbumUpload(e, selectedAlbum)}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <div
+                    onClick={() => directDropzoneInputRef.current?.click()}
+                    className="p-8 rounded-3xl border-2 border-dashed border-[#F3C4A0]/30 hover:border-[#3B66FF] bg-[#1F0E18]/50 hover:bg-[#3B66FF]/5 transition-all text-center cursor-pointer space-y-2"
+                  >
+                    <Upload className="w-9 h-9 text-[#3B66FF] mx-auto" />
+                    <h4 className="font-bold text-sm text-white">
+                      Cliquez ou glissez-déposez des photos ici pour les ajouter directement à « {selectedAlbum} »
+                    </h4>
+                    <p className="text-xs text-[#F3C4A0]/60">
+                      Sélection multiple supportée (JPG, PNG, WebP) &middot; Téléversement automatique sur Cloudinary
+                    </p>
+                    {uploadProgress && (
+                      <div className="pt-2 text-xs font-bold text-[#93C5FD] flex items-center justify-center gap-2">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>{uploadProgressText || 'Téléversement en cours...'}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Album Photos Grid */}
+                  <div>
+                    {filteredPhotos.length === 0 ? (
+                      <div className="py-16 text-center rounded-3xl bg-[#1F0E18]/40 border border-dashed border-[#F3C4A0]/20 space-y-3 p-6">
+                        <ImageIcon className="w-10 h-10 text-[#F3C4A0]/30 mx-auto" />
+                        <h4 className="font-bold text-white text-sm">
+                          Cet album ne contient aucune photo pour le moment
+                        </h4>
+                        <p className="text-xs text-[#F3C4A0]/50 max-w-sm mx-auto">
+                          Utilisez la zone de dépôt ci-dessus ou le bouton "+ Ajouter des Photos" pour enrichir cet album.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {filteredPhotos.map((photo) => (
+                          <div
+                            key={photo.id}
+                            className="group relative rounded-2xl bg-[#1F0E18] border border-[#F3C4A0]/20 overflow-hidden shadow-lg flex flex-col justify-between"
+                          >
+                            <div className="relative aspect-square w-full overflow-hidden bg-black/40">
+                              <img
+                                src={photo.url}
+                                alt={photo.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <button
+                                onClick={() => handleDeletePhoto(photo.id)}
+                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/80 text-rose-400 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
+                                title="Supprimer la photo"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div className="p-3 space-y-0.5">
+                              <h4 className="font-bold text-xs text-white truncate">{photo.title}</h4>
+                              <p className="text-[10px] text-[#F3C4A0]/50">{photo.date}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -1628,14 +1938,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* ══════════════════════ MODAL: ADD / UPLOAD PHOTO ══════════════════════ */}
+      {/* ══════════════════════ MODAL: ADD / UPLOAD PHOTOS ══════════════════════ */}
       {isUploadModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-lg bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-black font-display uppercase text-white">
-                Ajouter une Photo (Cloudinary)
-              </h3>
+              <div>
+                <h3 className="text-xl font-black font-display uppercase text-white">
+                  Ajouter des Photos
+                </h3>
+                <p className="text-xs text-[#F3C4A0]/70">
+                  Importez une ou plusieurs photos dans l'album de votre choix.
+                </p>
+              </div>
               <button
                 onClick={() => setIsUploadModalOpen(false)}
                 className="p-1 text-[#F3C4A0] hover:text-white"
@@ -1651,53 +1966,80 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             )}
 
             <form onSubmit={handleAddPhotoSubmit} className="space-y-4">
+              
+              {/* Album Selection */}
               <div>
                 <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
-                  Titre de la Photo
+                  Choisir l'Album de Destination *
+                </label>
+                {!isCreatingNewAlbumInUploadModal ? (
+                  <div className="space-y-2">
+                    <select
+                      value={newPhotoAlbum}
+                      onChange={(e) => {
+                        if (e.target.value === '__NEW__') {
+                          setIsCreatingNewAlbumInUploadModal(true);
+                          setNewCustomAlbumName('');
+                        } else {
+                          setNewPhotoAlbum(e.target.value);
+                        }
+                      }}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white outline-none focus:border-[#3B66FF]"
+                    >
+                      <option value="" disabled>-- Sélectionner un album existant --</option>
+                      {allAlbumNames.map((a) => (
+                        <option key={a} value={a}>{a}</option>
+                      ))}
+                      <option value="__NEW__">➕ + Créer un nouvel album...</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        required
+                        value={newCustomAlbumName}
+                        onChange={(e) => setNewCustomAlbumName(e.target.value)}
+                        placeholder="Nom du nouvel album (ex: Gala 2026, Workshop UX...)"
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#3B66FF] text-sm text-white outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setIsCreatingNewAlbumInUploadModal(false)}
+                        className="px-3 py-2.5 rounded-xl bg-white/10 text-xs font-bold text-[#F3C4A0] hover:text-white"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Titre optionnel (si 1 photo) */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                  Titre / Légende (Optionnel)
                 </label>
                 <input
                   type="text"
-                  required
                   value={newPhotoTitle}
                   onChange={(e) => setNewPhotoTitle(e.target.value)}
-                  placeholder="Ex: Soirée Concert & DJ Set"
+                  placeholder="Ex: Soirée Concert & DJ Set (si vide, le nom du fichier sera utilisé)"
                   className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white outline-none focus:border-[#3B66FF]"
                 />
               </div>
 
+              {/* Multiple Local Files Picker */}
               <div>
                 <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
-                  Album / Catégorie
-                </label>
-                <input
-                  type="text"
-                  required
-                  list="album-suggestions"
-                  value={newPhotoAlbum}
-                  onChange={(e) => setNewPhotoAlbum(e.target.value)}
-                  placeholder="Ex: Carnival Night, Workshops, Teambuilding..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white outline-none focus:border-[#3B66FF]"
-                />
-                <datalist id="album-suggestions">
-                  <option value="Carnival Night" />
-                  <option value="Workshops" />
-                  <option value="Teambuilding" />
-                  <option value="Gala Masquerade" />
-                  {photos.map((p) => p.album).filter((a, i, arr) => a && arr.indexOf(a) === i).map((a) => (
-                    <option key={a} value={a} />
-                  ))}
-                </datalist>
-              </div>
-
-              {/* File Upload to Cloudinary Dropzone */}
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
-                  Fichier Image Locale
+                  Fichiers Photos (Sélection multiple possible)
                 </label>
                 <input
                   type="file"
+                  multiple
                   ref={fileInputRef}
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  onChange={(e) => setUploadFiles(Array.from(e.target.files || []))}
                   accept="image/*"
                   className="hidden"
                 />
@@ -1707,17 +2049,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 >
                   <Upload className="w-8 h-8 text-[#3B66FF] mx-auto" />
                   <p className="text-xs font-bold text-white">
-                    {uploadFile ? uploadFile.name : 'Cliquez pour sélectionner une photo'}
+                    {uploadFiles.length > 0
+                      ? `${uploadFiles.length} photo(s) sélectionnée(s)`
+                      : 'Cliquez pour sélectionner une ou plusieurs photos'}
                   </p>
                   <p className="text-[10px] text-[#F3C4A0]/50">
-                    PNG, JPG, WebP téléversé directement sur Cloudinary
+                    PNG, JPG, WebP &middot; Téléversement direct sur Cloudinary
                   </p>
                 </div>
+
+                {uploadFiles.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 max-h-20 overflow-y-auto p-1.5 bg-[#11070D] rounded-xl border border-[#F3C4A0]/10">
+                    {uploadFiles.map((f, i) => (
+                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-white/10 text-white truncate max-w-[150px]">
+                        {f.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="relative flex items-center justify-center my-2">
                 <span className="bg-[#1F0E18] px-3 text-[10px] uppercase font-bold text-[#F3C4A0]/50 z-10">
-                  Ou URL Directe
+                  Ou URL d'image externe
                 </span>
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-[#F3C4A0]/15" />
@@ -1737,9 +2091,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <button
                 type="submit"
                 disabled={uploadProgress}
-                className="w-full py-3 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 disabled:opacity-50"
+                className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
-                {uploadProgress ? 'Téléversement en cours...' : 'Ajouter à la Galerie'}
+                {uploadProgress ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>{uploadProgressText || 'Téléversement en cours...'}</span>
+                  </>
+                ) : (
+                  <span>Ajouter à la Galerie</span>
+                )}
               </button>
             </form>
           </div>
