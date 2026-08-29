@@ -55,7 +55,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
             {onOpenAdmin && (
               <button
                 onClick={onOpenAdmin}
-                className="px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-[#EEF2FF] text-[#3B66FF] hover:bg-[#3B66FF] hover:text-white transition-all duration-200 font-bold text-[11px] sm:text-xs uppercase tracking-wider shadow-sm"
+                className="px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-[#EEF2FF] text-[#1A3FBF] hover:bg-[#3B66FF] hover:text-white transition-all duration-200 font-bold text-[11px] sm:text-xs uppercase tracking-wider shadow-sm"
               >
                 Accès Admin
               </button>
@@ -75,7 +75,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
 
           <button
             onClick={scrollToTop}
-            className="px-5 sm:px-6 py-1.5 sm:py-2 rounded-full bg-[#EEF2FF] text-[#3B66FF] hover:bg-[#3B66FF] hover:text-white transition-all duration-200 font-bold text-xs uppercase tracking-wider shadow-sm flex items-center gap-1.5 shrink-0"
+            className="px-5 sm:px-6 py-1.5 sm:py-2 rounded-full bg-[#EEF2FF] text-[#1A3FBF] hover:bg-[#3B66FF] hover:text-white transition-all duration-200 font-bold text-xs uppercase tracking-wider shadow-sm flex items-center gap-1.5 shrink-0"
           >
             Haut de page ↑
           </button>

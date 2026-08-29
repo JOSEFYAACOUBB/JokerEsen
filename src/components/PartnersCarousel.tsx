@@ -105,7 +105,7 @@ export const PartnersCarousel: React.FC = () => {
     <div className="w-full bg-[#140A10] py-12 border-t border-b border-[#F3C4A0]/15 overflow-hidden">
 
       {/* Label */}
-      <p className="text-center text-[11px] font-black uppercase tracking-[0.32em] text-[#F5EDE4]/35 mb-9">
+      <p className="text-center text-[11px] font-black uppercase tracking-[0.32em] text-[#F5EDE4]/70 mb-9">
         Partenaires & Organisations Officielles
       </p>
 
@@ -124,7 +124,7 @@ export const PartnersCarousel: React.FC = () => {
               />
 
               {/* Name: dim → bright on hover */}
-              <span className="text-[11px] font-black uppercase tracking-widest text-[#F5EDE4]/30 group-hover:text-[#F5EDE4]/90 transition-all duration-500 whitespace-nowrap">
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#F5EDE4]/70 group-hover:text-[#F5EDE4]/95 transition-all duration-500 whitespace-nowrap">
                 {partner.shortName}
               </span>
             </div>

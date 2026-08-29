@@ -250,10 +250,11 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
           </button>
 
           <div className="flex items-center gap-2">
-            {members.map((_, index) => (
+            {members.map((member, index) => (
               <button
                 key={index}
                 onClick={() => scrollTo(index)}
+                aria-label={`Aller au membre ${index + 1} : ${member.name}`}
                 className="transition-all duration-300 rounded-full"
                 style={{
                   width: index === activeIndex ? '28px' : '8px',

@@ -186,10 +186,12 @@ export const MembershipForm: React.FC = () => {
 
                 {/* Field 4: Major / Filière ESEN */}
                 <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                  <label htmlFor="select-major" className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
                     Filière ESEN
                   </label>
                   <select
+                    id="select-major"
+                    aria-label="Filière ESEN"
                     value={formData.major}
                     onChange={(e) => setFormData({ ...formData, major: e.target.value })}
                     className="w-full px-5 py-3.5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-xs outline-none cursor-pointer"

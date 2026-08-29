@@ -264,7 +264,7 @@ export const Gallery: React.FC = () => {
                       className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold"
                       style={{
                         background: '#EEF2FF',
-                        color: '#3B66FF',
+                        color: '#1A3FBF',
                         boxShadow: '0 2px 8px rgba(59,102,255,0.15)',
                       }}
                     >

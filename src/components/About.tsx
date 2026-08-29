@@ -11,8 +11,8 @@ export const About: React.FC = () => {
       name: 'As de Pique',
       title: 'Audace & Créativité',
       desc: 'Inventer des concepts d\'événements uniques qui marquent la vie universitaire.',
-      color: '#B93A34',
-      bgGlow: 'rgba(185, 58, 52, 0.15)',
+      color: '#E05A52',
+      bgGlow: 'rgba(224, 90, 82, 0.15)',
     },
     {
       id: 'heart',
@@ -20,8 +20,8 @@ export const About: React.FC = () => {
       name: 'As de Cœur',
       title: 'Esprit de Famille',
       desc: 'Une communauté chaleureuse où chaque étudiant s\'épanouit et crée du lien.',
-      color: '#E05A47',
-      bgGlow: 'rgba(224, 90, 71, 0.15)',
+      color: '#E87A5D',
+      bgGlow: 'rgba(232, 122, 93, 0.15)',
     },
     {
       id: 'diamond',
@@ -29,8 +29,8 @@ export const About: React.FC = () => {
       name: 'As de Carreau',
       title: 'Excellence & Impact',
       desc: 'Une organisation rigoureuse au service de projets ambitieux à l\'ESEN.',
-      color: '#4E4F9E',
-      bgGlow: 'rgba(78, 79, 158, 0.15)',
+      color: '#7B7EDA',
+      bgGlow: 'rgba(123, 126, 218, 0.15)',
     },
     {
       id: 'club',
@@ -38,16 +38,16 @@ export const About: React.FC = () => {
       name: 'As de Trèfle',
       title: 'Opportunités & Talent',
       desc: 'Développer des compétences pratiques en design, évènementiel & communication.',
-      color: '#A66B95',
-      bgGlow: 'rgba(166, 107, 149, 0.15)',
+      color: '#C98EC0',
+      bgGlow: 'rgba(201, 142, 192, 0.15)',
     },
   ];
 
   const stats = [
     { number: '2016', label: 'Fondation', icon: Calendar, color: '#F3C4A0' },
-    { number: '500+', label: 'Membres', icon: Users, color: '#B93A34' },
-    { number: '50+', label: 'Événements', icon: Trophy, color: '#4E4F9E' },
-    { number: '100%', label: 'Passion', icon: Heart, color: '#A66B95' },
+    { number: '500+', label: 'Membres', icon: Users, color: '#E06060' },
+    { number: '50+', label: 'Événements', icon: Trophy, color: '#7B7EDA' },
+    { number: '100%', label: 'Passion', icon: Heart, color: '#C98EC0' },
   ];
 
   return (
@@ -189,7 +189,7 @@ export const About: React.FC = () => {
 
                   <div>
                     <h4
-                      className="text-2xl sm:text-4xl font-black text-[#F5EDE4] font-display uppercase tracking-tight"
+                      className="text-2xl sm:text-4xl font-black font-display uppercase tracking-tight"
                       style={{ color: stat.color }}
                     >
                       {stat.number}
@@ -255,9 +255,9 @@ export const About: React.FC = () => {
                     <span
                       className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider"
                       style={{
-                        background: `${pillar.color}20`,
+                        background: `${pillar.color}35`,
                         color: pillar.color,
-                        border: `1px solid ${pillar.color}40`,
+                        border: `1px solid ${pillar.color}60`,
                       }}
                     >
                       {pillar.name}
