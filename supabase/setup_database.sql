@@ -1,14 +1,14 @@
 -- ==============================================================================
--- JOKER ESEN - SUPABASE DATABASE SCHEMA (BaaS)
+-- JOKER ESEN - COMPLETE SUPABASE POSTGRESQL SETUP SCRIPT
 -- ==============================================================================
--- Paste and run this script in the Supabase SQL Editor (Dashboard > SQL Editor)
+-- Run this script in the Supabase SQL Editor (Dashboard > SQL Editor > New Query)
 -- ==============================================================================
 
--- Enable UUID extension
+-- 1. Enable UUID extension
 create extension if not exists "uuid-ossp";
 
 -- ------------------------------------------------------------------------------
--- 1. CLUB SETTINGS (Global config, recruitment status, announcements, JSON stores)
+-- 2. CLUB SETTINGS (Global config, recruitment status, announcements, JSON config)
 -- ------------------------------------------------------------------------------
 create table if not exists public.club_settings (
   id text primary key default 'default',
@@ -20,13 +20,14 @@ create table if not exists public.club_settings (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Seed default settings if not exists
+-- Seed default settings
 insert into public.club_settings (id, recruitment_open, announcement)
 values ('default', true, 'Bienvenue sur la plateforme officielle du Club Joker ESEN!')
-on conflict (id) do nothing;
+on conflict (id) do update set
+  updated_at = timezone('utc'::text, now());
 
 -- ------------------------------------------------------------------------------
--- 2. PARTNERS (Partenaires & Organisations Officielles)
+-- 3. PARTNERS & ORGANISATIONS
 -- ------------------------------------------------------------------------------
 create table if not exists public.partners (
   id uuid default gen_random_uuid() primary key,
@@ -52,7 +53,7 @@ values
 on conflict do nothing;
 
 -- ------------------------------------------------------------------------------
--- 3. EVENTS (Upcoming and past events)
+-- 4. EVENTS (Upcoming and past events)
 -- ------------------------------------------------------------------------------
 create table if not exists public.events (
   id uuid default gen_random_uuid() primary key,
@@ -67,7 +68,7 @@ create table if not exists public.events (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Seed default event
+-- Seed default active event
 insert into public.events (title, edition, date, location, program, banner_url, is_active)
 values (
   'Joker Carnival Night 2026',
@@ -81,7 +82,7 @@ values (
 on conflict do nothing;
 
 -- ------------------------------------------------------------------------------
--- 4. TEAM MEMBERS (Le Bureau Exécutif)
+-- 5. TEAM MEMBERS (Le Bureau Exécutif)
 -- ------------------------------------------------------------------------------
 create table if not exists public.team_members (
   id uuid default gen_random_uuid() primary key,
@@ -96,8 +97,19 @@ create table if not exists public.team_members (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Seed default team members
+insert into public.team_members (name, role, suit, suit_color, avatar, instagram, linkedin, order_index)
+values
+  ('Yasmine Ben Salem', 'Présidente du Club', '♠', '#F3C4A0', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600&h=800', '#', '#', 1),
+  ('Youssef Trabelsi', 'Vice-Président', '♥', '#B93A34', 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=600&h=800', '#', '#', 2),
+  ('Sarra Chaabane', 'Secrétaire Générale', '♦', '#4E4F9E', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=600&h=800', '#', '#', 3),
+  ('Amine Karray', 'Trésorier & Logistics', '♣', '#F3C4A0', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=600&h=800', '#', '#', 4),
+  ('Nour El Hoda Gharbi', 'Chef Pôle Design', '♦', '#A66B95', 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=600&h=800', '#', '#', 5),
+  ('Kahlil Ferjani', 'Chef Événementiel', '♣', '#4E4F9E', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=600&h=800', '#', '#', 6)
+on conflict do nothing;
+
 -- ------------------------------------------------------------------------------
--- 5. RECRUITMENT APPLICATIONS (Adhésions / Candidatures)
+-- 6. RECRUITMENT APPLICATIONS (Candidatures en ligne)
 -- ------------------------------------------------------------------------------
 create table if not exists public.recruitment_applications (
   id uuid default gen_random_uuid() primary key,
@@ -112,7 +124,7 @@ create table if not exists public.recruitment_applications (
 );
 
 -- ------------------------------------------------------------------------------
--- 6. GALLERY IMAGES (Cloudinary + Supabase metadata)
+-- 7. GALLERY IMAGES (Cloudinary + Supabase metadata)
 -- ------------------------------------------------------------------------------
 create table if not exists public.gallery_images (
   id uuid default gen_random_uuid() primary key,
@@ -128,17 +140,15 @@ create table if not exists public.gallery_images (
 );
 
 -- ------------------------------------------------------------------------------
--- 7. GRANT TABLE PERMISSIONS TO PUBLIC ROLES
+-- 8. GRANT USAGE & PERMISSIONS
 -- ------------------------------------------------------------------------------
 grant usage on schema public to anon, authenticated, postgres, service_role;
 grant all on all tables in schema public to anon, authenticated, postgres, service_role;
 grant all on all sequences in schema public to anon, authenticated, postgres, service_role;
 
 -- ------------------------------------------------------------------------------
--- 8. ROW LEVEL SECURITY (RLS) POLICIES
+-- 9. ROW LEVEL SECURITY (RLS) POLICIES
 -- ------------------------------------------------------------------------------
-
--- Enable RLS on all tables
 alter table public.club_settings enable row level security;
 alter table public.partners enable row level security;
 alter table public.events enable row level security;
@@ -146,7 +156,7 @@ alter table public.team_members enable row level security;
 alter table public.recruitment_applications enable row level security;
 alter table public.gallery_images enable row level security;
 
--- Drop existing policies to prevent conflicts
+-- Drop existing policies if any
 drop policy if exists "Public manage club settings" on public.club_settings;
 drop policy if exists "Public manage partners" on public.partners;
 drop policy if exists "Public manage events" on public.events;
@@ -154,7 +164,7 @@ drop policy if exists "Public manage team members" on public.team_members;
 drop policy if exists "Public manage recruitment" on public.recruitment_applications;
 drop policy if exists "Public manage gallery" on public.gallery_images;
 
--- Allow Public Management (for anon + authenticated)
+-- Create Open Public Access Policies
 create policy "Public manage club settings"
   on public.club_settings for all
   to anon, authenticated, public, service_role
@@ -192,7 +202,7 @@ create policy "Public manage gallery"
   with check (true);
 
 -- ------------------------------------------------------------------------------
--- 9. REALTIME REPLICATION
+-- 10. REALTIME SUBSCRIPTIONS
 -- ------------------------------------------------------------------------------
 alter publication supabase_realtime add table public.club_settings;
 alter publication supabase_realtime add table public.partners;

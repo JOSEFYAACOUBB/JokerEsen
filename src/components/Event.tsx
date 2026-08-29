@@ -400,30 +400,15 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
 
             {/* Info Cards Grid */}
             <div className="space-y-4">
-              {/* Program schedule */}
+              {/* Program schedule / Highlights */}
               <div className="p-5 rounded-2xl bg-[#EEF2FF]/5 border border-[#3B66FF]/20 space-y-3">
                 <div className="flex items-center gap-2 text-[#3B66FF] font-bold text-xs uppercase tracking-wider">
                   <Clock className="w-4 h-4" />
-                  <span>Planning de la Soirée</span>
+                  <span>Programme &amp; Highlights</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#EEF2FF]/5">
-                    <span className="text-[#EEF2FF]/60">20h00 - 21h00</span>
-                    <span className="font-bold text-white">Accueil &amp; Red Carpet</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#EEF2FF]/5">
-                    <span className="text-[#EEF2FF]/60">21h00 - 22h30</span>
-                    <span className="font-bold text-white">Concert Live &amp; Band</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#EEF2FF]/5">
-                    <span className="text-[#EEF2FF]/60">22h30 - 23h30</span>
-                    <span className="font-bold text-white">DJ Set &amp; Show Lumières</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#EEF2FF]/5">
-                    <span className="text-[#EEF2FF]/60">23h30 - 01h00</span>
-                    <span className="font-bold text-white">Buffet, Tombola &amp; Clôture</span>
-                  </div>
-                </div>
+                <p className="text-xs sm:text-sm text-white font-medium leading-relaxed bg-[#EEF2FF]/5 p-3.5 rounded-xl border border-white/5">
+                  {programText}
+                </p>
               </div>
 
               {/* Location & Access */}
@@ -432,21 +417,23 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                   <MapPin className="w-4 h-4" />
                   <span>Accès &amp; Localisation</span>
                 </div>
-                <p className="text-xs text-[#EEF2FF]/80 leading-relaxed">
-                  L'événement se déroule dans la <strong className="text-white">Grande Cour &amp; l'Amphi Principal de l'ESEN Manouba</strong>. L'accès est strictement réservé aux étudiants inscrits et munis de leur pass gratuit avec QR code / confirmation par e-mail.
-                </p>
+                <div className="text-xs text-[#EEF2FF]/80 leading-relaxed space-y-1.5">
+                  <p>📍 <strong className="text-white">Lieu :</strong> {locationText}</p>
+                  <p>📅 <strong className="text-white">Date &amp; Heure :</strong> {dateText}</p>
+                  <p>🎟️ <strong className="text-white">Accès :</strong> Ouvert aux étudiants munis de leur réservation / pass gratuit.</p>
+                </div>
               </div>
 
-              {/* Rules & Dress Code */}
+              {/* Rules & Edition details */}
               <div className="p-5 rounded-2xl bg-[#EEF2FF]/5 border border-[#3B66FF]/20 space-y-3">
                 <div className="flex items-center gap-2 text-[#3B66FF] font-bold text-xs uppercase tracking-wider">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Dress Code &amp; Informations Pratiques</span>
+                  <span>Édition &amp; Informations Pratiques</span>
                 </div>
                 <div className="text-xs text-[#EEF2FF]/80 space-y-1.5 leading-relaxed">
-                  <p>🎭 <strong className="text-white">Thème :</strong> Carnival Chic / Masqué (masques distribués à l'entrée).</p>
-                  <p>🎟️ <strong className="text-white">Entrée :</strong> 100% Gratuite avec réservation préalable.</p>
-                  <p>🎁 <strong className="text-white">Tombola :</strong> Plusieurs lots tech et goodies club à gagner durant la soirée.</p>
+                  <p>🎭 <strong className="text-white">Édition :</strong> {edition}</p>
+                  <p>🎟️ <strong className="text-white">Entrée :</strong> 100% Gratuite avec réservation préalable en ligne.</p>
+                  <p>🎁 <strong className="text-white">Ambiance :</strong> Musique live, animations, buffet &amp; tombola du club Joker ESEN.</p>
                 </div>
               </div>
             </div>

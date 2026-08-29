@@ -32,8 +32,29 @@ export function App() {
     return true;
   });
 
-  // Dynamic Event Data: Initialized immediately with local cache for zero delay
-  const [eventData, setEventData] = useState(() => getCachedEvent());
+  // Dynamic Event Data: Initialized immediately from Supabase active event
+  const [eventData, setEventData] = useState<{
+    id?: string;
+    title: string;
+    edition: string;
+    date: string;
+    location: string;
+    program: string;
+    bannerUrl: string;
+    banner_url?: string;
+  }>(() => {
+    const cached = getCachedEvent();
+    return {
+      id: cached.id,
+      title: cached.title,
+      edition: cached.edition,
+      date: cached.date,
+      location: cached.location,
+      program: cached.program,
+      bannerUrl: cached.banner_url || '/images/event_banner.jpg',
+      banner_url: cached.banner_url || '/images/event_banner.jpg',
+    };
+  });
 
   // Dynamic Executive Team Members: Initialized immediately with local cache
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {

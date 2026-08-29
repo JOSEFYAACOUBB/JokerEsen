@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { submitRecruitmentApplication } from '../services/recruitmentService';
+import { fetchFormConfig, defaultFormConfig } from '../services/formConfigService';
+import type { FormConfig } from '../types/database';
 
 export const MembershipForm: React.FC = () => {
+  const [formConfig, setFormConfig] = useState<FormConfig>(defaultFormConfig);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -11,9 +14,29 @@ export const MembershipForm: React.FC = () => {
     fullName: '',
     email: '',
     phone: '',
-    major: 'L1 Business Computing',
-    department: 'Événementiel & Animation',
+    major: defaultFormConfig.majors[0] || 'L1 Business Computing',
+    department: defaultFormConfig.departments[0] || 'Événementiel & Animation',
   });
+
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const config = await fetchFormConfig();
+        if (config) {
+          setFormConfig(config);
+          setFormData((prev) => ({
+            ...prev,
+            major: config.majors[0] || prev.major,
+            department: config.departments[0] || prev.department,
+          }));
+        }
+      } catch (err) {
+        console.warn('Error loading form config from Supabase:', err);
+      }
+    }
+
+    loadConfig();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,13 +101,13 @@ export const MembershipForm: React.FC = () => {
             <div className="relative z-10 space-y-2 sm:space-y-3 my-auto py-4 sm:py-8">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#3B82F6]/20 border border-[#60A5FA]/30 text-[#93C5FD] text-[10px] font-bold tracking-widest uppercase">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#60A5FA] animate-pulse" />
-                <span>05 &middot; RECRUTEMENT 2026</span>
+                <span>{formConfig.welcome_badge || '05 · RECRUTEMENT 2026'}</span>
               </div>
               <p className="text-[10px] sm:text-xs font-bold text-[#93C5FD] tracking-wider uppercase">
-                Salut &amp; Bienvenue !
+                {formConfig.welcome_subtitle || 'Salut & Bienvenue !'}
               </p>
               <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#FFFFFF] font-display uppercase tracking-tight leading-tight sm:leading-none">
-                Rejoins L'Aventure
+                {formConfig.welcome_title || "Rejoins L'Aventure"}
               </h2>
             </div>
 
@@ -112,15 +135,15 @@ export const MembershipForm: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-5 my-auto">
+              <form onSubmit={handleSubmit} className="space-y-4 my-auto">
                 
                 {/* Form Heading */}
                 <div>
-                  <h3 className="text-3xl sm:text-4xl font-black text-[#0F172A] font-display tracking-tight">
-                    Inscris-toi
+                  <h3 className="text-2xl sm:text-3xl font-black text-[#0F172A] font-display tracking-tight">
+                    {formConfig.form_heading || 'Inscris-toi'}
                   </h3>
                   <p className="text-xs text-[#64748B] font-medium mt-1">
-                    Complète tes informations pour rejoindre le club JokerEsen.
+                    {formConfig.form_subheading || 'Complète tes informations pour rejoindre le club JokerEsen.'}
                   </p>
                 </div>
 
@@ -136,10 +159,10 @@ export const MembershipForm: React.FC = () => {
                       placeholder="Mehdi Jlassi"
                       value={formData.fullName}
                       onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      className="w-full pl-5 pr-12 py-3.5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-sm outline-none transition-all"
+                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-sm outline-none transition-all"
                     />
                     {formData.fullName.trim().length > 2 && (
-                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3.5" />
+                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3" />
                     )}
                   </div>
                 </div>
@@ -156,10 +179,10 @@ export const MembershipForm: React.FC = () => {
                       placeholder="mehdi.jlassi@esen.tn"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-5 pr-12 py-3.5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-sm outline-none transition-all"
+                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-sm outline-none transition-all"
                     />
                     {formData.email.includes('@') && (
-                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3.5" />
+                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3" />
                     )}
                   </div>
                 </div>
@@ -176,10 +199,10 @@ export const MembershipForm: React.FC = () => {
                       placeholder="+216 22 345 678"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full pl-5 pr-12 py-3.5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-sm outline-none transition-all"
+                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-sm outline-none transition-all"
                     />
                     {formData.phone.trim().length > 7 && (
-                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3.5" />
+                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3" />
                     )}
                   </div>
                 </div>
@@ -194,14 +217,29 @@ export const MembershipForm: React.FC = () => {
                     aria-label="Filière ESEN"
                     value={formData.major}
                     onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                    className="w-full px-5 py-3.5 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-xs outline-none cursor-pointer"
+                    className="w-full px-5 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-xs outline-none cursor-pointer"
                   >
-                    <option>L1 Business Computing</option>
-                    <option>L2 Business Computing</option>
-                    <option>L3 Business Analytics</option>
-                    <option>L1 E-Commerce &amp; Digital</option>
-                    <option>L2/L3 E-Commerce</option>
-                    <option>Master ESEN</option>
+                    {formConfig.majors.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Field 5: Department / Pôle */}
+                <div className="space-y-1">
+                  <label htmlFor="select-department" className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                    Pôle / Département Souhaité
+                  </label>
+                  <select
+                    id="select-department"
+                    aria-label="Pôle / Département Souhaité"
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    className="w-full px-5 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-xs outline-none cursor-pointer"
+                  >
+                    {formConfig.departments.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -216,11 +254,11 @@ export const MembershipForm: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 pl-8 pr-3 rounded-full bg-[#3B66FF] text-white font-bold text-base uppercase shadow-xl shadow-[#3B66FF]/35 hover:bg-[#2552E0] hover:scale-[1.01] transition-all flex items-center justify-between disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full py-3 pl-8 pr-3 rounded-full bg-[#3B66FF] text-white font-bold text-sm uppercase shadow-xl shadow-[#3B66FF]/35 hover:bg-[#2552E0] hover:scale-[1.01] transition-all flex items-center justify-between disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer mt-2"
                 >
                   <span>{loading ? 'Envoi en cours...' : 'Rejoindre le Club'}</span>
-                  <span className="w-10 h-10 rounded-full bg-white text-[#3B66FF] flex items-center justify-center font-black text-lg shadow-md shrink-0">
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#3B66FF]" /> : '→'}
+                  <span className="w-9 h-9 rounded-full bg-white text-[#3B66FF] flex items-center justify-center font-black text-base shadow-md shrink-0">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin text-[#3B66FF]" /> : '→'}
                   </span>
                 </button>
 
@@ -236,3 +274,4 @@ export const MembershipForm: React.FC = () => {
   );
 };
 
+export default MembershipForm;

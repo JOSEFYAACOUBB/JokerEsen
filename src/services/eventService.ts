@@ -1,51 +1,59 @@
 import { supabase, supabaseDb, isSupabaseConfigured } from '../lib/supabase';
 import type { EventRecord } from '../types/database';
 
-const LOCAL_STORAGE_EVENT_KEY = 'joker_event_data';
-
-export const defaultEventData = {
-  id: '',
+export const defaultEventData: EventRecord = {
+  id: 'default-event',
   title: 'Joker Carnival Night 2026',
   edition: 'Édition Spéciale · 10ème Anniversaire',
   date: 'Samedi 26 Octobre 2026 · 20h00',
   location: 'Grand Cour & Amphi ESEN, Campus Manouba',
   program: 'Concerts live · DJ set · Buffet · Tombola',
-  bannerUrl: '/images/event_banner.jpg',
+  banner_url: '/images/event_banner.jpg',
+  is_active: true,
 };
 
-// Helper: load from localStorage cache
-export function getCachedEvent() {
-  try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_EVENT_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && (parsed.title || parsed.bannerUrl)) {
-        return parsed;
-      }
-    }
-  } catch (e) {
-    console.warn('Could not read cached event:', e);
-  }
+export function getCachedEvent(): EventRecord {
   return defaultEventData;
 }
 
-export function cacheEvent(event: any) {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_EVENT_KEY, JSON.stringify(event));
-  } catch (e) {
-    console.warn('Could not write cached event:', e);
+export function cacheEvent(_event: any) {}
+
+export async function fetchAllEvents(): Promise<EventRecord[]> {
+  if (!isSupabaseConfigured) {
+    return [defaultEventData];
   }
+
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      return data;
+    }
+  } catch (err) {
+    console.warn('SDK fetch all events failed, trying REST fallback:', err);
+  }
+
+  try {
+    const { data, error } = await supabaseDb.events.getAll();
+    if (!error && data && data.length > 0) {
+      return data;
+    }
+  } catch (err) {
+    console.warn('REST fetch all events failed:', err);
+  }
+
+  return [defaultEventData];
 }
 
 export async function fetchActiveEvent(): Promise<EventRecord | null> {
-  const cached = getCachedEvent();
-
   if (!isSupabaseConfigured) {
-    return cached;
+    return defaultEventData;
   }
 
   try {
-    // 1. Try SDK fetch
     const { data: sdkData, error: sdkError } = await supabase
       .from('events')
       .select('*')
@@ -55,61 +63,63 @@ export async function fetchActiveEvent(): Promise<EventRecord | null> {
       .maybeSingle();
 
     if (!sdkError && sdkData) {
-      const isCustomCachedBanner = cached.bannerUrl && cached.bannerUrl.includes('cloudinary');
-      const finalBanner = (isCustomCachedBanner && sdkData.banner_url === '/images/event_banner.jpg')
-        ? cached.bannerUrl
-        : (sdkData.banner_url || cached.bannerUrl || '/images/event_banner.jpg');
-
-      const merged = {
-        id: sdkData.id,
-        title: sdkData.title || cached.title,
-        edition: sdkData.edition || cached.edition,
-        date: sdkData.date || cached.date,
-        location: sdkData.location || cached.location,
-        program: sdkData.program || cached.program,
-        bannerUrl: finalBanner,
-      };
-
-      cacheEvent(merged);
-      return {
-        ...sdkData,
-        banner_url: finalBanner,
-      };
+      return sdkData;
     }
   } catch (err) {
-    console.warn('SDK fetch event failed, using REST fallback:', err);
+    console.warn('SDK fetch active event failed, using REST fallback:', err);
   }
 
-  // 2. Fallback to REST
   try {
     const { data, error } = await supabaseDb.events.getActive();
     if (!error && data) {
-      const isCustomCachedBanner = cached.bannerUrl && cached.bannerUrl.includes('cloudinary');
-      const finalBanner = (isCustomCachedBanner && data.banner_url === '/images/event_banner.jpg')
-        ? cached.bannerUrl
-        : (data.banner_url || cached.bannerUrl || '/images/event_banner.jpg');
-
-      const merged = {
-        id: data.id,
-        title: data.title || cached.title,
-        edition: data.edition || cached.edition,
-        date: data.date || cached.date,
-        location: data.location || cached.location,
-        program: data.program || cached.program,
-        bannerUrl: finalBanner,
-      };
-
-      cacheEvent(merged);
-      return {
-        ...data,
-        banner_url: finalBanner,
-      };
+      return data;
     }
   } catch (err) {
-    console.warn('REST fetch event failed:', err);
+    console.warn('REST fetch active event failed:', err);
   }
 
-  return cached;
+  return defaultEventData;
+}
+
+export async function createEvent(event: Omit<EventRecord, 'id' | 'created_at' | 'updated_at'>): Promise<EventRecord | null> {
+  if (!isSupabaseConfigured) {
+    return { ...event, id: String(Date.now()) };
+  }
+
+  // If this new event is active, deactivate others
+  if (event.is_active) {
+    try {
+      await supabase.from('events').update({ is_active: false }).neq('id', 'placeholder');
+    } catch (e) {
+      console.warn('Could not deactivate previous active events:', e);
+    }
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .insert([
+        {
+          title: event.title,
+          edition: event.edition,
+          date: event.date,
+          location: event.location,
+          program: event.program,
+          banner_url: event.banner_url || '/images/event_banner.jpg',
+          is_active: event.is_active ?? true,
+        },
+      ])
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      return data;
+    }
+  } catch (err) {
+    console.warn('Error creating event in Supabase:', err);
+  }
+
+  return null;
 }
 
 export async function updateEventDetails(
@@ -120,77 +130,85 @@ export async function updateEventDetails(
     date: string;
     location: string;
     program: string;
-    bannerUrl: string;
+    bannerUrl?: string;
+    banner_url?: string;
+    is_active?: boolean;
   }
 ): Promise<boolean> {
-  // 1. Always update local storage cache immediately
-  const cachedMerged = { ...updates, id };
-  cacheEvent(cachedMerged);
-
   if (!isSupabaseConfigured) {
     return true;
   }
 
+  const banner = updates.banner_url || updates.bannerUrl || '/images/event_banner.jpg';
   const payload: Partial<EventRecord> = {
     title: updates.title,
     edition: updates.edition,
     date: updates.date,
     location: updates.location,
     program: updates.program,
-    banner_url: updates.bannerUrl,
-    is_active: true,
+    banner_url: banner,
+    updated_at: new Date().toISOString(),
   };
+
+  if (typeof updates.is_active === 'boolean') {
+    payload.is_active = updates.is_active;
+  }
 
   const isUUID = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
   try {
-    // 2. Check existing event in DB
-    const { data: existing } = await supabase
-      .from('events')
-      .select('id')
-      .limit(1)
-      .maybeSingle();
-
-    if (existing?.id || isUUID) {
-      const targetId = existing?.id || id;
-      const { error } = await supabase
-        .from('events')
-        .update(payload)
-        .eq('id', targetId);
-
+    if (isUUID) {
+      const { error } = await supabase.from('events').update(payload).eq('id', id);
       if (!error) return true;
-      console.warn('SDK update event failed:', error);
     } else {
-      // Insert new active event
-      const { data: inserted, error } = await supabase
-        .from('events')
-        .insert([payload])
-        .select()
-        .maybeSingle();
-
-      if (!error) {
-        if (inserted?.id) {
-          cacheEvent({ ...cachedMerged, id: inserted.id });
-        }
-        return true;
+      // Find the first active event or first event
+      const { data: existing } = await supabase.from('events').select('id').limit(1).maybeSingle();
+      if (existing?.id) {
+        const { error } = await supabase.from('events').update(payload).eq('id', existing.id);
+        if (!error) return true;
+      } else {
+        const { error } = await supabase.from('events').insert([payload]);
+        if (!error) return true;
       }
-      console.warn('SDK insert event failed:', error);
     }
   } catch (err) {
-    console.warn('SDK update event error, trying REST fallback:', err);
-  }
-
-  // 3. REST Fallback
-  try {
-    if (isUUID) {
-      const { error } = await supabaseDb.events.update(id, payload);
-      if (!error) return true;
-    }
-    const { error: insertError } = await supabaseDb.events.create(payload as any);
-    if (!insertError) return true;
-  } catch (restErr) {
-    console.warn('REST update event error:', restErr);
+    console.warn('Error updating event in Supabase:', err);
   }
 
   return true;
+}
+
+export async function setActiveEvent(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return true;
+
+  try {
+    // 1. Deactivate all
+    await supabase.from('events').update({ is_active: false }).neq('id', id);
+    // 2. Activate target
+    const { error } = await supabase.from('events').update({ is_active: true }).eq('id', id);
+    return !error;
+  } catch (e) {
+    console.warn('Error setting active event in Supabase:', e);
+    return false;
+  }
+}
+
+export async function deleteEvent(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return true;
+
+  try {
+    const { error } = await supabase.from('events').delete().eq('id', id);
+    if (!error) return true;
+  } catch (err) {
+    console.warn('Error deleting event via SDK, trying REST:', err);
+  }
+
+  try {
+    await supabaseDb.events.delete(id);
+    return true;
+  } catch (err) {
+    console.warn('Error deleting event via REST:', err);
+  }
+
+  return false;
 }

@@ -165,6 +165,12 @@ export const supabaseDb = {
         body: JSON.stringify(event),
       });
     },
+
+    async delete(id: string) {
+      return supabaseFetch(`events?id=eq.${id}`, {
+        method: 'DELETE',
+      });
+    },
   },
 
   // 4. Team Members
@@ -194,7 +200,28 @@ export const supabaseDb = {
     },
   },
 
-  // 5. Gallery Images
+  // 5. Partners
+  partners: {
+    async getAll() {
+      return supabaseFetch<any[]>('partners?order=order_index.asc');
+    },
+
+    async upsert(partner: any) {
+      return supabaseFetch<any[]>('partners', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify(partner),
+      });
+    },
+
+    async delete(id: string) {
+      return supabaseFetch(`partners?id=eq.${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
+
+  // 6. Gallery Images
   gallery: {
     async getAll() {
       return supabaseFetch<GalleryImage[]>('gallery_images?order=created_at.desc');

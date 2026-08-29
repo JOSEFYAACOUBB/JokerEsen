@@ -1,54 +1,47 @@
-import React, { useState } from 'react';
-import { Trophy, Users, Calendar, Heart, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Trophy, Users, Calendar, Heart, MapPin, Sparkles, Star } from 'lucide-react';
+import type { AboutData } from '../types/database';
+import { fetchAboutData, defaultAboutData } from '../services/aboutService';
 
-export const About: React.FC = () => {
+const iconMap: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
+  Calendar,
+  Users,
+  Trophy,
+  Heart,
+  Sparkles,
+  Star,
+};
+
+interface AboutProps {
+  initialData?: AboutData;
+}
+
+export const About: React.FC<AboutProps> = ({ initialData }) => {
   const [activeSuit, setActiveSuit] = useState<string>('all');
+  const [data, setData] = useState<AboutData>(initialData || defaultAboutData);
 
-  const pillars = [
-    {
-      id: 'spade',
-      suit: '♠',
-      name: 'As de Pique',
-      title: 'Audace & Créativité',
-      desc: 'Inventer des concepts d\'événements uniques qui marquent la vie universitaire.',
-      color: '#E05A52',
-      bgGlow: 'rgba(224, 90, 82, 0.15)',
-    },
-    {
-      id: 'heart',
-      suit: '♥',
-      name: 'As de Cœur',
-      title: 'Esprit de Famille',
-      desc: 'Une communauté chaleureuse où chaque étudiant s\'épanouit et crée du lien.',
-      color: '#E87A5D',
-      bgGlow: 'rgba(232, 122, 93, 0.15)',
-    },
-    {
-      id: 'diamond',
-      suit: '♦',
-      name: 'As de Carreau',
-      title: 'Excellence & Impact',
-      desc: 'Une organisation rigoureuse au service de projets ambitieux à l\'ESEN.',
-      color: '#7B7EDA',
-      bgGlow: 'rgba(123, 126, 218, 0.15)',
-    },
-    {
-      id: 'club',
-      suit: '♣',
-      name: 'As de Trèfle',
-      title: 'Opportunités & Talent',
-      desc: 'Développer des compétences pratiques en design, évènementiel & communication.',
-      color: '#C98EC0',
-      bgGlow: 'rgba(201, 142, 192, 0.15)',
-    },
-  ];
+  useEffect(() => {
+    if (initialData) {
+      setData(initialData);
+      return;
+    }
 
-  const stats = [
-    { number: '2016', label: 'Fondation', icon: Calendar, color: '#F3C4A0' },
-    { number: '500+', label: 'Membres', icon: Users, color: '#E06060' },
-    { number: '50+', label: 'Événements', icon: Trophy, color: '#7B7EDA' },
-    { number: '100%', label: 'Passion', icon: Heart, color: '#C98EC0' },
-  ];
+    async function loadData() {
+      try {
+        const res = await fetchAboutData();
+        if (res) {
+          setData(res);
+        }
+      } catch (err) {
+        console.warn('Error loading About data from Supabase:', err);
+      }
+    }
+
+    loadData();
+  }, [initialData]);
+
+  const pillars = data.pillars || defaultAboutData.pillars;
+  const stats = data.stats || defaultAboutData.stats;
 
   return (
     <section
@@ -72,7 +65,7 @@ export const About: React.FC = () => {
           <div className="max-w-2xl space-y-3">
             <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#B93A34]/15 border border-[#B93A34]/35 text-[#F3C4A0] text-xs font-bold tracking-widest uppercase">
               <span className="w-2 h-2 rounded-full bg-[#B93A34] animate-pulse" />
-              <span>01 &middot; QUI SOMMES-NOUS</span>
+              <span>{data.badge || '01 · QUI SOMMES-NOUS'}</span>
             </div>
             <h2
               className="font-black uppercase text-[#F5EDE4] leading-[1.05]"
@@ -82,7 +75,7 @@ export const About: React.FC = () => {
                 letterSpacing: '-0.02em',
               }}
             >
-              Plus Qu'Un Club,{' '}
+              {data.title_prefix || "Plus Qu'Un Club, "}
               <span
                 style={{
                   background: 'linear-gradient(90deg, #F3C4A0, #B93A34)',
@@ -90,7 +83,7 @@ export const About: React.FC = () => {
                   WebkitTextFillColor: 'transparent',
                 }}
               >
-                Une Aventure Humaine.
+                {data.title_highlight || 'Une Aventure Humaine.'}
               </span>
             </h2>
           </div>
@@ -103,10 +96,10 @@ export const About: React.FC = () => {
               <span className="text-[#4E4F9E]">♦</span>
               <span className="text-[#A66B95]">♣</span>
               <span className="text-white/40 ml-1">·</span>
-              <span className="text-white/70">DEPUIS 2016</span>
+              <span className="text-white/70">{data.editorial_badge || 'DEPUIS 2016'}</span>
             </div>
             <p className="text-xs text-[#F5EDE4]/70 leading-relaxed">
-              L'énergie étudiante &amp; créative au cœur de l'ESEN Manouba.
+              {data.editorial_text || "L'énergie étudiante & créative au cœur de l'ESEN Manouba."}
             </p>
           </div>
         </div>
@@ -114,7 +107,7 @@ export const About: React.FC = () => {
         {/* ── BENTO GRID ── */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
 
-          {/* CARD 1: Main Story (Spans 2 cols, 2 rows on desktop) */}
+          {/* CARD 1: Main Story */}
           <div
             className="lg:col-span-2 lg:row-span-2 group relative rounded-3xl overflow-hidden p-6 sm:p-8 md:p-10 flex flex-col justify-between transition-all duration-500 hover:border-[#B93A34]/50"
             style={{
@@ -144,32 +137,36 @@ export const About: React.FC = () => {
                     border: '1px solid rgba(185,58,52,0.4)',
                   }}
                 >
-                  ♠ Notre Histoire
+                  {data.story_badge || '♠ Notre Histoire'}
                 </span>
 
                 <div className="flex items-center gap-1.5 text-xs text-[#F3C4A0]/60 font-bold uppercase tracking-wider">
                   <MapPin className="w-3.5 h-3.5 text-[#B93A34]" />
-                  ESEN Manouba
+                  {data.story_location || 'ESEN Manouba'}
                 </div>
               </div>
 
               <h3 className="text-xl sm:text-3xl lg:text-4xl font-black text-[#F5EDE4] font-display uppercase leading-tight pt-2">
-                Éveiller l'énergie créative de chaque étudiant.
+                {data.story_heading || "Éveiller l'énergie créative de chaque étudiant."}
               </h3>
 
               <p className="text-xs sm:text-sm md:text-base text-[#F5EDE4]/75 leading-relaxed pt-1">
-                Fondé en <strong className="text-[#F3C4A0] font-bold">2016</strong> au sein de l'École Supérieure d'Économie Numérique, <strong className="text-[#B93A34]">JokerEsen</strong> tire son nom du Joker — symbole d'imprévisibilité joyeuse et d'atout gagnant. Notre mission est de faire vibrer le campus à travers des soirées mythiques, des projets ambitieux et une véritable synergie d'équipe.
+                {data.story_text || (
+                  <>
+                    Fondé en <strong className="text-[#F3C4A0] font-bold">{data.founded_year || '2016'}</strong> au sein de l'École Supérieure d'Économie Numérique, <strong className="text-[#B93A34]">JokerEsen</strong> tire son nom du Joker — symbole d'imprévisibilité joyeuse et d'atout gagnant. Notre mission est de faire vibrer le campus à travers des soirées mythiques, des projets ambitieux et une véritable synergie d'équipe.
+                  </>
+                )}
               </p>
             </div>
           </div>
 
           {/* CARD 2: Stats Grid (2x2 mini Bento box) */}
           <div className="lg:col-span-2 grid grid-cols-2 gap-3 sm:gap-4">
-            {stats.map((stat) => {
-              const IconComp = stat.icon;
+            {stats.map((stat, idx) => {
+              const IconComp = (stat.icon && iconMap[stat.icon]) || Trophy;
               return (
                 <div
-                  key={stat.label}
+                  key={stat.id || `${stat.label}-${idx}`}
                   className="group relative rounded-3xl p-4 sm:p-6 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 overflow-hidden"
                   style={{
                     background: 'rgba(37,18,27,0.75)',
@@ -211,13 +208,15 @@ export const About: React.FC = () => {
             })}
           </div>
 
-          {/* CARD 3: Pillars & Suits Interactive Showcase (Spans full width) */}
+          {/* CARD 3: Pillars & Suits Interactive Showcase */}
           <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 pt-2">
             {pillars.map((pillar) => {
               const isHovered = activeSuit === pillar.id;
+              const glow = pillar.bgGlow || `${pillar.color}25`;
+
               return (
                 <div
-                  key={pillar.id}
+                  key={pillar.id || pillar.name}
                   onMouseEnter={() => setActiveSuit(pillar.id)}
                   onMouseLeave={() => setActiveSuit('all')}
                   className="group relative rounded-3xl p-5 sm:p-6 flex flex-col justify-between transition-all duration-500 cursor-pointer overflow-hidden min-h-[190px] sm:min-h-[220px]"
@@ -227,7 +226,7 @@ export const About: React.FC = () => {
                       ? `1.5px solid ${pillar.color}`
                       : '1.5px solid rgba(243,196,160,0.15)',
                     boxShadow: isHovered
-                      ? `0 12px 30px ${pillar.bgGlow}`
+                      ? `0 12px 30px ${glow}`
                       : 'none',
                     transform: isHovered ? 'translateY(-4px)' : 'none',
                   }}
@@ -292,3 +291,4 @@ export const About: React.FC = () => {
   );
 };
 
+export default About;
