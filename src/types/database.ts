@@ -70,6 +70,9 @@ export interface EventRecord {
   program: string;
   banner_url: string;
   is_active: boolean;
+  access_info?: string;
+  entry_info?: string;
+  ambiance_info?: string;
   created_at?: string;
   updated_at?: string;
 }

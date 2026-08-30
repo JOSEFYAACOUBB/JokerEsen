@@ -42,6 +42,9 @@ export function App() {
     program: string;
     bannerUrl: string;
     banner_url?: string;
+    access_info?: string;
+    entry_info?: string;
+    ambiance_info?: string;
   }>(() => {
     const cached = getCachedEvent();
     return {
@@ -53,6 +56,9 @@ export function App() {
       program: cached.program,
       bannerUrl: cached.banner_url || '/images/event_banner.jpg',
       banner_url: cached.banner_url || '/images/event_banner.jpg',
+      access_info: cached.access_info,
+      entry_info: cached.entry_info,
+      ambiance_info: cached.ambiance_info,
     };
   });
 
@@ -117,6 +123,10 @@ export function App() {
             location: event.location,
             program: event.program,
             bannerUrl: event.banner_url || '/images/event_banner.jpg',
+            banner_url: event.banner_url || '/images/event_banner.jpg',
+            access_info: event.access_info,
+            entry_info: event.entry_info,
+            ambiance_info: event.ambiance_info,
           });
         }
 

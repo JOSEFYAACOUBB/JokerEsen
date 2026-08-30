@@ -87,21 +87,6 @@ export const About: React.FC<AboutProps> = ({ initialData }) => {
               </span>
             </h2>
           </div>
-
-          {/* Right Decorative Editorial Pill */}
-          <div className="lg:max-w-xs flex flex-col sm:flex-row lg:flex-col gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md">
-            <div className="flex items-center gap-2 text-xs font-black tracking-widest text-[#F3C4A0]">
-              <span className="text-[#B93A34]">♠</span>
-              <span className="text-[#E05A47]">♥</span>
-              <span className="text-[#4E4F9E]">♦</span>
-              <span className="text-[#A66B95]">♣</span>
-              <span className="text-white/40 ml-1">·</span>
-              <span className="text-white/70">{data.editorial_badge || 'DEPUIS 2016'}</span>
-            </div>
-            <p className="text-xs text-[#F5EDE4]/70 leading-relaxed">
-              {data.editorial_text || "L'énergie étudiante & créative au cœur de l'ESEN Manouba."}
-            </p>
-          </div>
         </div>
 
         {/* ── BENTO GRID ── */}

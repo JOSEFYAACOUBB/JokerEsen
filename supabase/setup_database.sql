@@ -64,12 +64,20 @@ create table if not exists public.events (
   program text not null,
   banner_url text not null default '/images/event_banner.jpg',
   is_active boolean default true not null,
+  access_info text default 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
+  entry_info text default '100% Gratuite avec réservation préalable en ligne.',
+  ambiance_info text default 'Musique live, animations, buffet & tombola du club Joker ESEN.',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Ensure existing table has the new columns
+alter table public.events add column if not exists access_info text default 'Ouvert aux étudiants munis de leur réservation / pass gratuit.';
+alter table public.events add column if not exists entry_info text default '100% Gratuite avec réservation préalable en ligne.';
+alter table public.events add column if not exists ambiance_info text default 'Musique live, animations, buffet & tombola du club Joker ESEN.';
+
 -- Seed default active event
-insert into public.events (title, edition, date, location, program, banner_url, is_active)
+insert into public.events (title, edition, date, location, program, banner_url, is_active, access_info, entry_info, ambiance_info)
 values (
   'Joker Carnival Night 2026',
   'Édition Spéciale · 10ème Anniversaire',
@@ -77,7 +85,10 @@ values (
   'Grand Cour & Amphi ESEN, Campus Manouba',
   'Concerts live · DJ set · Buffet · Tombola',
   '/images/event_banner.jpg',
-  true
+  true,
+  'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
+  '100% Gratuite avec réservation préalable en ligne.',
+  'Musique live, animations, buffet & tombola du club Joker ESEN.'
 )
 on conflict do nothing;
 

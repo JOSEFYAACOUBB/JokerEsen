@@ -109,33 +109,6 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
               Les visages, stratèges et créatifs qui font battre le cœur du Joker ESEN.
             </p>
           </div>
-
-          {/* Right Column: Carousel Controls & Counter Pod — only shown when there are members */}
-          {members.length > 0 && (
-            <div className="flex items-center gap-4 self-start md:self-end bg-white/[0.04] border border-white/10 p-2 sm:p-2.5 rounded-2xl backdrop-blur-md">
-              <div className="px-3 text-xs font-black tracking-wider text-[#F3C4A0] font-mono">
-                0{activeIndex + 1} <span className="text-white/30">/</span> 0{members.length}
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={handlePrev}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/10 hover:bg-[#3B66FF] text-white transition-all duration-200 flex items-center justify-center shadow-md active:scale-95"
-                  title="Membre précédent"
-                >
-                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-                <button
-                  onClick={handleNext}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/10 hover:bg-[#3B66FF] text-white transition-all duration-200 flex items-center justify-center shadow-md active:scale-95"
-                  title="Membre suivant"
-                >
-                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
-            </div>
-          )}
-
         </div>
       </div>
 

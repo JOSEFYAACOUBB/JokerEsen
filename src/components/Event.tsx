@@ -9,6 +9,9 @@ interface EventProps {
     location: string;
     program: string;
     bannerUrl: string;
+    access_info?: string;
+    entry_info?: string;
+    ambiance_info?: string;
   };
 }
 
@@ -26,6 +29,9 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
   const locationText = eventData?.location || 'Grand Cour & Amphi ESEN, Campus Manouba';
   const programText = eventData?.program || 'Concerts live · DJ set · Buffet · Tombola';
   const bannerUrl = eventData?.bannerUrl || '/images/event_banner.jpg';
+  const accessInfoText = eventData?.access_info || 'Ouvert aux étudiants munis de leur réservation / pass gratuit.';
+  const entryInfoText = eventData?.entry_info || '100% Gratuite avec réservation préalable en ligne.';
+  const ambianceInfoText = eventData?.ambiance_info || 'Musique live, animations, buffet & tombola du club Joker ESEN.';
 
   const eventDate = new Date('2026-10-26T20:00:00');
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -74,16 +80,16 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
             -45deg,
             transparent,
             transparent 40px,
-            rgba(243,196,160,0.03) 40px,
-            rgba(243,196,160,0.03) 41px
+            rgba(243,187,153,0.03) 40px,
+            rgba(243,187,153,0.03) 41px
           )`,
         }}
       />
 
-      {/* Ambient glows */}
+      {/* Ambient glows with #F3BB99 theme */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse, rgba(59,102,255,0.12) 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(ellipse, rgba(243,187,153,0.14) 0%, transparent 70%)' }}
       />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -91,8 +97,8 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
         {/* Section Header - High Energy Asymmetric Placement */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-12">
           <div className="space-y-2.5">
-            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#3B66FF]/15 border border-[#3B66FF]/35 text-[#93C5FD] text-xs font-bold tracking-widest uppercase">
-              <span className="w-2 h-2 rounded-full bg-[#3B66FF] animate-ping" />
+            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#F3BB99]/15 border border-[#F3BB99]/35 text-[#F3BB99] text-xs font-bold tracking-widest uppercase">
+              <span className="w-2 h-2 rounded-full bg-[#F3BB99] animate-ping" />
               <span>03 &middot; PROCHAIN RENDEZ-VOUS</span>
             </div>
             <h2
@@ -110,8 +116,8 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
             </p>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-[#3B66FF]/10 border border-[#3B66FF]/30 text-[#93C5FD] text-xs font-bold tracking-wider uppercase">
-            <span className="text-[#3B66FF]">✦</span>
+          <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-[#F3BB99]/10 border border-[#F3BB99]/30 text-[#F3BB99] text-xs font-bold tracking-wider uppercase">
+            <span className="text-[#F3BB99]">✦</span>
             <span>PASS &amp; ACCÈS OUVERTS</span>
           </div>
         </div>
@@ -122,7 +128,7 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
           {/* Ambient glow behind ticket */}
           <div
             className="absolute inset-0 rounded-[2.5rem] blur-3xl opacity-30 pointer-events-none"
-            style={{ background: 'linear-gradient(135deg, #3B66FF 0%, #1C0F16 60%)', transform: 'scale(0.96) translateY(16px)' }}
+            style={{ background: 'linear-gradient(135deg, #F3BB99 0%, #1C0F16 60%)', transform: 'scale(0.96) translateY(16px)' }}
           />
 
           {/* ══ TICKET BODY ══ */}
@@ -130,7 +136,7 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
             className="relative rounded-3xl sm:rounded-[2.5rem] overflow-hidden"
             style={{
               background: '#111827',
-              border: '1.5px solid rgba(59,102,255,0.25)',
+              border: '1.5px solid rgba(243,187,153,0.3)',
               boxShadow: '0 40px 100px rgba(0,0,0,0.75)',
             }}
           >
@@ -150,8 +156,8 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
 
               {/* ADMIT ONE diagonal ribbon */}
               <div
-                className="hidden xs:block absolute top-7 -right-10 px-20 py-2 text-[9px] font-black uppercase tracking-[0.3em] text-white"
-                style={{ background: '#3B66FF', transform: 'rotate(35deg)', boxShadow: '0 4px 16px rgba(59,102,255,0.6)' }}
+                className="hidden xs:block absolute top-7 -right-10 px-20 py-2 text-[9px] font-black uppercase tracking-[0.3em] text-[#14080F]"
+                style={{ background: '#F3BB99', transform: 'rotate(35deg)', boxShadow: '0 4px 16px rgba(243,187,153,0.5)' }}
               >
                 Admit One
               </div>
@@ -159,8 +165,8 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
               {/* Edition pill — top left */}
               <div className="absolute top-4 sm:top-6 left-4 sm:left-7">
                 <span
-                  className="inline-flex items-center px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase text-white"
-                  style={{ background: '#3B66FF', boxShadow: '0 3px 14px rgba(59,102,255,0.55)', letterSpacing: '0.1em' }}
+                  className="inline-flex items-center px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase text-[#14080F]"
+                  style={{ background: '#F3BB99', boxShadow: '0 3px 14px rgba(243,187,153,0.55)', letterSpacing: '0.1em' }}
                 >
                   {edition}
                 </span>
@@ -170,9 +176,9 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
               <div className="absolute bottom-0 left-0 right-0 px-5 sm:px-8 md:px-12 pb-5 sm:pb-7">
                 <div
                   className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full mb-2 sm:mb-3"
-                  style={{ background: 'rgba(59,102,255,0.85)', backdropFilter: 'blur(8px)' }}
+                  style={{ background: 'rgba(243,187,153,0.9)', backdropFilter: 'blur(8px)' }}
                 >
-                  <span className="text-[8px] sm:text-[9px] font-black uppercase text-white tracking-widest">Club JokerEsen · ESEN Manouba</span>
+                  <span className="text-[8px] sm:text-[9px] font-black uppercase text-[#14080F] tracking-widest">Club JokerEsen · ESEN Manouba</span>
                 </div>
                 <h2
                   className="font-black uppercase leading-tight text-white"
@@ -198,37 +204,37 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
 
                   {/* Date & Heure */}
-                  <div className="flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-[#3B66FF]/25 hover:border-[#3B66FF]/50 transition-colors">
+                  <div className="flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-[#F3BB99]/25 hover:border-[#F3BB99]/50 transition-colors">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center"
-                      style={{ background: '#3B66FF', boxShadow: '0 4px 16px rgba(59,102,255,0.45)' }}>
-                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      style={{ background: '#F3BB99', boxShadow: '0 4px 16px rgba(243,187,153,0.45)' }}>
+                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#14080F]" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase text-[#3B66FF] tracking-wider mb-1">Date &amp; Heure</p>
+                      <p className="text-[10px] font-bold uppercase text-[#F3BB99] tracking-wider mb-1">Date &amp; Heure</p>
                       <p className="text-xs sm:text-base font-black text-white leading-snug">{dateText}</p>
                     </div>
                   </div>
 
                   {/* Lieu */}
-                  <div className="flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#3B66FF]/30 transition-colors">
+                  <div className="flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#F3BB99]/30 transition-colors">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center"
-                      style={{ background: '#EEF2FF', boxShadow: '0 4px 14px rgba(59,102,255,0.15)' }}>
-                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-[#3B66FF]" />
+                      style={{ background: '#F3BB99', boxShadow: '0 4px 14px rgba(243,187,153,0.3)' }}>
+                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-[#14080F]" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase text-[#EEF2FF]/50 tracking-wider mb-1">Lieu</p>
+                      <p className="text-[10px] font-bold uppercase text-[#F3BB99]/80 tracking-wider mb-1">Lieu</p>
                       <p className="text-xs sm:text-base font-black text-white leading-snug">{locationText}</p>
                     </div>
                   </div>
 
                   {/* Programme (spans both columns for maximum readability) */}
-                  <div className="sm:col-span-2 flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#3B66FF]/30 transition-colors">
+                  <div className="sm:col-span-2 flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#F3BB99]/30 transition-colors">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center"
-                      style={{ background: '#EEF2FF', boxShadow: '0 4px 14px rgba(59,102,255,0.15)' }}>
-                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#3B66FF]" />
+                      style={{ background: '#F3BB99', boxShadow: '0 4px 14px rgba(243,187,153,0.3)' }}>
+                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#14080F]" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-bold uppercase text-[#EEF2FF]/50 tracking-wider mb-1">Programme</p>
+                      <p className="text-[10px] font-bold uppercase text-[#F3BB99]/80 tracking-wider mb-1">Programme</p>
                       <p className="text-xs sm:text-base font-black text-white leading-snug">{programText}</p>
                     </div>
                   </div>
@@ -237,21 +243,21 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                 {/* Bottom Bar: Action Button on Left + Serial & Barcode on Right */}
                 <div
                   className="flex flex-wrap items-center justify-between gap-4 pt-4"
-                  style={{ borderTop: '1px dashed rgba(59,102,255,0.2)' }}
+                  style={{ borderTop: '1px dashed rgba(243,187,153,0.2)' }}
                 >
                   {/* More Info Pill Button */}
                   <button
                     onClick={() => setIsInfoOpen(true)}
-                    className="inline-flex items-center gap-2.5 pl-4 sm:pl-5 pr-2 py-1.5 sm:py-2 rounded-full font-bold uppercase text-xs transition-all duration-300 hover:scale-105"
+                    className="inline-flex items-center gap-2.5 pl-4 sm:pl-5 pr-2 py-1.5 sm:py-2 rounded-full font-black uppercase text-xs transition-all duration-300 hover:scale-105 cursor-pointer"
                     style={{
-                      background: '#EEF2FF',
-                      color: '#3B66FF',
+                      background: '#F3BB99',
+                      color: '#14080F',
                       letterSpacing: '0.08em',
-                      boxShadow: '0 2px 10px rgba(59,102,255,0.15)',
+                      boxShadow: '0 2px 14px rgba(243,187,153,0.35)',
                     }}
                   >
                     <span>Plus d'infos</span>
-                    <span className="w-6 h-6 rounded-full bg-[#3B66FF] text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <span className="w-6 h-6 rounded-full bg-[#14080F] text-[#F3BB99] flex items-center justify-center shrink-0 shadow-sm">
                       <Info className="w-3.5 h-3.5" />
                     </span>
                   </button>
@@ -259,14 +265,14 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                   {/* Serial Number & Barcode */}
                   <div className="flex items-center gap-3 sm:gap-4">
                     <div className="text-right">
-                      <p className="text-[8px] text-[#EEF2FF]/40 uppercase font-bold tracking-widest">No. de Billet</p>
-                      <p className="font-mono font-black text-[#EEF2FF]/70 text-[11px] sm:text-xs tracking-wider">{serialNo}</p>
+                      <p className="text-[8px] text-[#F3BB99]/60 uppercase font-bold tracking-widest">No. de Billet</p>
+                      <p className="font-mono font-black text-[#F5EDE4]/70 text-[11px] sm:text-xs tracking-wider">{serialNo}</p>
                     </div>
 
                     {/* Barcode Visual */}
-                    <div className="flex items-end gap-px opacity-30 h-7 sm:h-8">
+                    <div className="flex items-end gap-px opacity-40 h-7 sm:h-8">
                       {[3,6,2,7,4,5,2,6,3,8,2,4,6,3,5,7,2,4,5,3,6,2].map((h, i) => (
-                        <div key={i} style={{ width: i % 3 === 0 ? '2.5px' : '1.5px', height: `${h * 3.2}px`, background: '#EEF2FF', borderRadius: '1px' }} />
+                        <div key={i} style={{ width: i % 3 === 0 ? '2.5px' : '1.5px', height: `${h * 3.2}px`, background: '#F3BB99', borderRadius: '1px' }} />
                       ))}
                     </div>
                   </div>
@@ -277,7 +283,7 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
               {/* ── PERFORATED DIVIDER (Horizontal on mobile, Vertical on desktop) ── */}
               <div className="relative flex lg:hidden items-center justify-between h-6 w-full px-1 overflow-hidden">
                 <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full z-20" style={{ background: '#0D0608' }} />
-                <div className="w-full h-px border-t border-dashed border-[#3B66FF]/35" />
+                <div className="w-full h-px border-t border-dashed border-[#F3BB99]/35" />
                 <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full z-20" style={{ background: '#0D0608' }} />
               </div>
 
@@ -290,7 +296,7 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                 {/* Dashed vertical line */}
                 <div
                   className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px"
-                  style={{ background: 'repeating-linear-gradient(to bottom, rgba(59,102,255,0.35) 0px, rgba(59,102,255,0.35) 6px, transparent 6px, transparent 12px)' }}
+                  style={{ background: 'repeating-linear-gradient(to bottom, rgba(243,187,153,0.35) 0px, rgba(243,187,153,0.35) 6px, transparent 6px, transparent 12px)' }}
                 />
                 {/* Bottom notch cutout */}
                 <div
@@ -303,12 +309,12 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
               <div
                 className="flex flex-col justify-between py-5 sm:py-6 px-5 sm:px-6 gap-4 sm:gap-5 lg:w-[210px] shrink-0"
                 style={{
-                  background: 'linear-gradient(160deg, rgba(59,102,255,0.12) 0%, rgba(17,24,39,0.4) 100%)',
+                  background: 'linear-gradient(160deg, rgba(243,187,153,0.12) 0%, rgba(17,24,39,0.4) 100%)',
                 }}
               >
                 {/* Countdown section */}
                 <div className="space-y-2.5">
-                  <p className="text-center text-[9px] font-black uppercase text-[#3B66FF] tracking-widest">
+                  <p className="text-center text-[9px] font-black uppercase text-[#F3BB99] tracking-widest">
                     Compte à Rebours
                   </p>
 
@@ -321,13 +327,13 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                     ].map(({ val, label }) => (
                       <div
                         key={label}
-                        className="flex items-center justify-between px-3.5 py-1.5 rounded-full"
-                        style={{ background: '#EEF2FF' }}
+                        className="flex items-center justify-between px-3.5 py-1.5 rounded-full border border-[#F3BB99]/20"
+                        style={{ background: 'rgba(243,187,153,0.12)' }}
                       >
-                        <span className="text-[9px] text-[#3B66FF]/70 uppercase font-bold tracking-wider">
+                        <span className="text-[9px] text-[#F3BB99]/80 uppercase font-bold tracking-wider">
                           {label}
                         </span>
-                        <span className="font-mono font-black text-[#3B66FF] tabular-nums text-sm">
+                        <span className="font-mono font-black text-[#F3BB99] tabular-nums text-sm">
                           {String(val).padStart(2, '0')}
                         </span>
                       </div>
@@ -338,15 +344,15 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                 {/* RSVP Pill Button */}
                 <button
                   onClick={() => setIsRsvpOpen(true)}
-                  className="w-full flex items-center justify-between py-2.5 pl-4 pr-1.5 rounded-full font-bold uppercase text-xs text-white transition-all duration-300 hover:scale-105"
+                  className="w-full flex items-center justify-between py-2.5 pl-4 pr-1.5 rounded-full font-black uppercase text-xs text-[#14080F] transition-all duration-300 hover:scale-105 cursor-pointer"
                   style={{
-                    background: '#3B66FF',
+                    background: '#F3BB99',
                     letterSpacing: '0.08em',
-                    boxShadow: '0 6px 20px rgba(59,102,255,0.45)',
+                    boxShadow: '0 6px 20px rgba(243,187,153,0.45)',
                   }}
                 >
                   <span>Réserver</span>
-                  <span className="w-7 h-7 rounded-full bg-white text-[#3B66FF] flex items-center justify-center shrink-0 shadow-md">
+                  <span className="w-7 h-7 rounded-full bg-[#14080F] text-[#F3BB99] flex items-center justify-center shrink-0 shadow-md">
                     <Ticket className="w-3.5 h-3.5" />
                   </span>
                 </button>
@@ -357,8 +363,8 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
 
           {/* Floor reflection */}
           <div
-            className="mx-auto mt-4 h-5 blur-xl opacity-20 rounded-full"
-            style={{ background: 'linear-gradient(to right, transparent, #3B66FF, transparent)', maxWidth: '70%' }}
+            className="mx-auto mt-4 h-5 blur-xl opacity-25 rounded-full"
+            style={{ background: 'linear-gradient(to right, transparent, #F3BB99, transparent)', maxWidth: '70%' }}
           />
         </div>
 
@@ -374,24 +380,24 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
             className="relative w-full max-w-2xl rounded-3xl p-5 sm:p-8 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto"
             style={{
               background: '#111827',
-              border: '1.5px solid rgba(59,102,255,0.3)',
+              border: '1.5px solid rgba(243,187,153,0.3)',
               boxShadow: '0 32px 80px rgba(0,0,0,0.8)',
             }}
           >
             <button
               onClick={() => setIsInfoOpen(false)}
-              className="absolute top-4 sm:top-5 right-4 sm:right-5 p-2 rounded-full text-[#EEF2FF]/60 hover:text-white hover:bg-[#3B66FF]/20 transition-colors"
+              className="absolute top-4 sm:top-5 right-4 sm:right-5 p-2 rounded-full text-[#F3BB99]/60 hover:text-white hover:bg-[#F3BB99]/20 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Modal Header */}
             <div className="flex items-center gap-3 mb-6">
-              <span className="w-10 h-10 rounded-full bg-[#3B66FF] flex items-center justify-center text-white shrink-0 shadow-md">
+              <span className="w-10 h-10 rounded-full bg-[#F3BB99] flex items-center justify-center text-[#14080F] shrink-0 shadow-md font-bold">
                 <Info className="w-5 h-5" />
               </span>
               <div>
-                <span className="text-[10px] font-bold uppercase text-[#3B66FF] tracking-widest">Détails de l'événement</span>
+                <span className="text-[10px] font-bold uppercase text-[#F3BB99] tracking-widest">Détails de l'événement</span>
                 <h3 className="text-2xl font-black text-white uppercase leading-tight font-display">
                   {title}
                 </h3>
@@ -401,48 +407,48 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
             {/* Info Cards Grid */}
             <div className="space-y-4">
               {/* Program schedule / Highlights */}
-              <div className="p-5 rounded-2xl bg-[#EEF2FF]/5 border border-[#3B66FF]/20 space-y-3">
-                <div className="flex items-center gap-2 text-[#3B66FF] font-bold text-xs uppercase tracking-wider">
+              <div className="p-5 rounded-2xl bg-white/[0.03] border border-[#F3BB99]/20 space-y-3">
+                <div className="flex items-center gap-2 text-[#F3BB99] font-bold text-xs uppercase tracking-wider">
                   <Clock className="w-4 h-4" />
                   <span>Programme &amp; Highlights</span>
                 </div>
-                <p className="text-xs sm:text-sm text-white font-medium leading-relaxed bg-[#EEF2FF]/5 p-3.5 rounded-xl border border-white/5">
+                <p className="text-xs sm:text-sm text-white font-medium leading-relaxed bg-white/[0.03] p-3.5 rounded-xl border border-white/5">
                   {programText}
                 </p>
               </div>
 
               {/* Location & Access */}
-              <div className="p-5 rounded-2xl bg-[#EEF2FF]/5 border border-[#3B66FF]/20 space-y-3">
-                <div className="flex items-center gap-2 text-[#3B66FF] font-bold text-xs uppercase tracking-wider">
+              <div className="p-5 rounded-2xl bg-white/[0.03] border border-[#F3BB99]/20 space-y-3">
+                <div className="flex items-center gap-2 text-[#F3BB99] font-bold text-xs uppercase tracking-wider">
                   <MapPin className="w-4 h-4" />
                   <span>Accès &amp; Localisation</span>
                 </div>
-                <div className="text-xs text-[#EEF2FF]/80 leading-relaxed space-y-1.5">
+                <div className="text-xs text-[#F5EDE4]/80 leading-relaxed space-y-1.5">
                   <p>📍 <strong className="text-white">Lieu :</strong> {locationText}</p>
                   <p>📅 <strong className="text-white">Date &amp; Heure :</strong> {dateText}</p>
-                  <p>🎟️ <strong className="text-white">Accès :</strong> Ouvert aux étudiants munis de leur réservation / pass gratuit.</p>
+                  <p>🎟️ <strong className="text-white">Accès :</strong> {accessInfoText}</p>
                 </div>
               </div>
 
               {/* Rules & Edition details */}
-              <div className="p-5 rounded-2xl bg-[#EEF2FF]/5 border border-[#3B66FF]/20 space-y-3">
-                <div className="flex items-center gap-2 text-[#3B66FF] font-bold text-xs uppercase tracking-wider">
+              <div className="p-5 rounded-2xl bg-white/[0.03] border border-[#F3BB99]/20 space-y-3">
+                <div className="flex items-center gap-2 text-[#F3BB99] font-bold text-xs uppercase tracking-wider">
                   <ShieldCheck className="w-4 h-4" />
                   <span>Édition &amp; Informations Pratiques</span>
                 </div>
-                <div className="text-xs text-[#EEF2FF]/80 space-y-1.5 leading-relaxed">
+                <div className="text-xs text-[#F5EDE4]/80 space-y-1.5 leading-relaxed">
                   <p>🎭 <strong className="text-white">Édition :</strong> {edition}</p>
-                  <p>🎟️ <strong className="text-white">Entrée :</strong> 100% Gratuite avec réservation préalable en ligne.</p>
-                  <p>🎁 <strong className="text-white">Ambiance :</strong> Musique live, animations, buffet &amp; tombola du club Joker ESEN.</p>
+                  <p>🎟️ <strong className="text-white">Entrée :</strong> {entryInfoText}</p>
+                  <p>🎁 <strong className="text-white">Ambiance :</strong> {ambianceInfoText}</p>
                 </div>
               </div>
             </div>
 
             {/* Modal Bottom Action */}
-            <div className="mt-6 flex items-center justify-between gap-4 pt-4 border-t border-[#3B66FF]/20">
+            <div className="mt-6 flex items-center justify-between gap-4 pt-4 border-t border-[#F3BB99]/20">
               <button
                 onClick={() => setIsInfoOpen(false)}
-                className="px-5 py-2.5 rounded-full text-xs font-bold text-[#EEF2FF]/60 hover:text-white uppercase tracking-wider transition-colors"
+                className="px-5 py-2.5 rounded-full text-xs font-bold text-[#F3BB99]/70 hover:text-white uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Fermer
               </button>
@@ -451,14 +457,14 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                   setIsInfoOpen(false);
                   setIsRsvpOpen(true);
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-bold uppercase text-xs text-white transition-all duration-300 hover:scale-105"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-black uppercase text-xs text-[#14080F] transition-all duration-300 hover:scale-105 cursor-pointer"
                 style={{
-                  background: '#3B66FF',
-                  boxShadow: '0 4px 16px rgba(59,102,255,0.45)',
+                  background: '#F3BB99',
+                  boxShadow: '0 4px 16px rgba(243,187,153,0.45)',
                 }}
               >
                 <span>Réserver maintenant</span>
-                <Ticket className="w-3.5 h-3.5" />
+                <Ticket className="w-3.5 h-3.5 text-[#14080F]" />
               </button>
             </div>
           </div>
@@ -475,26 +481,24 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
             className="relative w-full max-w-md rounded-3xl p-6 sm:p-8 max-h-[85vh] overflow-y-auto"
             style={{
               background: '#111827',
-              border: '1.5px solid rgba(59,102,255,0.3)',
+              border: '1.5px solid rgba(243,187,153,0.3)',
               boxShadow: '0 32px 80px rgba(0,0,0,0.8)',
             }}
           >
             <button
               onClick={() => setIsRsvpOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-full text-[#EEF2FF]/60 hover:text-white hover:bg-[#3B66FF]/20 transition-colors"
+              className="absolute top-4 right-4 p-2 rounded-full text-[#F3BB99]/60 hover:text-white hover:bg-[#F3BB99]/20 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             {rsvpSubmitted ? (
               <div className="text-center py-8 space-y-4">
-                <CheckCircle2 className="w-16 h-16 text-[#3B66FF] mx-auto animate-bounce" />
-                <h3
-                  className="text-2xl font-black uppercase text-white font-display"
-                >
+                <CheckCircle2 className="w-16 h-16 text-[#F3BB99] mx-auto animate-bounce" />
+                <h3 className="text-2xl font-black uppercase text-white font-display">
                   Pass Réservé !
                 </h3>
-                <p className="text-sm text-[#EEF2FF]/70">
+                <p className="text-sm text-[#F5EDE4]/70">
                   Merci {name} ! Un e-mail de confirmation a été envoyé à {email}.
                 </p>
               </div>
@@ -508,15 +512,15 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                   >
                     Pass Joker Carnival
                   </h3>
-                  <p className="text-xs font-bold text-[#3B66FF]" style={{ letterSpacing: '0.1em' }}>
+                  <p className="text-xs font-bold text-[#F3BB99]" style={{ letterSpacing: '0.1em' }}>
                     Entrée gratuite · Étudiants ESEN uniquement
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-[#EEF2FF]/70 uppercase tracking-wider mb-1.5">Nom et Prénom</label>
+                  <label className="block text-[10px] font-black text-[#F3BB99]/80 uppercase tracking-wider mb-1.5">Nom et Prénom</label>
                   <div className="relative">
-                    <User className="w-4 h-4 text-[#3B66FF] absolute left-3.5 top-3.5" />
+                    <User className="w-4 h-4 text-[#F3BB99] absolute left-3.5 top-3.5" />
                     <input
                       type="text"
                       required
@@ -525,20 +529,19 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                       placeholder="Ex: Sara Mansouri"
                       className="w-full pl-10 pr-4 py-3 rounded-full text-white text-sm outline-none transition-colors"
                       style={{
-                        background: '#EEF2FF/10',
-                        border: '1px solid rgba(59,102,255,0.3)',
-                        backgroundColor: 'rgba(238,242,255,0.06)',
+                        border: '1px solid rgba(243,187,153,0.3)',
+                        backgroundColor: 'rgba(243,187,153,0.06)',
                       }}
-                      onFocus={e => e.currentTarget.style.borderColor = '#3B66FF'}
-                      onBlur={e => e.currentTarget.style.borderColor = 'rgba(59,102,255,0.3)'}
+                      onFocus={e => e.currentTarget.style.borderColor = '#F3BB99'}
+                      onBlur={e => e.currentTarget.style.borderColor = 'rgba(243,187,153,0.3)'}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-[#EEF2FF]/70 uppercase tracking-wider mb-1.5">Adresse E-mail</label>
+                  <label className="block text-[10px] font-black text-[#F3BB99]/80 uppercase tracking-wider mb-1.5">Adresse E-mail</label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-[#3B66FF] absolute left-3.5 top-3.5" />
+                    <Mail className="w-4 h-4 text-[#F3BB99] absolute left-3.5 top-3.5" />
                     <input
                       type="email"
                       required
@@ -547,23 +550,22 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                       placeholder="sara@esen.tn"
                       className="w-full pl-10 pr-4 py-3 rounded-full text-white text-sm outline-none transition-colors"
                       style={{
-                        background: '#EEF2FF/10',
-                        border: '1px solid rgba(59,102,255,0.3)',
-                        backgroundColor: 'rgba(238,242,255,0.06)',
+                        border: '1px solid rgba(243,187,153,0.3)',
+                        backgroundColor: 'rgba(243,187,153,0.06)',
                       }}
-                      onFocus={e => e.currentTarget.style.borderColor = '#3B66FF'}
-                      onBlur={e => e.currentTarget.style.borderColor = 'rgba(59,102,255,0.3)'}
+                      onFocus={e => e.currentTarget.style.borderColor = '#F3BB99'}
+                      onBlur={e => e.currentTarget.style.borderColor = 'rgba(243,187,153,0.3)'}
                     />
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-full font-bold uppercase text-xs text-white transition-all hover:scale-[1.02]"
+                  className="w-full py-3.5 rounded-full font-black uppercase text-xs text-[#14080F] transition-all hover:scale-[1.02] cursor-pointer"
                   style={{
-                    background: '#3B66FF',
+                    background: '#F3BB99',
                     letterSpacing: '0.12em',
-                    boxShadow: '0 6px 24px rgba(59,102,255,0.45)',
+                    boxShadow: '0 6px 24px rgba(243,187,153,0.45)',
                   }}
                 >
                   Confirmer ma Réservation
@@ -577,3 +579,4 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
   );
 };
 
+export default Event;

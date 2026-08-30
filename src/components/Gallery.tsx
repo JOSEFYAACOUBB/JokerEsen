@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Layers, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, ChevronLeft, ChevronRight, Layers, Image as ImageIcon, Calendar, Sparkles } from 'lucide-react';
 import { galleryService } from '../services/galleryService';
 
 export interface AlbumPhoto {
@@ -17,6 +17,20 @@ export interface GalleryAlbum {
   photos: AlbumPhoto[];
 }
 
+// Clean up raw numeric or hashed filenames (e.g. 670287388_18134076106534463_4142846693203060533_n)
+const formatHumanReadableTitle = (rawName?: string): string => {
+  if (!rawName || !rawName.trim()) return 'Moments Joker ESEN';
+  const trimmed = rawName.trim();
+
+  // If name is a long sequence of numbers/underscores (Facebook/Instagram/Camera filename)
+  if (/^[\d_-]+([a-z0-9_-]+)?$/i.test(trimmed) && (trimmed.length > 15 || /^\d{5,}/.test(trimmed))) {
+    return 'Souvenirs & Événements Joker';
+  }
+
+  // Remove trailing file extensions if any
+  return trimmed.replace(/\.(jpe?g|png|webp|gif|svg)$/i, '');
+};
+
 export const Gallery: React.FC = () => {
   const [albums, setAlbums] = useState<GalleryAlbum[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,28 +47,31 @@ export const Gallery: React.FC = () => {
       try {
         const { images } = await galleryService.fetchImages(0, 100);
         if (images && images.length > 0) {
-          // Group images by album name (stored in img.description)
+          // Group images by album name (stored in img.description or img.title)
           const albumMap = new Map<string, AlbumPhoto[]>();
           const albumMeta = new Map<string, { date: string; cover: string; category: 'Soirées' | 'Workshops' | 'Teambuilding' }>();
 
           images.forEach((img, idx) => {
-            const albumName = (img.description && img.description.trim()) || 'Événements Joker';
+            const rawAlbumName = img.description?.trim() || img.title?.trim() || 'Événements Joker';
+            const albumName = formatHumanReadableTitle(rawAlbumName);
             const photoUrl = img.display_url || img.cloudinary_url;
+            const cleanCaption = img.title && !/^[\d_-]+$/.test(img.title) ? formatHumanReadableTitle(img.title) : '';
+
             const photoItem: AlbumPhoto = {
               id: img.id || idx,
               url: photoUrl,
-              caption: img.title || albumName,
+              caption: cleanCaption,
             };
 
             if (!albumMap.has(albumName)) {
               albumMap.set(albumName, []);
               
-              // Guess or assign category
-              const lower = albumName.toLowerCase();
+              // Guess category based on title or keywords
+              const lower = (rawAlbumName + ' ' + (img.title || '')).toLowerCase();
               let category: 'Soirées' | 'Workshops' | 'Teambuilding' = 'Soirées';
-              if (lower.includes('workshop') || lower.includes('formation') || lower.includes('design') || lower.includes('talk')) {
+              if (lower.includes('workshop') || lower.includes('formation') || lower.includes('design') || lower.includes('talk') || lower.includes('conférence')) {
                 category = 'Workshops';
-              } else if (lower.includes('teambuilding') || lower.includes('integration') || lower.includes('intégration') || lower.includes('olympiade')) {
+              } else if (lower.includes('teambuilding') || lower.includes('integration') || lower.includes('intégration') || lower.includes('olympiade') || lower.includes('sortie')) {
                 category = 'Teambuilding';
               }
 
@@ -115,82 +132,95 @@ export const Gallery: React.FC = () => {
     setPhotoIndex(0);
   };
 
-  const prevPhoto = () => {
+  const prevPhoto = useCallback(() => {
     if (activeAlbum) {
       setPhotoIndex((prev) => (prev - 1 + activeAlbum.photos.length) % activeAlbum.photos.length);
     }
-  };
+  }, [activeAlbum]);
 
-  const nextPhoto = () => {
+  const nextPhoto = useCallback(() => {
     if (activeAlbum) {
       setPhotoIndex((prev) => (prev + 1) % activeAlbum.photos.length);
     }
-  };
+  }, [activeAlbum]);
 
-  const categoryColors: Record<string, string> = {
-    Soirées: '#B93A34',
-    Workshops: '#4E4F9E',
-    Teambuilding: '#A66B95',
-  };
+  // Keyboard navigation for modal
+  useEffect(() => {
+    if (!activeAlbum) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeAlbum();
+      if (e.key === 'ArrowLeft') prevPhoto();
+      if (e.key === 'ArrowRight') nextPhoto();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeAlbum, prevPhoto, nextPhoto]);
 
   return (
-    <section id="gallery" className="py-16 sm:py-24 bg-[#1A0E14] relative overflow-hidden bg-suits-dark-watermark border-b border-[#F3C4A0]/15">
+    <section id="gallery" className="py-16 sm:py-24 lg:py-28 bg-[#1A0E14] relative overflow-hidden bg-suits-dark-watermark border-b border-[#F3C4A0]/15">
 
-      {/* Ambient glow blobs */}
+      {/* Ambient background glows */}
       <div
-        className="absolute top-1/4 -left-32 w-96 h-96 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(185,58,52,0.07) 0%, transparent 70%)' }}
-      />
-      <div
-        className="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(78,79,158,0.07) 0%, transparent 70%)' }}
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-96 rounded-full pointer-events-none opacity-20 blur-3xl"
+        style={{ background: 'radial-gradient(circle, #B93A34 0%, transparent 70%)' }}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 
-        {/* ── Section Header - Split Placement ── */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10 sm:mb-14">
+        {/* ── Section Header - 100% Centered ── */}
+        <div className="flex flex-col items-center justify-center text-center space-y-4 mb-12 sm:mb-16 max-w-3xl mx-auto">
           
-          {/* Left Column: Title & Badge */}
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#A66B95]/15 border border-[#A66B95]/35 text-[#F3C4A0] text-xs font-bold tracking-widest uppercase">
-              <span className="w-2 h-2 rounded-full bg-[#A66B95] animate-pulse" />
-              <span>04 &middot; ARCHIVES &amp; SOUVENIRS</span>
-            </div>
-            <h2
-              className="font-black uppercase text-[#F5EDE4] leading-none"
-              style={{
-                fontFamily: "'Plus Jakarta Sans', 'Bebas Neue', sans-serif",
-                fontSize: 'clamp(2.2rem, 5.5vw, 4.8rem)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Galerie Événements
-            </h2>
-            <p className="text-[#F5EDE4]/60 text-xs sm:text-sm">
-              Revivez l'énergie de nos soirées, masterclasses et teambuildings.
-            </p>
+          {/* Centered Badge */}
+          <div
+            className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#A66B95]/15 border border-[#A66B95]/35 text-[#F3C4A0] text-xs font-bold tracking-widest uppercase shadow-sm"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#F3C4A0] animate-pulse" />
+            <span>04 &middot; ARCHIVES &amp; SOUVENIRS</span>
           </div>
 
-          {/* Right Column: Filter Tabs (only if albums exist) */}
+          {/* Centered Big Heading */}
+          <h2
+            className="font-black uppercase text-[#F5EDE4] leading-tight"
+            style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: 'clamp(2.2rem, 5.5vw, 4.2rem)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Galerie Événements
+          </h2>
+
+          {/* Centered Subtitle */}
+          <p
+            className="text-[#F5EDE4]/70 text-xs sm:text-sm max-w-lg mx-auto font-medium"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            Revivez l'énergie unique de nos soirées, masterclasses et teambuildings à l'ESEN Manouba.
+          </p>
+
+          {/* ── Centered Category Filter Capsule ── */}
           {albums.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 bg-white/[0.06] border border-white/10 backdrop-blur-md rounded-full p-1.5 sm:p-2 self-start lg:self-end shadow-lg">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className="px-3.5 sm:px-5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold uppercase rounded-full transition-all duration-300 cursor-pointer"
-                  style={{
-                    letterSpacing: '0.08em',
-                    background: activeCategory === cat ? '#3B66FF' : 'transparent',
-                    color: activeCategory === cat ? '#ffffff' : 'rgba(245,237,228,0.7)',
-                    boxShadow: activeCategory === cat ? '0 4px 14px rgba(59,102,255,0.4)' : 'none',
-                    transform: activeCategory === cat ? 'scale(1.03)' : 'scale(1)',
-                  }}
-                >
-                  {cat}
-                </button>
-              ))}
+            <div className="pt-2">
+              <div className="inline-flex items-center justify-center flex-wrap gap-1.5 sm:gap-2 bg-[#12070D]/80 border border-[#F3C4A0]/25 backdrop-blur-xl rounded-full p-1.5 shadow-xl">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className="px-4 sm:px-6 py-2 text-[11px] sm:text-xs font-bold uppercase rounded-full transition-all duration-300 cursor-pointer"
+                    style={{
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      letterSpacing: '0.08em',
+                      background: activeCategory === cat ? '#B93A34' : 'transparent',
+                      color: activeCategory === cat ? '#ffffff' : 'rgba(245,237,228,0.7)',
+                      boxShadow: activeCategory === cat ? '0 4px 16px rgba(185,58,52,0.45)' : 'none',
+                      transform: activeCategory === cat ? 'scale(1.02)' : 'scale(1)',
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -199,93 +229,106 @@ export const Gallery: React.FC = () => {
         {/* ── Responsive Grid of Albums ── */}
         {loading ? (
           <div className="py-20 text-center text-[#F3C4A0]/60 space-y-3">
-            <div className="w-8 h-8 border-2 border-[#3B66FF] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-bold uppercase tracking-wider">Chargement des albums...</p>
+            <div className="w-8 h-8 border-2 border-[#B93A34] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p
+              className="text-xs font-bold uppercase tracking-wider"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              Chargement des souvenirs...
+            </p>
           </div>
         ) : filteredAlbums.length === 0 ? (
           <div className="py-16 sm:py-20 text-center rounded-3xl bg-[#1F0E18]/60 border border-dashed border-[#F3C4A0]/20 max-w-lg mx-auto p-8 space-y-4 shadow-xl backdrop-blur-sm">
-            <div className="w-16 h-16 rounded-2xl bg-[#3B66FF]/15 border border-[#3B66FF]/30 flex items-center justify-center mx-auto text-[#93C5FD]">
+            <div className="w-16 h-16 rounded-2xl bg-[#B93A34]/15 border border-[#B93A34]/30 flex items-center justify-center mx-auto text-[#F3C4A0]">
               <ImageIcon className="w-8 h-8" />
             </div>
-            <h3 className="text-xl sm:text-2xl font-black uppercase text-[#F5EDE4] font-display">
+            <h3
+              className="text-xl sm:text-2xl font-black uppercase text-[#F5EDE4]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
               {albums.length === 0 ? 'Aucun album photo pour le moment' : 'Aucun album dans cette catégorie'}
             </h3>
-            <p className="text-xs sm:text-sm text-[#F5EDE4]/60 max-w-sm mx-auto leading-relaxed">
+            <p
+              className="text-xs sm:text-sm text-[#F5EDE4]/60 max-w-sm mx-auto leading-relaxed"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
               {albums.length === 0
                 ? 'Les albums photos officiels des événements et teambuildings seront bientôt publiés par le club Joker ESEN !'
                 : 'Sélectionnez "Tous" pour voir l\'ensemble des albums disponibles.'}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-7">
             {filteredAlbums.map((album) => {
-              const accentColor = categoryColors[album.category] ?? '#B93A34';
-
               return (
                 <div
                   key={album.id}
                   onClick={() => openAlbum(album)}
-                  className="group relative rounded-3xl overflow-hidden cursor-pointer shadow-[0_16px_40px_rgba(0,0,0,0.5)] transition-all duration-500 hover:shadow-[0_24px_50px_rgba(185,58,52,0.25)] min-h-[300px] sm:min-h-[340px] flex flex-col justify-end"
+                  className="group relative rounded-3xl overflow-hidden cursor-pointer shadow-[0_20px_50px_rgba(0,0,0,0.6)] transition-all duration-500 hover:shadow-[0_24px_60px_rgba(185,58,52,0.3)] hover:-translate-y-1.5 min-h-[320px] sm:min-h-[360px] flex flex-col justify-between p-6 bg-[#160B12]"
                   style={{
                     border: '1.5px solid rgba(243,196,160,0.18)',
                   }}
                 >
-                  {/* Photo */}
+                  {/* Photo with zoom effect */}
                   <img
                     src={album.coverImage}
                     alt={album.title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 brightness-90 group-hover:brightness-100"
                   />
 
-                  {/* Always-on dark gradient */}
+                  {/* Multi-stage dark gradient for crisp readability */}
                   <div
                     className="absolute inset-0"
                     style={{
-                      background: 'linear-gradient(to top, rgba(13,6,8,0.95) 0%, rgba(13,6,8,0.35) 55%, transparent 100%)',
+                      background: 'linear-gradient(to top, rgba(13,6,8,0.95) 0%, rgba(13,6,8,0.4) 50%, rgba(13,6,8,0.7) 100%)',
                     }}
                   />
 
-                  {/* Hover colour wash */}
-                  <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-30 transition-opacity duration-500"
-                    style={{ background: `radial-gradient(circle at 30% 70%, ${accentColor}, transparent 70%)` }}
-                  />
-
-                  {/* Top row: category pill + photo count */}
-                  <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+                  {/* Top row: Category pill + Photo count badge (Both with Plus Jakarta Sans) */}
+                  <div className="relative z-10 flex items-center justify-between">
                     <span
-                      className="px-3 py-1 text-[10px] font-bold uppercase rounded-full text-white shadow-md backdrop-blur-md"
-                      style={{ background: '#3B66FF', letterSpacing: '0.12em', boxShadow: '0 3px 12px rgba(59,102,255,0.45)' }}
+                      className="px-3.5 py-1.5 text-[11px] font-black uppercase rounded-full text-white shadow-lg backdrop-blur-md"
+                      style={{
+                        fontFamily: "'Plus Jakarta Sans', sans-serif",
+                        background: album.category === 'Soirées' ? '#B93A34' : album.category === 'Workshops' ? '#4E4F9E' : '#A66B95',
+                        letterSpacing: '0.06em',
+                      }}
                     >
                       {album.category}
                     </span>
 
                     <div
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold"
-                      style={{
-                        background: '#EEF2FF',
-                        color: '#1A3FBF',
-                        boxShadow: '0 2px 8px rgba(59,102,255,0.15)',
-                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold text-white bg-black/60 backdrop-blur-md border border-white/10 shadow-sm"
+                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                     >
-                      <Layers className="w-3.5 h-3.5" />
+                      <Layers className="w-3.5 h-3.5 text-[#F3C4A0]" />
                       <span>{album.photos.length} photos</span>
                     </div>
                   </div>
 
-                  {/* Bottom content: Album title, date & CTA */}
-                  <div className="relative z-10 p-5 sm:p-6 space-y-2">
-                    <span className="text-[11px] font-bold text-[#F3C4A0]/70 uppercase tracking-wider">
-                      {album.date}
-                    </span>
+                  {/* Bottom info: Album Title, Date & Action CTA */}
+                  <div className="relative z-10 space-y-2 pt-16">
+                    <div
+                      className="flex items-center gap-1.5 text-[11px] font-bold text-[#F3C4A0] uppercase tracking-wider"
+                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{album.date}</span>
+                    </div>
 
-                    <h3 className="text-lg sm:text-xl font-black text-[#F5EDE4] font-display uppercase leading-snug group-hover:text-[#F3C4A0] transition-colors">
+                    <h3
+                      className="text-xl sm:text-2xl font-black text-[#F5EDE4] uppercase leading-tight group-hover:text-[#F3C4A0] transition-colors"
+                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.01em' }}
+                    >
                       {album.title}
                     </h3>
 
-                    <div className="flex items-center gap-2 text-xs font-bold text-[#3B66FF] pt-1">
-                      <span>Voir l'album</span>
-                      <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
+                    <div
+                      className="flex items-center gap-2 text-xs font-bold text-[#F3C4A0] pt-1 group-hover:underline"
+                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    >
+                      <span>Explorer l'album</span>
+                      <span className="group-hover:translate-x-1.5 transition-transform font-bold">&rarr;</span>
                     </div>
                   </div>
                 </div>
@@ -296,64 +339,76 @@ export const Gallery: React.FC = () => {
 
       </div>
 
-      {/* ── Album Lightbox Modal ── */}
+      {/* ── Modern Album Lightbox Modal (Fully responsive, no cut-off, all thumbnails clearly visible) ── */}
       {activeAlbum && activeAlbum.photos.length > 0 && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300 overflow-y-auto"
           onClick={closeAlbum}
         >
           <div
-            className="relative w-full max-w-5xl max-h-[95vh] rounded-3xl bg-[#140A10] border border-[#F3C4A0]/25 overflow-hidden flex flex-col shadow-2xl"
+            className="relative w-full max-w-5xl my-auto rounded-3xl bg-[#14080F] border border-[#F3C4A0]/30 flex flex-col shadow-[0_30px_90px_rgba(0,0,0,0.95)] overflow-hidden"
+            style={{ maxHeight: '92vh' }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#F3C4A0]/15 bg-[#1F0E18]">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#3B66FF]">
-                  {activeAlbum.category} &middot; {activeAlbum.date}
-                </span>
-                <h3 className="text-lg sm:text-xl font-black text-[#F5EDE4] font-display uppercase truncate max-w-sm sm:max-w-md">
+            {/* Modal Header (Fixed at Top) */}
+            <div className="shrink-0 flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#F3C4A0]/15 bg-[#1B0B15]">
+              <div className="min-w-0 pr-4">
+                <div
+                  className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-[#F3C4A0]"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  <span>{activeAlbum.category}</span>
+                  <span>&middot;</span>
+                  <span>{activeAlbum.date}</span>
+                </div>
+                <h3
+                  className="text-lg sm:text-xl font-black text-[#F5EDE4] uppercase truncate mt-0.5"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.01em' }}
+                >
                   {activeAlbum.title}
                 </h3>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-[#F3C4A0]/70">
+              <div className="flex items-center gap-3 shrink-0">
+                <span
+                  className="px-3.5 py-1 rounded-full bg-white/10 text-xs font-black text-[#F3C4A0] tabular-nums"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
                   {photoIndex + 1} / {activeAlbum.photos.length}
                 </span>
                 <button
                   onClick={closeAlbum}
-                  className="w-9 h-9 rounded-full bg-white/10 text-white hover:bg-[#B93A34] flex items-center justify-center transition-colors cursor-pointer"
-                  title="Fermer"
+                  className="w-9 h-9 rounded-full bg-white/10 text-white hover:bg-[#B93A34] flex items-center justify-center transition-colors cursor-pointer shadow-md"
+                  title="Fermer (Échap)"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Photo Viewport */}
-            <div className="relative flex-1 min-h-[300px] sm:min-h-[480px] bg-black/80 flex items-center justify-center p-4">
+            {/* Main Photo Viewport (Scales nicely to leave room for thumbnails) */}
+            <div className="flex-1 min-h-[260px] sm:min-h-[380px] max-h-[50vh] sm:max-h-[56vh] bg-black/90 flex items-center justify-center p-3 sm:p-5 relative overflow-hidden">
               <img
                 src={activeAlbum.photos[photoIndex]?.url}
-                alt={activeAlbum.photos[photoIndex]?.caption}
-                className="max-h-[60vh] sm:max-h-[68vh] w-auto max-w-full object-contain rounded-xl shadow-2xl"
+                alt={activeAlbum.photos[photoIndex]?.caption || activeAlbum.title}
+                className="max-h-[46vh] sm:max-h-[52vh] w-auto max-w-full object-contain rounded-2xl shadow-2xl transition-all duration-300"
               />
 
-              {/* Prev / Next controls */}
+              {/* Prev / Next navigation arrows */}
               {activeAlbum.photos.length > 1 && (
                 <>
                   <button
                     onClick={prevPhoto}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/60 text-white hover:bg-[#3B66FF] flex items-center justify-center backdrop-blur-md transition-all cursor-pointer"
-                    title="Précédente"
+                    className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#1F0E18]/85 text-[#F5EDE4] hover:bg-[#B93A34] hover:text-white border border-[#F3C4A0]/20 flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-xl hover:scale-105"
+                    title="Photo précédente (Flèche gauche)"
                   >
                     <ChevronLeft className="w-6 h-6" />
                   </button>
 
                   <button
                     onClick={nextPhoto}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/60 text-white hover:bg-[#3B66FF] flex items-center justify-center backdrop-blur-md transition-all cursor-pointer"
-                    title="Suivante"
+                    className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#1F0E18]/85 text-[#F5EDE4] hover:bg-[#B93A34] hover:text-white border border-[#F3C4A0]/20 flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-xl hover:scale-105"
+                    title="Photo suivante (Flèche droite)"
                   >
                     <ChevronRight className="w-6 h-6" />
                   </button>
@@ -361,26 +416,39 @@ export const Gallery: React.FC = () => {
               )}
             </div>
 
-            {/* Caption & Thumbnails */}
-            <div className="p-4 bg-[#1F0E18] border-t border-[#F3C4A0]/15 space-y-3">
-              <p className="text-xs sm:text-sm text-[#F5EDE4] text-center font-medium">
-                {activeAlbum.photos[photoIndex]?.caption}
-              </p>
+            {/* Bottom Strip: Caption + Clean, 100% visible Thumbnails (No cut-off) */}
+            <div className="shrink-0 p-4 sm:p-5 bg-[#180A13] border-t border-[#F3C4A0]/15 space-y-3">
+              {activeAlbum.photos[photoIndex]?.caption && (
+                <p
+                  className="text-xs sm:text-sm text-[#F5EDE4] text-center font-semibold truncate max-w-md mx-auto"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  {activeAlbum.photos[photoIndex]?.caption}
+                </p>
+              )}
 
-              {/* Thumbnail Strip */}
+              {/* Fully visible thumbnail strip */}
               {activeAlbum.photos.length > 1 && (
-                <div className="flex items-center justify-center gap-2 overflow-x-auto py-1">
+                <div className="flex items-center justify-center gap-3 overflow-x-auto py-1.5 px-2 max-w-2xl mx-auto scrollbar-thin">
                   {activeAlbum.photos.map((p, idx) => (
                     <button
                       key={p.id}
                       onClick={() => setPhotoIndex(idx)}
-                      className={`w-12 h-12 rounded-lg overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
+                      className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shrink-0 border-2 transition-all duration-300 cursor-pointer ${
                         photoIndex === idx
-                          ? 'border-[#3B66FF] scale-105 opacity-100'
-                          : 'border-transparent opacity-50 hover:opacity-80'
+                          ? 'border-[#B93A34] scale-110 shadow-[0_0_16px_rgba(185,58,52,0.7)] opacity-100 ring-2 ring-[#B93A34]/50'
+                          : 'border-white/20 opacity-40 hover:opacity-90 hover:border-white/50'
                       }`}
                     >
-                      <img src={p.url} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={p.url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback icon if individual photo URL is unreachable
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
                     </button>
                   ))}
                 </div>

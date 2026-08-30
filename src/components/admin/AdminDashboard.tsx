@@ -65,7 +65,7 @@ import {
   removeAlbumMeta,
   type AlbumMeta
 } from '../../services/galleryService';
-import { uploadToCloudinary, CLOUDINARY_CONFIG } from '../../lib/cloudinary';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 
 interface AdminDashboardProps {
@@ -142,13 +142,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setTimeout(() => setNotification(null), 3500);
   };
 
-  // ── 1. Applications Data State ──
+  // â”€â”€ 1. Applications Data State â”€â”€
   const [applications, setApplications] = useState<RecruitmentApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
   const [appFilter, setAppFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'contacted'>('all');
   const [appSearch, setAppSearch] = useState('');
 
-  // ── 2. Partners Data State ──
+  // â”€â”€ 2. Partners Data State â”€â”€
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loadingPartners, setLoadingPartners] = useState(false);
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
@@ -163,7 +163,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [partnerLogoUploadLoading, setPartnerLogoUploadLoading] = useState(false);
   const partnerLogoInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 3. About Section Data State ──
+  // â”€â”€ 3. About Section Data State â”€â”€
   const [aboutData, setAboutData] = useState<AboutData>(defaultAboutData);
   const [savingAbout, setSavingAbout] = useState(false);
   const [isStatModalOpen, setIsStatModalOpen] = useState(false);
@@ -178,14 +178,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [editingPillarIndex, setEditingPillarIndex] = useState<number | null>(null);
   const [pillarForm, setPillarForm] = useState<AboutPillar>({
     id: 'spade',
-    suit: '♠',
+    suit: 'â™ ',
     name: '',
     title: '',
     desc: '',
     color: '#E05A52',
   });
 
-  // ── 4. Events Data State ──
+  // â”€â”€ 4. Events Data State â”€â”€
   const [allEvents, setAllEvents] = useState<EventRecord[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
@@ -198,16 +198,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     program: '',
     banner_url: '/images/event_banner.jpg',
     is_active: true,
+    access_info: 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
+    entry_info: '100% Gratuite avec réservation préalable en ligne.',
+    ambiance_info: 'Musique live, animations, buffet & tombola du club Joker ESEN.',
   });
   const [eventBannerUploadLoading, setEventBannerUploadLoading] = useState(false);
   const eventBannerInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 5. Form Config State ──
+  // â”€â”€ 5. Form Config State â”€â”€
   const [formConfig, setFormConfig] = useState<FormConfig>(defaultFormConfig);
   const [newMajorInput, setNewMajorInput] = useState('');
   const [newDepartmentInput, setNewDepartmentInput] = useState('');
 
-  // ── 6. Photos & Albums State ──
+  // â”€â”€ 6. Photos & Albums State â”€â”€
   const [photos, setPhotos] = useState<AdminPhoto[]>([]);
   const [savedAlbums, setSavedAlbums] = useState<AlbumMeta[]>(() => getSavedAlbums());
   const [selectedAlbum, setSelectedAlbum] = useState<string>('Tous');
@@ -228,20 +231,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Album Modal State
   const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
-  const [newAlbumCategory, setNewAlbumCategory] = useState<'Soirées' | 'Workshops' | 'Teambuilding'>('Soirées');
+  const [newAlbumCategory, setNewAlbumCategory] = useState<'Soir\u00e9es' | 'Workshops' | 'Teambuilding'>('Soir\u00e9es');
   const [newAlbumCoverFile, setNewAlbumCoverFile] = useState<File | null>(null);
   const [newAlbumCoverUrl, setNewAlbumCoverUrl] = useState('');
   const [albumModalLoading, setAlbumModalLoading] = useState(false);
   const [albumModalError, setAlbumModalError] = useState('');
   const albumCoverInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 7. Team Member Modal State ──
+  // â”€â”€ 7. Team Member Modal State â”€â”€
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [memberForm, setMemberForm] = useState<TeamMember>({
     name: '',
     role: '',
-    suit: '♠',
+    suit: 'â™ ',
     suitColor: '#F3C4A0',
     avatar: '',
     socials: { instagram: '#', linkedin: '#' },
@@ -401,9 +404,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onBackToPublic();
   };
 
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // PARTNERS HANDLERS
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   const handleSavePartner = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!partnerForm.name.trim()) return;
@@ -446,16 +449,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // ABOUT SECTION HANDLERS
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   const handleSaveAboutStory = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingAbout(true);
     try {
       const saved = await saveAboutData(aboutData);
       setAboutData(saved);
-      showNotification('Section "Qui Sommes-Nous" mise à jour sur Supabase !');
+      showNotification('Section "Qui Sommes-Nous" mise Ã  jour sur Supabase !');
     } catch (err) {
       console.warn('Error saving about text:', err);
     } finally {
@@ -519,9 +522,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showNotification('Pilier supprimé.');
   };
 
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // EVENTS HANDLERS
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   const handleSaveEventModal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventModalForm.title.trim()) return;
@@ -529,7 +532,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (editingEvent?.id) {
       // Update existing
       await updateEventDetails(editingEvent.id, eventModalForm);
-      showNotification(`Événement "${eventModalForm.title}" mis à jour sur Supabase !`);
+      showNotification(`Événement "${eventModalForm.title}" mis Ã  jour sur Supabase !`);
     } else {
       // Create new
       await createEvent(eventModalForm);
@@ -551,6 +554,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         location: active.location,
         program: active.program,
         bannerUrl: active.banner_url,
+        banner_url: active.banner_url,
+        access_info: active.access_info,
+        entry_info: active.entry_info,
+        ambiance_info: active.ambiance_info,
       });
     }
   };
@@ -567,6 +574,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       location: event.location,
       program: event.program,
       bannerUrl: event.banner_url,
+      banner_url: event.banner_url,
+      access_info: event.access_info,
+      entry_info: event.entry_info,
+      ambiance_info: event.ambiance_info,
     });
   };
 
@@ -595,16 +606,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // FORM CONFIG & MAJORS HANDLERS
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   const handleAddMajor = async () => {
     if (!newMajorInput.trim()) return;
     const updatedMajors = [...formConfig.majors, newMajorInput.trim()];
     const updated = await saveFormConfig({ majors: updatedMajors });
     setFormConfig(updated);
     setNewMajorInput('');
-    showNotification('Nouvelle filière ajoutée à Supabase !');
+    showNotification('Nouvelle filière ajoutée Ã  Supabase !');
   };
 
   const handleDeleteMajor = async (major: string) => {
@@ -620,7 +631,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const updated = await saveFormConfig({ departments: updatedDepartments });
     setFormConfig(updated);
     setNewDepartmentInput('');
-    showNotification('Nouveau pôle ajouté à Supabase !');
+    showNotification('Nouveau pôle ajouté Ã  Supabase !');
   };
 
   const handleDeleteDepartment = async (dept: string) => {
@@ -636,9 +647,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showNotification(`Recrutement ${newVal ? 'ouvert' : 'suspendu'} sur Supabase.`);
   };
 
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // APPLICATIONS HANDLERS
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   const handleUpdateStatus = async (
     id: string,
     newStatus: 'pending' | 'accepted' | 'rejected' | 'contacted'
@@ -647,7 +658,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app))
     );
     await updateRecruitmentStatus(id, newStatus);
-    showNotification(`Statut mis à jour vers "${newStatus}" !`);
+    showNotification(`Statut mis Ã  jour vers "${newStatus}" !`);
   };
 
   const handleDeleteApplication = async (id: string) => {
@@ -657,9 +668,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showNotification('Candidature supprimée.');
   };
 
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // TEAM HANDLERS
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   const handleSaveMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!memberForm.name || !memberForm.role) return;
@@ -736,9 +747,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // GALLERY HANDLERS
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   const handleAddPhotoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError('');
@@ -771,7 +782,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           title: img.title || targetAlbum,
           album: targetAlbum,
           url: img.display_url || img.cloudinary_url,
-          date: 'Aujourd’hui',
+          date: "Aujourd'hui",
         }));
 
         setPhotos((prev) => [...newPhotoItems, ...prev]);
@@ -789,7 +800,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           title: newImg.title || 'Photo',
           album: targetAlbum,
           url: newPhotoUrl,
-          date: 'Aujourd’hui',
+          date: "Aujourd'hui",
         };
 
         setPhotos((prev) => [newPhotoItem, ...prev]);
@@ -839,7 +850,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           title: `Couverture - ${albumName}`,
           album: albumName,
           url: coverUrl,
-          date: 'Aujourd’hui',
+          date: "Aujourd'hui",
         };
 
         setPhotos((prev) => [newPhotoItem, ...prev]);
@@ -855,7 +866,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           title: `Couverture - ${albumName}`,
           album: albumName,
           url: newAlbumCoverUrl,
-          date: 'Aujourd’hui',
+          date: "Aujourd'hui",
         };
 
         setPhotos((prev) => [newPhotoItem, ...prev]);
@@ -919,66 +930,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ? photos
       : photos.filter((p) => (p.album || '').toLowerCase() === selectedAlbum.toLowerCase());
 
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // IF NOT AUTHENTICATED -> SHOW LOGIN
-  // ══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#14080F] flex items-center justify-center p-4 font-sans text-[#F5EDE4]">
-        <div className="w-full max-w-md bg-[#1F0E18] rounded-3xl border-2 border-[#F3C4A0]/30 shadow-2xl p-8 space-y-6">
+      <div data-admin-panel className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 40%, #2563EB 100%)', fontFamily: "'Poppins', sans-serif" }}>
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 space-y-6" style={{ boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
           <div className="text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#B93A34]/20 border border-[#B93A34]/40 text-[#F3C4A0] text-3xl font-black shadow-inner">
-              ♠
-            </div>
-            <h1 className="text-2xl font-black text-[#F5EDE4] font-display uppercase tracking-wider">
+            <img
+              src="/logo.png"
+              alt="Joker ESEN"
+              className="w-24 h-24 object-contain mx-auto"
+              style={{ filter: 'drop-shadow(0 4px 18px rgba(59,130,246,0.4))' }}
+            />
+            <h1 className="text-2xl font-black uppercase tracking-tight" style={{ fontFamily: "'Poppins', sans-serif", color: '#1E40AF' }}>
               Administration JokerEsen
             </h1>
-            <p className="text-xs text-[#F3C4A0]/70">
+            <p className="text-xs" style={{ color: '#64748B', fontFamily: "'Poppins', sans-serif" }}>
               Connexion sécurisée avec synchronisation Supabase BaaS.
             </p>
           </div>
 
           {loginError && (
-            <div className="p-3.5 rounded-2xl bg-[#B93A34]/20 border border-[#B93A34]/50 flex items-start gap-2.5 text-xs text-[#F5EDE4]">
-              <AlertCircle className="w-4 h-4 text-[#B93A34] shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-2xl flex items-start gap-2.5 text-xs" style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626' }}>
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#DC2626' }} />
               <span>{loginError}</span>
             </div>
           )}
 
           <form onSubmit={handleAdminLogin} className="space-y-4 pt-2">
             <div>
-              <label className="block text-xs font-bold text-[#F3C4A0]/80 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#1E40AF', fontFamily: "'Poppins', sans-serif" }}>
                 Adresse E-mail Admin
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-[#F3C4A0]/60 absolute left-3.5 top-3.5" />
+                <Mail className="w-4 h-4 absolute left-3.5 top-3.5" style={{ color: '#93C5FD' }} />
                 <input
                   type="email"
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   placeholder="admin@jokeresen.tn"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#14080F] border border-[#F3C4A0]/30 focus:border-[#B93A34] text-[#F5EDE4] text-sm font-medium outline-none transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium outline-none transition-colors"
+                  style={{ background: '#F0F9FF', border: '1.5px solid #BFDBFE', color: '#1E293B', fontFamily: "'Poppins', sans-serif" }}
                 />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs font-bold text-[#F3C4A0]/80 uppercase tracking-wider">
+                <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: '#1E40AF', fontFamily: "'Poppins', sans-serif" }}>
                   Mot de Passe
                 </label>
-                <span className="text-[10px] text-[#F3C4A0]/50">Défaut: joker2026</span>
+                <span className="text-[10px]" style={{ color: '#94A3B8' }}>Défaut: joker2026</span>
               </div>
               <div className="relative">
-                <Lock className="w-4 h-4 text-[#F3C4A0]/60 absolute left-3.5 top-3.5" />
+                <Lock className="w-4 h-4 absolute left-3.5 top-3.5" style={{ color: '#93C5FD' }} />
                 <input
                   type="password"
                   required
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#14080F] border border-[#F3C4A0]/30 focus:border-[#B93A34] text-[#F5EDE4] text-sm font-medium outline-none transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium outline-none transition-colors"
+                  style={{ background: '#F0F9FF', border: '1.5px solid #BFDBFE', color: '#1E293B', fontFamily: "'Poppins', sans-serif" }}
                 />
               </div>
             </div>
@@ -986,10 +1002,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <button
               type="submit"
               disabled={loginLoading}
-              className="w-full py-3 px-6 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl shadow-[#B93A34]/30 hover:opacity-95 transition-all flex items-center justify-between cursor-pointer"
+              className="w-full py-3 px-6 rounded-xl text-white font-bold text-sm uppercase transition-all flex items-center justify-between cursor-pointer shadow-xl"
+              style={{ background: 'linear-gradient(135deg, #1E40AF, #3B82F6)', boxShadow: '0 8px 24px rgba(59,130,246,0.4)', fontFamily: "'Poppins', sans-serif" }}
             >
               <span>{loginLoading ? 'Connexion...' : 'Accéder au Dashboard'}</span>
-              <span className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center font-black">
+              <span className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-black">
                 →
               </span>
             </button>
@@ -997,7 +1014,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <button
             onClick={onBackToPublic}
-            className="w-full py-2 text-center text-xs font-bold text-[#F3C4A0]/60 hover:text-white transition-colors cursor-pointer"
+            className="w-full py-2 text-center text-xs font-bold transition-colors cursor-pointer"
+            style={{ color: '#94A3B8', fontFamily: "'Poppins', sans-serif" }}
           >
             ← Retour au site public
           </button>
@@ -1010,11 +1028,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // MAIN ADMIN DASHBOARD UI
   // ══════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-[#11070D] flex text-[#F5EDE4] font-sans antialiased">
+    <div data-admin-panel className="min-h-screen flex antialiased" style={{ fontFamily: "'Poppins', sans-serif", background: '#EFF6FF', color: '#1E293B' }}>
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-5 right-5 z-50 bg-[#25121B] border-2 border-[#3B66FF] text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
-          <Sparkles className="w-5 h-5 text-[#3B66FF] shrink-0" />
+        <div className="fixed top-5 right-5 z-50 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4" style={{ background: 'linear-gradient(135deg, #1E40AF, #3B82F6)', border: '1.5px solid rgba(255,255,255,0.2)', fontFamily: "'Poppins', sans-serif" }}>
+          <Sparkles className="w-5 h-5 text-blue-200 shrink-0" />
           <span className="text-xs sm:text-sm font-bold">{notification}</span>
         </div>
       )}
@@ -1029,38 +1047,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* Sidebar Navigation */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#1A0E14] border-r border-[#F3C4A0]/15 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ background: 'linear-gradient(180deg, #1E3A8A 0%, #1E40AF 60%, #1D4ED8 100%)', borderRight: '1px solid rgba(255,255,255,0.15)' }}
       >
         <div>
-          {/* Brand Header */}
-          <div className="p-6 border-b border-[#F3C4A0]/15 flex items-center justify-between">
+          {/* Brand Header — Logo & Text */}
+          <div className="p-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#B93A34] text-white flex items-center justify-center font-black text-xl shadow-md">
-                ♠
-              </div>
+              <img
+                src="/logo.png"
+                alt="Joker ESEN"
+                className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1"
+                style={{ filter: 'brightness(0) invert(1)' }}
+              />
               <div>
-                <h2 className="text-base font-black text-[#F5EDE4] font-display uppercase tracking-wider">
+                <h2 className="text-base font-black text-white uppercase tracking-wider" style={{ fontFamily: "'Poppins', sans-serif" }}>
                   Joker ESEN
                 </h2>
-                <p className="text-[10px] text-[#A66B95] font-semibold uppercase tracking-wider">
-                  Supabase Admin Hub
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-200" style={{ fontFamily: "'Poppins', sans-serif" }}>
+                  Administration
                 </p>
               </div>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-2 text-[#F3C4A0] hover:text-white"
+              className="lg:hidden p-2 text-white/70 hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Navigation Links */}
-          <nav className="p-4 space-y-1">
+          <nav className="p-4 space-y-1.5">
             {[
-              { id: 'dashboard', label: 'Vue d’ensemble', icon: LayoutDashboard },
+              { id: 'dashboard', label: "Vue d'ensemble", icon: LayoutDashboard },
               {
                 id: 'partners',
                 label: 'Partenaires & Logos',
@@ -1088,20 +1110,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     handleTabSelect(tab.id as any);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white shadow-lg shadow-[#B93A34]/30'
-                      : 'text-[#F3C4A0]/70 hover:bg-white/5 hover:text-white'
+                      ? 'bg-white text-blue-900 shadow-md scale-[1.02]'
+                      : 'text-blue-100 hover:bg-white/10 hover:text-white'
                   }`}
+                  style={{ fontFamily: "'Poppins', sans-serif" }}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#F3C4A0]'}`} />
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-blue-900' : 'text-blue-200'}`} />
                     <span>{tab.label}</span>
                   </div>
                   {tab.badge !== undefined && tab.badge > 0 && (
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                        isActive ? 'bg-white text-[#B93A34]' : 'bg-[#B93A34]/20 text-[#F3C4A0]'
+                        isActive
+                          ? 'bg-blue-900 text-white'
+                          : 'bg-white/20 text-white'
                       }`}
                     >
                       {tab.badge}
@@ -1114,37 +1139,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         {/* Footer Area */}
-        <div className="p-4 border-t border-[#F3C4A0]/15 space-y-2">
+        <div className="p-4 space-y-2" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
           <button
             onClick={onBackToPublic}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-[#F3C4A0] text-xs font-bold transition-colors cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+            style={{ fontFamily: "'Poppins', sans-serif" }}
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="w-4 h-4 text-blue-200" />
             <span>Voir le site public</span>
           </button>
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#B93A34]/15 hover:bg-[#B93A34]/30 text-[#F5EDE4] text-xs font-bold transition-colors cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold bg-white/5 hover:bg-red-500/30 text-blue-100 hover:text-white transition-colors cursor-pointer"
+            style={{ fontFamily: "'Poppins', sans-serif" }}
           >
-            <LogOut className="w-4 h-4 text-[#B93A34]" />
+            <LogOut className="w-4 h-4 text-blue-200" />
             <span>Déconnexion</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content Body */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto max-h-screen">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto max-h-screen" style={{ background: '#EFF6FF' }}>
         {/* Top Navbar */}
-        <header className="sticky top-0 z-30 bg-[#1A0E14]/90 backdrop-blur-md border-b border-[#F3C4A0]/15 px-6 py-4 flex items-center justify-between">
+        <header className="sticky top-0 z-30 backdrop-blur-md px-6 py-4 flex items-center justify-between" style={{ background: 'rgba(255,255,255,0.97)', borderBottom: '1px solid #BFDBFE' }}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl bg-white/5 text-[#F3C4A0]"
+              className="lg:hidden p-2 rounded-xl"
+              style={{ background: '#EFF6FF', color: '#3B82F6' }}
             >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-lg sm:text-xl font-black text-[#F5EDE4] font-display uppercase tracking-wide">
+            <h1 className="text-lg sm:text-xl font-black uppercase tracking-tight" style={{ fontFamily: "'Poppins', sans-serif", color: '#1E40AF' }}>
               {activeTab === 'dashboard' && 'Tableau de Bord Exécutif'}
               {activeTab === 'partners' && 'Partenaires & Organisations Officielles'}
               {activeTab === 'about' && 'Gestion de la Section 01 · QUI SOMMES-NOUS'}
@@ -1155,18 +1183,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {activeTab === 'settings' && 'Paramètres & Formulaire de Recrutement'}
             </h1>
           </div>
-
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{isSupabaseConfigured ? 'Supabase Connecté 🟢' : 'Mode Démo'}</span>
-            </div>
-            {CLOUDINARY_CONFIG.cloudName && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[11px] font-bold">
-                <span>Cloudinary: {CLOUDINARY_CONFIG.cloudName}</span>
-              </div>
-            )}
-          </div>
         </header>
 
         {/* Content Tabs Area */}
@@ -1176,26 +1192,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {activeTab === 'dashboard' && (
             <div className="space-y-8 animate-in fade-in duration-300">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <div className="p-6 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-2">
-                  <div className="flex items-center justify-between text-[#A66B95]">
+                <div className="p-6 rounded-2xl bg-white border border-blue-100 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between text-blue-800">
                     <span className="text-xs font-bold uppercase tracking-wider">Partenaires</span>
-                    <Building2 className="w-5 h-5 text-[#F3C4A0]" />
+                    <Building2 className="w-5 h-5 text-blue-600" />
                   </div>
-                  <div className="text-3xl sm:text-4xl font-black text-white font-display">
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900">
                     {partners.length}
                   </div>
-                  <p className="text-[11px] text-[#F3C4A0]/60">Organisations affichées en direct</p>
+                  <p className="text-xs text-slate-500">Organisations affichées en direct</p>
                 </div>
 
-                <div className="p-6 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-2">
-                  <div className="flex items-center justify-between text-[#A66B95]">
+                <div className="p-6 rounded-2xl bg-white border border-blue-100 shadow-sm space-y-2">
+                  <div className="flex items-center justify-between text-blue-800">
                     <span className="text-xs font-bold uppercase tracking-wider">Événements</span>
-                    <Calendar className="w-5 h-5 text-[#3B66FF]" />
+                    <Calendar className="w-5 h-5 text-blue-600" />
                   </div>
-                  <div className="text-3xl sm:text-4xl font-black text-white font-display">
+                  <div className="text-3xl sm:text-4xl font-black text-slate-900">
                     {allEvents.length}
                   </div>
-                  <p className="text-[11px] text-[#F3C4A0]/60">
+                  <p className="text-xs text-slate-500">
                     {allEvents.filter((e) => e.is_active).length} événement vedette actif
                   </p>
                 </div>
@@ -1272,6 +1288,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         program: '',
                         banner_url: '/images/event_banner.jpg',
                         is_active: true,
+                        access_info: 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
+                        entry_info: '100% Gratuite avec réservation préalable en ligne.',
+                        ambiance_info: 'Musique live, animations, buffet & tombola du club Joker ESEN.',
                       });
                       setIsEventModalOpen(true);
                     }}
@@ -1295,7 +1314,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* ══════════════════════ TAB 2: PARTENAIRES & ORGANISATIONS ══════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TAB 2: PARTENAIRES & ORGANISATIONS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'partners' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1330,7 +1349,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       });
                       setIsPartnerModalOpen(true);
                     }}
-                    className="px-5 py-2 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 cursor-pointer"
+                    className="px-5 py-2 rounded-full text-white text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Ajouter un Partenaire</span>
@@ -1427,15 +1446,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* ══════════════════════ TAB 3: 01 · QUI SOMMES-NOUS ══════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TAB 3: 01 · QUI SOMMES-NOUS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'about' && (
             <div className="space-y-8 animate-in fade-in duration-300 max-w-5xl">
               <div>
                 <h2 className="text-2xl font-black font-display uppercase text-white">
-                  01 · QUI SOMMES-NOUS — Édition Supabase
+                  01 · QUI SOMMES-NOUS â€” Édition Supabase
                 </h2>
                 <p className="text-xs text-[#F3C4A0]/70">
-                  Modifiez les textes narratifs, les 4 statistiques de l'ESEN et les cartes des 4 As (Pique, Cœur, Carreau, Trèfle).
+                  Modifiez les textes narratifs, les 4 statistiques de l'ESEN et les cartes des 4 As (Pique, CÅ“ur, Carreau, Trèfle).
                 </p>
               </div>
 
@@ -1451,7 +1470,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="submit"
                     disabled={savingAbout}
-                    className="px-5 py-2 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold shadow-md hover:opacity-90 cursor-pointer flex items-center gap-2"
+                    className="px-5 py-2 rounded-full text-white text-white text-xs font-bold shadow-md hover:opacity-90 cursor-pointer flex items-center gap-2"
                   >
                     {savingAbout ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                     <span>Enregistrer les Textes</span>
@@ -1613,13 +1632,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <h3 className="text-base font-black uppercase text-white font-display">
                       Les Piliers du Club (Les 4 As)
                     </h3>
-                    <p className="text-xs text-[#F3C4A0]/70">Pique (♠), Cœur (♥), Carreau (♦), Trèfle (♣)</p>
+                    <p className="text-xs text-[#F3C4A0]/70">Pique (â™ ), CÅ“ur (â™¥), Carreau (â™¦), Trèfle (â™£)</p>
                   </div>
 
                   <button
                     onClick={() => {
                       setEditingPillarIndex(null);
-                      setPillarForm({ id: 'spade', suit: '♠', name: '', title: '', desc: '', color: '#E05A52' });
+                      setPillarForm({ id: 'spade', suit: 'â™ ', name: '', title: '', desc: '', color: '#E05A52' });
                       setIsPillarModalOpen(true);
                     }}
                     className="px-4 py-2 rounded-full bg-[#3B66FF] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#2552E0] cursor-pointer"
@@ -1677,7 +1696,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* ══════════════════════ TAB 4: GESTION ÉVÉNEMENTS ══════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TAB 4: GESTION ÉVÉNEMENTS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'event' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1711,10 +1730,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         program: '',
                         banner_url: '/images/event_banner.jpg',
                         is_active: allEvents.length === 0,
+                        access_info: 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
+                        entry_info: '100% Gratuite avec réservation préalable en ligne.',
+                        ambiance_info: 'Musique live, animations, buffet & tombola du club Joker ESEN.',
                       });
                       setIsEventModalOpen(true);
                     }}
-                    className="px-5 py-2 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 cursor-pointer"
+                    className="px-5 py-2 rounded-full text-white text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Créer un Nouvel Événement</span>
@@ -1782,7 +1804,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   onClick={() => handleSetActiveEvent(evt)}
                                   className="px-3 py-1 rounded-full bg-white/5 hover:bg-[#3B66FF] text-[#F3C4A0]/70 hover:text-white border border-white/10 text-[10px] font-bold transition-all cursor-pointer"
                                 >
-                                  Définir comme actif →
+                                  Définir comme actif â†’
                                 </button>
                               )}
                             </td>
@@ -1799,6 +1821,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       program: evt.program,
                                       banner_url: evt.banner_url,
                                       is_active: evt.is_active,
+                                      access_info: evt.access_info || 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
+                                      entry_info: evt.entry_info || '100% Gratuite avec réservation préalable en ligne.',
+                                      ambiance_info: evt.ambiance_info || 'Musique live, animations, buffet & tombola du club Joker ESEN.',
                                     });
                                     setIsEventModalOpen(true);
                                   }}
@@ -1826,7 +1851,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* ══════════════════════ TAB 5: CANDIDATURES & RECRUTEMENT ══════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TAB 5: CANDIDATURES & RECRUTEMENT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'applications' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1963,7 +1988,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* ══════════════════════ TAB 6: BUREAU EXÉCUTIF ══════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TAB 6: BUREAU EXÉCUTIF â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'team' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1982,14 +2007,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     setMemberForm({
                       name: '',
                       role: '',
-                      suit: '♠',
+                      suit: 'â™ ',
                       suitColor: '#F3C4A0',
                       avatar: '',
                       socials: { instagram: '#', linkedin: '#' },
                     });
                     setIsMemberModalOpen(true);
                   }}
-                  className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 self-start cursor-pointer"
+                  className="px-5 py-2.5 rounded-full text-white text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 self-start cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Ajouter un Membre</span>
@@ -2055,7 +2080,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* ══════════════════════ TAB 7: GALERIE PHOTOS ══════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TAB 7: GALERIE PHOTOS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'gallery' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -2079,7 +2104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                   <button
                     onClick={() => setIsUploadModalOpen(true)}
-                    className="px-5 py-2 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 cursor-pointer"
+                    className="px-5 py-2 rounded-full text-white text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 cursor-pointer"
                   >
                     <Upload className="w-4 h-4" />
                     <span>Ajouter des Photos</span>
@@ -2152,7 +2177,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* ══════════════════════ TAB 8: PARAMÈTRES & FORMULAIRE ══════════════════════ */}
+          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TAB 8: PARAMÃˆTRES & FORMULAIRE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
           {activeTab === 'settings' && (
             <div className="max-w-4xl space-y-8 animate-in fade-in duration-300">
               <div>
@@ -2181,7 +2206,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       : 'bg-rose-500 text-white shadow-rose-500/30'
                   }`}
                 >
-                  {recruitmentOpen ? 'Recrutement Ouvert 🟢' : 'Recrutement Suspendu 🔴'}
+                  {recruitmentOpen ? 'Recrutement Ouvert ðŸŸ¢' : 'Recrutement Suspendu ðŸ”´'}
                 </button>
               </div>
 
@@ -2280,7 +2305,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </main>
 
-      {/* ══════════════════════ MODAL: ADD / EDIT PARTNER ══════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODAL: ADD / EDIT PARTNER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {isPartnerModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-lg bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6">
@@ -2380,7 +2405,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
+                className="w-full py-3 rounded-full text-white text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
               >
                 Enregistrer le Partenaire
               </button>
@@ -2389,7 +2414,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* ══════════════════════ MODAL: ADD / EDIT STAT ══════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODAL: ADD / EDIT STAT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {isStatModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-md bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-5">
@@ -2457,7 +2482,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
+                className="w-full py-3 rounded-full text-white text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
               >
                 Enregistrer la Statistique
               </button>
@@ -2543,7 +2568,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
+                className="w-full py-3 rounded-full text-white text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
               >
                 Enregistrer le Pilier
               </button>
@@ -2554,130 +2579,253 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* ══════════════════════ MODAL: ADD / EDIT EVENT ══════════════════════ */}
       {isEventModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
-          <div className="relative w-full max-w-xl bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-black font-display uppercase text-white">
-                {editingEvent ? "Modifier l'Événement" : 'Créer un Nouvel Événement'}
-              </h3>
-              <button onClick={() => setIsEventModalOpen(false)} className="p-1 text-[#F3C4A0] hover:text-white cursor-pointer">
-                <X className="w-5 h-5" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/70 backdrop-blur-md animate-in fade-in">
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl border border-blue-100 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Sticky Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
+                    {editingEvent ? "Modifier l'Événement" : 'Créer un Nouvel Événement'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Configuration de l'affiche, du programme et des informations pratiques
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEventModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEventModal} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">Titre de l'Événement *</label>
-                  <input
-                    type="text"
-                    required
-                    value={eventModalForm.title}
-                    onChange={(e) => setEventModalForm({ ...eventModalForm, title: e.target.value })}
-                    placeholder="Joker Carnival Night 2026"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
-                  />
-                </div>
+            {/* Modal Scrollable Body */}
+            <form id="event-modal-form" onSubmit={handleSaveEventModal} className="overflow-y-auto p-5 sm:p-6 space-y-6 flex-1">
+              
+              {/* Section 1: Informations Générales */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase text-blue-900 tracking-wider">
+                  1. Informations Principales
+                </h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Titre de l'Événement *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={eventModalForm.title}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, title: e.target.value })}
+                      placeholder="Ex: Joker Carnival Night 2026"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">Édition / Sous-titre</label>
-                  <input
-                    type="text"
-                    value={eventModalForm.edition}
-                    onChange={(e) => setEventModalForm({ ...eventModalForm, edition: e.target.value })}
-                    placeholder="Édition Spéciale · 10ème Anniversaire"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Édition / Sous-titre
+                    </label>
+                    <input
+                      type="text"
+                      value={eventModalForm.edition}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, edition: e.target.value })}
+                      placeholder="Ex: Édition Spéciale · 10ème Anniversaire"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">Date &amp; Heure</label>
-                  <input
-                    type="text"
-                    value={eventModalForm.date}
-                    onChange={(e) => setEventModalForm({ ...eventModalForm, date: e.target.value })}
-                    placeholder="Samedi 26 Octobre 2026 · 20h00"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Date &amp; Heure
+                    </label>
+                    <input
+                      type="text"
+                      value={eventModalForm.date}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, date: e.target.value })}
+                      placeholder="Ex: Samedi 26 Octobre 2026 · 20h00"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">Lieu</label>
-                  <input
-                    type="text"
-                    value={eventModalForm.location}
-                    onChange={(e) => setEventModalForm({ ...eventModalForm, location: e.target.value })}
-                    placeholder="Grand Cour &amp; Amphi ESEN, Campus Manouba"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">Programme / Highlights</label>
-                <textarea
-                  rows={2}
-                  value={eventModalForm.program}
-                  onChange={(e) => setEventModalForm({ ...eventModalForm, program: e.target.value })}
-                  placeholder="Concerts live · DJ set · Buffet · Tombola"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
-                />
-              </div>
-
-              {/* Banner Upload */}
-              <div>
-                <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">Affiche (Banner URL ou Fichier)</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={eventModalForm.banner_url}
-                    onChange={(e) => setEventModalForm({ ...eventModalForm, banner_url: e.target.value })}
-                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
-                  />
-                  <input
-                    type="file"
-                    ref={eventBannerInputRef}
-                    onChange={handleEventBannerUpload}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => eventBannerInputRef.current?.click()}
-                    disabled={eventBannerUploadLoading}
-                    className="px-4 py-2 rounded-xl bg-[#3B66FF]/20 hover:bg-[#3B66FF]/30 border border-[#3B66FF]/40 text-xs font-bold text-[#93C5FD] flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{eventBannerUploadLoading ? 'Upload...' : 'Uploader'}</span>
-                  </button>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Lieu
+                    </label>
+                    <input
+                      type="text"
+                      value={eventModalForm.location}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, location: e.target.value })}
+                      placeholder="Ex: Grand Cour &amp; Amphi ESEN"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
+              {/* Section 2: Programme & Affiche */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <h4 className="text-xs font-black uppercase text-blue-900 tracking-wider">
+                  2. Programme &amp; Affiche
+                </h4>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Programme / Highlights (résumé court)
+                  </label>
+                  <input
+                    type="text"
+                    value={eventModalForm.program}
+                    onChange={(e) => setEventModalForm({ ...eventModalForm, program: e.target.value })}
+                    placeholder="Ex: Concerts live · DJ set · Buffet · Tombola"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Affiche de l'Événement
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={eventModalForm.banner_url}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, banner_url: e.target.value })}
+                      placeholder="URL Cloudinary ou lien d'image"
+                      className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    />
+                    <input
+                      type="file"
+                      ref={eventBannerInputRef}
+                      onChange={handleEventBannerUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => eventBannerInputRef.current?.click()}
+                      disabled={eventBannerUploadLoading}
+                      className="px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-xs font-bold text-blue-700 flex items-center gap-1.5 cursor-pointer transition-colors shrink-0"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{eventBannerUploadLoading ? 'Upload...' : 'Uploader'}</span>
+                    </button>
+                  </div>
+                  {eventModalForm.banner_url && (
+                    <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
+                      <img
+                        src={eventModalForm.banner_url}
+                        alt="Aperçu"
+                        className="w-12 h-8 rounded-lg object-cover border border-slate-200 shrink-0"
+                      />
+                      <span>Aperçu de l'affiche chargée</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 3: Détails Pratiques (Modale Plus d'infos) */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-100 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-xs font-bold">ℹ️</span>
+                    <h4 className="text-xs font-black uppercase text-blue-900 tracking-wider">
+                      3. Détails de la Modale "Plus d'infos"
+                    </h4>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        🎟️ Conditions d'Accès
+                      </label>
+                      <input
+                        type="text"
+                        value={eventModalForm.access_info}
+                        onChange={(e) => setEventModalForm({ ...eventModalForm, access_info: e.target.value })}
+                        placeholder="Ouvert aux étudiants munis de leur réservation / pass gratuit."
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 transition-all"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          🎟️ Modalité d'Entrée
+                        </label>
+                        <input
+                          type="text"
+                          value={eventModalForm.entry_info}
+                          onChange={(e) => setEventModalForm({ ...eventModalForm, entry_info: e.target.value })}
+                          placeholder="100% Gratuite avec réservation préalable en ligne."
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          🎁 Ambiance &amp; Description
+                        </label>
+                        <input
+                          type="text"
+                          value={eventModalForm.ambiance_info}
+                          onChange={(e) => setEventModalForm({ ...eventModalForm, ambiance_info: e.target.value })}
+                          placeholder="Musique live, buffet &amp; animations..."
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 transition-all"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Statut actif */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
                 <input
                   type="checkbox"
                   id="modal-event-active"
                   checked={eventModalForm.is_active}
                   onChange={(e) => setEventModalForm({ ...eventModalForm, is_active: e.target.checked })}
-                  className="w-4 h-4 accent-[#3B66FF] cursor-pointer"
+                  className="w-4 h-4 rounded-md accent-blue-600 cursor-pointer shrink-0"
                 />
-                <label htmlFor="modal-event-active" className="text-xs text-[#F5EDE4] font-medium cursor-pointer">
+                <label htmlFor="modal-event-active" className="text-xs text-slate-700 font-bold cursor-pointer select-none">
                   Définir immédiatement cet événement comme l'événement vedette actif sur la page d'accueil
                 </label>
               </div>
 
+            </form>
+
+            {/* Modal Sticky Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsEventModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Annuler
+              </button>
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
+                form="event-modal-form"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-800 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
               >
-                Enregistrer l'Événement
+                {editingEvent ? "Mettre à jour l'Événement" : "Créer l'Événement"}
               </button>
-            </form>
+            </div>
+
           </div>
         </div>
       )}
 
-      {/* ══════════════════════ MODAL: CREATE ALBUM ══════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODAL: CREATE ALBUM â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {isAlbumModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-lg bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6">
@@ -2725,7 +2873,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   onChange={(e) => setNewAlbumCategory(e.target.value as any)}
                   className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-sm text-white outline-none focus:border-[#3B66FF]"
                 >
-                  <option value="Soirées">Soirées &amp; Concerts</option>
+                  <option value="Soir\u00e9es">Soir\u00e9es &amp; Concerts</option>
                   <option value="Workshops">Workshops &amp; Formations</option>
                   <option value="Teambuilding">Teambuilding &amp; Intégration</option>
                 </select>
@@ -2784,7 +2932,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* ══════════════════════ MODAL: ADD / UPLOAD PHOTOS ══════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODAL: ADD / UPLOAD PHOTOS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {isUploadModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-lg bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6">
@@ -2831,7 +2979,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       {allAlbumNames.map((a) => (
                         <option key={a} value={a}>{a}</option>
                       ))}
-                      <option value="__NEW__">➕ + Créer un nouvel album...</option>
+                      <option value="__NEW__">âž• + Créer un nouvel album...</option>
                     </select>
                   </div>
                 ) : (
@@ -2886,7 +3034,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <button
                 type="submit"
                 disabled={uploadProgress}
-                className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 rounded-full text-white text-white font-bold text-sm uppercase shadow-xl hover:opacity-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {uploadProgress ? (
                   <>
@@ -2894,7 +3042,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <span>{uploadProgressText || 'Téléversement en cours...'}</span>
                   </>
                 ) : (
-                  <span>Ajouter à la Galerie</span>
+                  <span>Ajouter Ã  la Galerie</span>
                 )}
               </button>
             </form>
@@ -2902,7 +3050,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* ══════════════════════ MODAL: ADD / EDIT TEAM MEMBER ══════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODAL: ADD / EDIT TEAM MEMBER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {isMemberModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
           <div className="relative w-full max-w-lg bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6">
@@ -2950,10 +3098,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setMemberForm({ ...memberForm, suit: e.target.value as any })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
                   >
-                    <option value="♠">♠ Pique (Présidence)</option>
-                    <option value="♥">♥ Cœur (Vice-Présidence)</option>
-                    <option value="♦">♦ Carreau (Secrétariat / Design)</option>
-                    <option value="♣">♣ Trèfle (Trésorerie / Logistique)</option>
+                    <option value="â™ ">â™  Pique (Présidence)</option>
+                    <option value="â™¥">â™¥ CÅ“ur (Vice-Présidence)</option>
+                    <option value="â™¦">â™¦ Carreau (Secrétariat / Design)</option>
+                    <option value="â™£">â™£ Trèfle (Trésorerie / Logistique)</option>
                   </select>
                 </div>
 
@@ -3006,7 +3154,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
+                className="w-full py-3 rounded-full text-white text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
               >
                 Enregistrer le Membre
               </button>
@@ -3019,3 +3167,4 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 };
 
 export default AdminDashboard;
+

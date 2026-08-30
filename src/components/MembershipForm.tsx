@@ -139,17 +139,26 @@ export const MembershipForm: React.FC = () => {
                 
                 {/* Form Heading */}
                 <div>
-                  <h3 className="text-2xl sm:text-3xl font-black text-[#0F172A] font-display tracking-tight">
+                  <h3
+                    className="text-2xl sm:text-3xl font-black text-[#0F172A] tracking-tight"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
                     {formConfig.form_heading || 'Inscris-toi'}
                   </h3>
-                  <p className="text-xs text-[#64748B] font-medium mt-1">
+                  <p
+                    className="text-xs text-[#64748B] font-medium mt-1"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
                     {formConfig.form_subheading || 'Complète tes informations pour rejoindre le club JokerEsen.'}
                   </p>
                 </div>
 
                 {/* Field 1: Full Name */}
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                <div className="space-y-1.5">
+                  <label
+                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
                     Nom &amp; Prénom
                   </label>
                   <div className="relative">
@@ -159,17 +168,21 @@ export const MembershipForm: React.FC = () => {
                       placeholder="Mehdi Jlassi"
                       value={formData.fullName}
                       onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-sm outline-none transition-all"
+                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-sm outline-none transition-all placeholder:text-[#94A3B8] placeholder:font-normal"
                     />
                     {formData.fullName.trim().length > 2 && (
-                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3" />
+                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3.5" />
                     )}
                   </div>
                 </div>
 
                 {/* Field 2: Email */}
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                <div className="space-y-1.5">
+                  <label
+                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
                     Adresse E-mail
                   </label>
                   <div className="relative">
@@ -179,17 +192,21 @@ export const MembershipForm: React.FC = () => {
                       placeholder="mehdi.jlassi@esen.tn"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-sm outline-none transition-all"
+                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-sm outline-none transition-all placeholder:text-[#94A3B8] placeholder:font-normal"
                     />
                     {formData.email.includes('@') && (
-                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3" />
+                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3.5" />
                     )}
                   </div>
                 </div>
 
                 {/* Field 3: Phone */}
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                <div className="space-y-1.5">
+                  <label
+                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
                     Téléphone / WhatsApp
                   </label>
                   <div className="relative">
@@ -199,17 +216,22 @@ export const MembershipForm: React.FC = () => {
                       placeholder="+216 22 345 678"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-sm outline-none transition-all"
+                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-sm outline-none transition-all placeholder:text-[#94A3B8] placeholder:font-normal"
                     />
                     {formData.phone.trim().length > 7 && (
-                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3" />
+                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3.5" />
                     )}
                   </div>
                 </div>
 
                 {/* Field 4: Major / Filière ESEN */}
-                <div className="space-y-1">
-                  <label htmlFor="select-major" className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="select-major"
+                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
                     Filière ESEN
                   </label>
                   <select
@@ -217,7 +239,8 @@ export const MembershipForm: React.FC = () => {
                     aria-label="Filière ESEN"
                     value={formData.major}
                     onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                    className="w-full px-5 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-xs outline-none cursor-pointer"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    className="w-full px-5 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-xs outline-none cursor-pointer"
                   >
                     {formConfig.majors.map((m) => (
                       <option key={m} value={m}>{m}</option>
@@ -226,8 +249,12 @@ export const MembershipForm: React.FC = () => {
                 </div>
 
                 {/* Field 5: Department / Pôle */}
-                <div className="space-y-1">
-                  <label htmlFor="select-department" className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="select-department"
+                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
                     Pôle / Département Souhaité
                   </label>
                   <select
@@ -235,7 +262,8 @@ export const MembershipForm: React.FC = () => {
                     aria-label="Pôle / Département Souhaité"
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-5 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-bold text-xs outline-none cursor-pointer"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    className="w-full px-5 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-xs outline-none cursor-pointer"
                   >
                     {formConfig.departments.map((d) => (
                       <option key={d} value={d}>{d}</option>
@@ -245,7 +273,10 @@ export const MembershipForm: React.FC = () => {
 
                 {/* Error Banner if any */}
                 {errorMessage && (
-                  <div className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+                  <div
+                    className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
                     {errorMessage}
                   </div>
                 )}
