@@ -76,6 +76,15 @@ alter table public.events add column if not exists access_info text default 'Ouv
 alter table public.events add column if not exists entry_info text default '100% Gratuite avec réservation préalable en ligne.';
 alter table public.events add column if not exists ambiance_info text default 'Musique live, animations, buffet & tombola du club Joker ESEN.';
 
+-- New columns for event categorization and section visibility toggles
+alter table public.events add column if not exists category text default 'upcoming' check (category in ('upcoming', 'previous'));
+alter table public.events add column if not exists ticket_available boolean default true;
+alter table public.events add column if not exists show_access_info boolean default true;
+alter table public.events add column if not exists show_entry_info boolean default true;
+alter table public.events add column if not exists show_ambiance_info boolean default true;
+alter table public.events add column if not exists show_program boolean default true;
+
+
 -- Seed default active event
 insert into public.events (title, edition, date, location, program, banner_url, is_active, access_info, entry_info, ambiance_info)
 values (

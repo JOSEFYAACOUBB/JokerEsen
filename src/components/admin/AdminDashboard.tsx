@@ -49,6 +49,7 @@ import { updateClubSettings } from '../../services/settingsService';
 import {
   fetchAllEvents,
   fetchActiveEvent,
+  getCachedAllEvents,
   createEvent,
   updateEventDetails,
   setActiveEvent,
@@ -80,8 +81,14 @@ interface AdminDashboardProps {
     location: string;
     program: string;
     bannerUrl: string;
+    banner_url?: string;
+    access_info?: string;
+    entry_info?: string;
+    ambiance_info?: string;
   };
   onUpdateEvent: (data: any) => void;
+  allEventsProp?: EventRecord[];
+  onUpdateAllEvents?: (events: EventRecord[]) => void;
   teamMembers: TeamMember[];
   onUpdateTeamMembers: (members: TeamMember[]) => void;
 }
@@ -100,6 +107,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onToggleRecruitment,
   eventData: _eventData,
   onUpdateEvent,
+  allEventsProp,
+  onUpdateAllEvents,
   teamMembers,
   onUpdateTeamMembers,
 }) => {
@@ -178,26 +187,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [editingPillarIndex, setEditingPillarIndex] = useState<number | null>(null);
   const [pillarForm, setPillarForm] = useState<AboutPillar>({
     id: 'spade',
-    suit: 'â™ ',
+    suit: '♠',
     name: '',
     title: '',
     desc: '',
     color: '#E05A52',
   });
 
-  // â”€â”€ 4. Events Data State â”€â”€
-  const [allEvents, setAllEvents] = useState<EventRecord[]>([]);
+  // ── 4. Events Data State ──
+  const [allEvents, setAllEvents] = useState<EventRecord[]>(() => allEventsProp || getCachedAllEvents());
+  const [eventsFilter, setEventsFilter] = useState<'all' | 'upcoming' | 'previous'>('all');
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<EventRecord | null>(null);
-  const [eventModalForm, setEventModalForm] = useState({
+  const [eventModalForm, setEventModalForm] = useState<{
+    title: string;
+    edition: string;
+    date: string;
+    location: string;
+    program: string;
+    banner_url: string;
+    category: 'upcoming' | 'previous';
+    is_active: boolean;
+    ticket_available: boolean;
+    include_program: boolean;
+    include_access_entry: boolean;
+    include_ambiance: boolean;
+    access_info: string;
+    entry_info: string;
+    ambiance_info: string;
+  }>({
     title: '',
     edition: '',
     date: '',
     location: '',
     program: '',
     banner_url: '/images/event_banner.jpg',
+    category: 'upcoming',
     is_active: true,
+    ticket_available: true,
+    include_program: true,
+    include_access_entry: true,
+    include_ambiance: true,
     access_info: 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
     entry_info: '100% Gratuite avec réservation préalable en ligne.',
     ambiance_info: 'Musique live, animations, buffet & tombola du club Joker ESEN.',
@@ -244,7 +275,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [memberForm, setMemberForm] = useState<TeamMember>({
     name: '',
     role: '',
-    suit: 'â™ ',
+    suit: '♠',
     suitColor: '#F3C4A0',
     avatar: '',
     socials: { instagram: '#', linkedin: '#' },
@@ -301,6 +332,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       const events = await fetchAllEvents();
       setAllEvents(events);
+      if (onUpdateAllEvents) {
+        onUpdateAllEvents(events);
+      }
     } catch (err) {
       console.warn('Error loading events from Supabase:', err);
     } finally {
@@ -522,21 +556,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showNotification('Pilier supprimé.');
   };
 
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ──────────────────────────────────────────────────────────────────────────────────────────────────
   // EVENTS HANDLERS
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ──────────────────────────────────────────────────────────────────────────────────────────────────
   const handleSaveEventModal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventModalForm.title.trim()) return;
 
+    const payloadToSave = {
+      title: eventModalForm.title.trim(),
+      edition: eventModalForm.edition.trim(),
+      date: eventModalForm.date.trim(),
+      location: eventModalForm.location.trim(),
+      program: eventModalForm.include_program ? eventModalForm.program.trim() : '',
+      banner_url: eventModalForm.banner_url || '/images/event_banner.jpg',
+      is_active: eventModalForm.is_active,
+      category: eventModalForm.is_active ? ('upcoming' as const) : eventModalForm.category,
+      ticket_available: eventModalForm.is_active ? true : (eventModalForm.category === 'upcoming' ? eventModalForm.ticket_available : false),
+      access_info: eventModalForm.include_access_entry ? eventModalForm.access_info.trim() : '',
+      entry_info: eventModalForm.include_access_entry ? eventModalForm.entry_info.trim() : '',
+      ambiance_info: eventModalForm.include_ambiance ? eventModalForm.ambiance_info.trim() : '',
+      show_program: eventModalForm.include_program,
+      show_access_info: eventModalForm.include_access_entry,
+      show_entry_info: eventModalForm.include_access_entry,
+      show_ambiance_info: eventModalForm.include_ambiance,
+    };
+
     if (editingEvent?.id) {
       // Update existing
-      await updateEventDetails(editingEvent.id, eventModalForm);
-      showNotification(`Événement "${eventModalForm.title}" mis Ã  jour sur Supabase !`);
+      await updateEventDetails(editingEvent.id, payloadToSave);
+      showNotification(`Événement "${eventModalForm.title}" mis à jour avec succès !`);
     } else {
       // Create new
-      await createEvent(eventModalForm);
-      showNotification(`Nouvel événement "${eventModalForm.title}" créé sur Supabase !`);
+      await createEvent(payloadToSave);
+      showNotification(`Événement "${eventModalForm.title}" créé avec succès !`);
     }
 
     setIsEventModalOpen(false);
@@ -1287,7 +1340,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         location: '',
                         program: '',
                         banner_url: '/images/event_banner.jpg',
+                        category: 'upcoming',
                         is_active: true,
+                        ticket_available: true,
+                        include_program: true,
+                        include_access_entry: true,
+                        include_ambiance: true,
                         access_info: 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
                         entry_info: '100% Gratuite avec réservation préalable en ligne.',
                         ambiance_info: 'Musique live, animations, buffet & tombola du club Joker ESEN.',
@@ -1632,13 +1690,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <h3 className="text-base font-black uppercase text-white font-display">
                       Les Piliers du Club (Les 4 As)
                     </h3>
-                    <p className="text-xs text-[#F3C4A0]/70">Pique (â™ ), CÅ“ur (â™¥), Carreau (â™¦), Trèfle (â™£)</p>
+                    <p className="text-xs text-[#F3C4A0]/70">Pique (♠), Cœur (♥), Carreau (♦), Trèfle (♣)</p>
                   </div>
 
                   <button
                     onClick={() => {
                       setEditingPillarIndex(null);
-                      setPillarForm({ id: 'spade', suit: 'â™ ', name: '', title: '', desc: '', color: '#E05A52' });
+                      setPillarForm({ id: 'spade', suit: '♠', name: '', title: '', desc: '', color: '#E05A52' });
                       setIsPillarModalOpen(true);
                     }}
                     className="px-4 py-2 rounded-full bg-[#3B66FF] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-[#2552E0] cursor-pointer"
@@ -1696,24 +1754,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
-          {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TAB 4: GESTION ÉVÉNEMENTS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          {/* ══════════════════════ TAB 4: GESTION ÉVÉNEMENTS & ARCHIVES ══════════════════════ */}
           {activeTab === 'event' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-black font-display uppercase text-white">
-                    Gestion des Événements (Supabase)
+                    Gestion des Événements &amp; Archives (Supabase)
                   </h2>
                   <p className="text-xs text-[#F3C4A0]/70">
-                    Gérez l'affiche, le programme et basculez d'un clic l'événement vedette actif sur la page d'accueil.
+                    Gérez l'affiche vedette active, planifiez vos événements à venir, ou ajoutez et modifiez les archives des anciennes éditions du club Joker.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5">
+                <div className="flex flex-wrap items-center gap-2.5">
                   <button
                     onClick={loadEventsData}
                     disabled={loadingEvents}
-                    className="px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 text-xs font-bold flex items-center gap-2 cursor-pointer"
+                    className="px-3.5 py-2 rounded-full bg-white/5 hover:bg-white/10 text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${loadingEvents ? 'animate-spin' : ''}`} />
                     <span>Actualiser</span>
@@ -1724,24 +1782,90 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       setEditingEvent(null);
                       setEventModalForm({
                         title: '',
-                        edition: '',
+                        edition: 'Édition 2024 / 2025',
+                        date: 'Samedi 18 Mai 2024 · 20h00',
+                        location: 'Espace Culturel ESEN Manouba',
+                        program: 'Rétrospective, remise des trophées et soirée festive du club.',
+                        banner_url: '/images/hero_deck.jpg',
+                        category: 'previous',
+                        is_active: false,
+                        ticket_available: false,
+                        include_program: true,
+                        include_access_entry: false,
+                        include_ambiance: false,
+                        access_info: '',
+                        entry_info: '',
+                        ambiance_info: '',
+                      });
+                      setIsEventModalOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-full bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 shadow cursor-pointer transition-colors"
+                  >
+                    <span>🏛️ Ajouter une Ancienne Édition / Archive</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setEditingEvent(null);
+                      setEventModalForm({
+                        title: '',
+                        edition: 'Édition Promo 2026-2027',
                         date: '',
-                        location: '',
+                        location: 'Grand Cour & Amphi ESEN, Campus Manouba',
                         program: '',
                         banner_url: '/images/event_banner.jpg',
+                        category: 'upcoming',
                         is_active: allEvents.length === 0,
+                        ticket_available: true,
+                        include_program: true,
+                        include_access_entry: true,
+                        include_ambiance: true,
                         access_info: 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
                         entry_info: '100% Gratuite avec réservation préalable en ligne.',
                         ambiance_info: 'Musique live, animations, buffet & tombola du club Joker ESEN.',
                       });
                       setIsEventModalOpen(true);
                     }}
-                    className="px-5 py-2 rounded-full text-white text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#B93A34]/30 hover:opacity-90 cursor-pointer"
+                    className="px-4 py-2 rounded-full bg-[#B93A34] hover:bg-[#E05A52] text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#B93A34]/30 cursor-pointer transition-colors"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Créer un Nouvel Événement</span>
+                    <span>Créer un Événement À Venir</span>
                   </button>
                 </div>
+              </div>
+
+              {/* Filter Tabs (Tous, À Venir & Vedette, Archives & Passés) */}
+              <div className="flex items-center gap-2 p-1 rounded-2xl bg-[#14080F] border border-[#F3C4A0]/20 w-fit">
+                <button
+                  onClick={() => setEventsFilter('all')}
+                  className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase transition-all cursor-pointer ${
+                    eventsFilter === 'all'
+                      ? 'bg-[#3B66FF] text-white shadow'
+                      : 'text-[#F3C4A0]/70 hover:text-white'
+                  }`}
+                >
+                  Tous ({allEvents.length})
+                </button>
+                <button
+                  onClick={() => setEventsFilter('upcoming')}
+                  className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase transition-all cursor-pointer ${
+                    eventsFilter === 'upcoming'
+                      ? 'bg-[#3B66FF] text-white shadow'
+                      : 'text-[#F3C4A0]/70 hover:text-white'
+                  }`}
+                >
+                  À Venir &amp; Vedette ({allEvents.filter((e) => e.is_active || e.category === 'upcoming').length})
+                </button>
+                <button
+                  onClick={() => setEventsFilter('previous')}
+                  className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase transition-all cursor-pointer ${
+                    eventsFilter === 'previous'
+                      ? 'bg-[#3B66FF] text-white shadow'
+                      : 'text-[#F3C4A0]/70 hover:text-white'
+                  }`}
+                >
+                  Archives &amp; Passés ({allEvents.filter((e) => !e.is_active && e.category === 'previous').length})
+                </button>
               </div>
 
               {/* Events Table */}
@@ -1753,96 +1877,127 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <th className="p-4">Affiche</th>
                         <th className="p-4">Titre &amp; Édition</th>
                         <th className="p-4">Date &amp; Lieu</th>
-                        <th className="p-4">Statut</th>
+                        <th className="p-4">Catégorie / Statut</th>
                         <th className="p-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#F3C4A0]/10">
-                      {allEvents.length === 0 ? (
+                      {allEvents.filter((e) => {
+                        if (eventsFilter === 'upcoming') return e.is_active || e.category === 'upcoming';
+                        if (eventsFilter === 'previous') return !e.is_active && e.category === 'previous';
+                        return true;
+                      }).length === 0 ? (
                         <tr>
                           <td colSpan={5} className="p-8 text-center text-[#F3C4A0]/60">
-                            Aucun événement enregistré. Cliquez sur "Créer un Nouvel Événement".
+                            Aucun événement dans cette section. Cliquez sur un des boutons ci-dessus pour en ajouter un.
                           </td>
                         </tr>
                       ) : (
-                        allEvents.map((evt) => (
-                          <tr
-                            key={evt.id}
-                            className={`hover:bg-white/[0.02] transition-colors ${
-                              evt.is_active ? 'bg-emerald-500/[0.04]' : ''
-                            }`}
-                          >
-                            <td className="p-4">
-                              <img
-                                src={evt.banner_url || '/images/event_banner.jpg'}
-                                alt={evt.title}
-                                className="w-16 h-10 object-cover rounded-lg border border-[#F3C4A0]/20"
-                              />
-                            </td>
-                            <td className="p-4">
-                              <div className="font-bold text-white text-sm">{evt.title}</div>
-                              <div className="text-[11px] text-[#A66B95]">{evt.edition}</div>
-                            </td>
-                            <td className="p-4">
-                              <div className="flex items-center gap-1.5 text-white">
-                                <Clock className="w-3.5 h-3.5 text-[#F3C4A0]" />
-                                <span>{evt.date}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5 text-[#F3C4A0]/70 mt-1">
-                                <MapPin className="w-3.5 h-3.5 text-[#B93A34]" />
-                                <span>{evt.location}</span>
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              {evt.is_active ? (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                  <span>ACTIF (Public)</span>
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => handleSetActiveEvent(evt)}
-                                  className="px-3 py-1 rounded-full bg-white/5 hover:bg-[#3B66FF] text-[#F3C4A0]/70 hover:text-white border border-white/10 text-[10px] font-bold transition-all cursor-pointer"
-                                >
-                                  Définir comme actif â†’
-                                </button>
-                              )}
-                            </td>
-                            <td className="p-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => {
-                                    setEditingEvent(evt);
-                                    setEventModalForm({
-                                      title: evt.title,
-                                      edition: evt.edition,
-                                      date: evt.date,
-                                      location: evt.location,
-                                      program: evt.program,
-                                      banner_url: evt.banner_url,
-                                      is_active: evt.is_active,
-                                      access_info: evt.access_info || 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
-                                      entry_info: evt.entry_info || '100% Gratuite avec réservation préalable en ligne.',
-                                      ambiance_info: evt.ambiance_info || 'Musique live, animations, buffet & tombola du club Joker ESEN.',
-                                    });
-                                    setIsEventModalOpen(true);
-                                  }}
-                                  className="p-1.5 rounded-lg bg-[#3B66FF]/20 text-[#93C5FD] hover:bg-[#3B66FF] hover:text-white transition-colors cursor-pointer"
-                                  title="Modifier l'événement"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteEvent(evt)}
-                                  className="p-1.5 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
-                                  title="Supprimer l'événement"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
+                        allEvents
+                          .filter((e) => {
+                            if (eventsFilter === 'upcoming') return e.is_active || e.category === 'upcoming';
+                            if (eventsFilter === 'previous') return !e.is_active && e.category === 'previous';
+                            return true;
+                          })
+                          .map((evt) => (
+                            <tr
+                              key={evt.id}
+                              className={`hover:bg-white/[0.02] transition-colors ${
+                                evt.is_active ? 'bg-emerald-500/[0.04]' : ''
+                              }`}
+                            >
+                              <td className="p-4">
+                                <img
+                                  src={evt.banner_url || '/images/event_banner.jpg'}
+                                  alt={evt.title}
+                                  className="w-16 h-10 object-cover rounded-lg border border-[#F3C4A0]/20"
+                                />
+                              </td>
+                              <td className="p-4">
+                                <div className="font-bold text-white text-sm">{evt.title}</div>
+                                <div className="text-[11px] text-[#A66B95]">{evt.edition}</div>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex items-center gap-1.5 text-white">
+                                  <Clock className="w-3.5 h-3.5 text-[#F3C4A0]" />
+                                  <span>{evt.date}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[#F3C4A0]/70 mt-1">
+                                  <MapPin className="w-3.5 h-3.5 text-[#B93A34]" />
+                                  <span>{evt.location}</span>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex flex-col gap-1.5 items-start">
+                                  {evt.is_active ? (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-bold">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                      <span>⭐ VEDETTE ACTIF (Haut de page)</span>
+                                    </span>
+                                  ) : evt.category === 'previous' ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 text-[10px] font-bold">
+                                      <span>🏛️ ARCHIVE / PASSÉ</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-300 text-[10px] font-bold">
+                                      <span>📅 À VENIR (Calendrier)</span>
+                                    </span>
+                                  )}
+
+                                  {!evt.is_active && (
+                                    <button
+                                      onClick={() => handleSetActiveEvent(evt)}
+                                      className="px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-[#3B66FF] text-[#F3C4A0]/70 hover:text-white border border-white/10 text-[9px] font-semibold transition-all cursor-pointer"
+                                      title="Placer cet événement comme l'affiche principale en haut de page"
+                                    >
+                                      Mettre en Vedette →
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => {
+                                      const hasAccessEntry = Boolean((evt.access_info && evt.access_info.trim()) || (evt.entry_info && evt.entry_info.trim()));
+                                      const hasAmbiance = Boolean(evt.ambiance_info && evt.ambiance_info.trim());
+                                      const hasProgram = Boolean(evt.program && evt.program.trim());
+                                      setEditingEvent(evt);
+                                      setEventModalForm({
+                                        title: evt.title,
+                                        edition: evt.edition,
+                                        date: evt.date,
+                                        location: evt.location,
+                                        program: evt.program || '',
+                                        banner_url: evt.banner_url || '/images/event_banner.jpg',
+                                        category: evt.category || (evt.is_active ? 'upcoming' : 'previous'),
+                                        is_active: evt.is_active,
+                                        ticket_available: evt.ticket_available ?? (evt.category === 'upcoming' || evt.is_active),
+                                        include_program: hasProgram || evt.category !== 'previous',
+                                        include_access_entry: hasAccessEntry,
+                                        include_ambiance: hasAmbiance,
+                                        access_info: evt.access_info || '',
+                                        entry_info: evt.entry_info || '',
+                                        ambiance_info: evt.ambiance_info || '',
+                                      });
+                                      setIsEventModalOpen(true);
+                                    }}
+                                    className="p-1.5 rounded-lg bg-[#3B66FF]/20 text-[#93C5FD] hover:bg-[#3B66FF] hover:text-white transition-colors cursor-pointer"
+                                    title="Modifier l'événement / archive"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEvent(evt)}
+                                    className="p-1.5 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
+                                    title="Supprimer l'événement"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
                       )}
                     </tbody>
                   </table>
@@ -2007,7 +2162,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     setMemberForm({
                       name: '',
                       role: '',
-                      suit: 'â™ ',
+                      suit: '♠',
                       suitColor: '#F3C4A0',
                       avatar: '',
                       socials: { instagram: '#', linkedin: '#' },
@@ -2590,10 +2745,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-                    {editingEvent ? "Modifier l'Événement" : 'Créer un Nouvel Événement'}
+                    {editingEvent
+                      ? `Modifier l'Événement : ${editingEvent.title}`
+                      : eventModalForm.category === 'previous'
+                      ? 'Ajouter une Ancienne Édition / Archive'
+                      : 'Créer un Nouvel Événement'}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Configuration de l'affiche, du programme et des informations pratiques
+                    Activez ou désactivez les blocs souhaités (Entrée, Accès, Ambiance, Billetterie)
                   </p>
                 </div>
               </div>
@@ -2609,7 +2768,93 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* Modal Scrollable Body */}
             <form id="event-modal-form" onSubmit={handleSaveEventModal} className="overflow-y-auto p-5 sm:p-6 space-y-6 flex-1">
               
-              {/* Section 1: Informations Générales */}
+              {/* Section 0: Catégorie / Statut de l'Événement */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <h4 className="text-xs font-black uppercase text-blue-900 tracking-wider">
+                  Type d'Événement &amp; Emplacement
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEventModalForm({
+                        ...eventModalForm,
+                        is_active: true,
+                        category: 'upcoming',
+                        ticket_available: true,
+                        include_access_entry: true,
+                        include_ambiance: true,
+                        include_program: true,
+                      })
+                    }
+                    className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                      eventModalForm.is_active
+                        ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-950'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-xs font-bold flex items-center gap-1">
+                      <span>⭐ Vedette Actif</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500">Affiche principale en haut de page</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEventModalForm({
+                        ...eventModalForm,
+                        is_active: false,
+                        category: 'upcoming',
+                        ticket_available: true,
+                        include_access_entry: true,
+                        include_ambiance: true,
+                        include_program: true,
+                      })
+                    }
+                    className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                      !eventModalForm.is_active && eventModalForm.category === 'upcoming'
+                        ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-500/20 text-blue-950'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-xs font-bold flex items-center gap-1">
+                      <span>📅 À Venir (Agenda)</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500">Futur événement dans le calendrier</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEventModalForm({
+                        ...eventModalForm,
+                        is_active: false,
+                        category: 'previous',
+                        ticket_available: false,
+                        include_access_entry: false,
+                        include_ambiance: false,
+                        include_program: true,
+                        access_info: '',
+                        entry_info: '',
+                        ambiance_info: '',
+                      })
+                    }
+                    className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
+                      !eventModalForm.is_active && eventModalForm.category === 'previous'
+                        ? 'bg-purple-50 border-purple-500 ring-2 ring-purple-500/20 text-purple-950'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="text-xs font-bold flex items-center gap-1">
+                      <span>🏛️ Archive Passée</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500">Édition clôturée (Archives &amp; Souvenirs)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Section 1: Informations Principales */}
               <div className="space-y-3">
                 <h4 className="text-xs font-black uppercase text-blue-900 tracking-wider">
                   1. Informations Principales
@@ -2625,20 +2870,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       required
                       value={eventModalForm.title}
                       onChange={(e) => setEventModalForm({ ...eventModalForm, title: e.target.value })}
-                      placeholder="Ex: Joker Carnival Night 2026"
+                      placeholder="Ex: Joker Carnival Night 2026 ou Joker Gala 2024"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Édition / Sous-titre
+                      Édition / Sous-titre / Année
                     </label>
                     <input
                       type="text"
                       value={eventModalForm.edition}
                       onChange={(e) => setEventModalForm({ ...eventModalForm, edition: e.target.value })}
-                      placeholder="Ex: Édition Spéciale · 10ème Anniversaire"
+                      placeholder="Ex: Édition Spéciale · 10ème Anniversaire ou Édition 2024"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
                     />
                   </div>
@@ -2671,35 +2916,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Section 2: Programme & Affiche */}
+              {/* Section 2: Affiche / Flyer */}
               <div className="space-y-3 pt-2 border-t border-slate-100">
                 <h4 className="text-xs font-black uppercase text-blue-900 tracking-wider">
-                  2. Programme &amp; Affiche
+                  2. Affiche / Flyer de l'Événement
                 </h4>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Programme / Highlights (résumé court)
-                  </label>
-                  <input
-                    type="text"
-                    value={eventModalForm.program}
-                    onChange={(e) => setEventModalForm({ ...eventModalForm, program: e.target.value })}
-                    placeholder="Ex: Concerts live · DJ set · Buffet · Tombola"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Affiche de l'Événement
-                  </label>
                   <div className="flex gap-2 items-center">
                     <input
                       type="text"
                       value={eventModalForm.banner_url}
                       onChange={(e) => setEventModalForm({ ...eventModalForm, banner_url: e.target.value })}
-                      placeholder="URL Cloudinary ou lien d'image"
+                      placeholder="URL Cloudinary ou lien direct d'image"
                       className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
                     />
                     <input
@@ -2732,73 +2961,167 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Section 3: Détails Pratiques (Modale Plus d'infos) */}
+              {/* Section 3: Programme / Description / Rétrospective (WITH TOGGLE) */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase text-blue-900 tracking-wider flex items-center gap-1.5">
+                    <span>3. Programme, Description &amp; Rétrospective</span>
+                  </h4>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <span className="text-[11px] font-bold text-slate-600">
+                      {eventModalForm.include_program ? 'Activé' : 'Désactivé'}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={eventModalForm.include_program}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, include_program: e.target.checked })}
+                      className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
+                    />
+                  </label>
+                </div>
+
+                {eventModalForm.include_program ? (
+                  <div>
+                    <textarea
+                      rows={3}
+                      value={eventModalForm.program}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, program: e.target.value })}
+                      placeholder="Ex: Concerts live · DJ set · Remise des prix · Buffet festif &amp; Tombola..."
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    ℹ️ Bloc masqué sur la fiche événement.
+                  </p>
+                )}
+              </div>
+
+              {/* Section 4: Conditions d'Entrée & Accès (WITH TOGGLE) */}
               <div className="space-y-3 pt-2 border-t border-slate-100">
                 <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-100 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-xs font-bold">ℹ️</span>
-                    <h4 className="text-xs font-black uppercase text-blue-900 tracking-wider">
-                      3. Détails de la Modale "Plus d'infos"
-                    </h4>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-xs font-bold">🎟️</span>
+                      <h4 className="text-xs font-black uppercase text-blue-900 tracking-wider">
+                        4. Conditions d'Accès &amp; Modalités d'Entrée
+                      </h4>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <span className="text-[11px] font-bold text-blue-900">
+                        {eventModalForm.include_access_entry ? 'Inclure' : 'Masquer'}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={eventModalForm.include_access_entry}
+                        onChange={(e) => setEventModalForm({ ...eventModalForm, include_access_entry: e.target.checked })}
+                        className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
+                      />
+                    </label>
                   </div>
 
-                  <div className="space-y-2.5">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        🎟️ Conditions d'Accès
-                      </label>
-                      <input
-                        type="text"
-                        value={eventModalForm.access_info}
-                        onChange={(e) => setEventModalForm({ ...eventModalForm, access_info: e.target.value })}
-                        placeholder="Ouvert aux étudiants munis de leur réservation / pass gratuit."
-                        className="w-full px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 transition-all"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {eventModalForm.include_access_entry ? (
+                    <div className="space-y-2.5">
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                          🎟️ Modalité d'Entrée
+                          Conditions d'Accès
+                        </label>
+                        <input
+                          type="text"
+                          value={eventModalForm.access_info}
+                          onChange={(e) => setEventModalForm({ ...eventModalForm, access_info: e.target.value })}
+                          placeholder="Ex: Ouvert aux étudiants munis de leur réservation / pass gratuit."
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Modalité d'Entrée
                         </label>
                         <input
                           type="text"
                           value={eventModalForm.entry_info}
                           onChange={(e) => setEventModalForm({ ...eventModalForm, entry_info: e.target.value })}
-                          placeholder="100% Gratuite avec réservation préalable en ligne."
-                          className="w-full px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 transition-all"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                          🎁 Ambiance &amp; Description
-                        </label>
-                        <input
-                          type="text"
-                          value={eventModalForm.ambiance_info}
-                          onChange={(e) => setEventModalForm({ ...eventModalForm, ambiance_info: e.target.value })}
-                          placeholder="Musique live, buffet &amp; animations..."
+                          placeholder="Ex: 100% Gratuite avec réservation préalable en ligne."
                           className="w-full px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-500 transition-all"
                         />
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <p className="text-[11px] text-blue-900/70 italic bg-white/70 p-2.5 rounded-xl border border-blue-100">
+                      ℹ️ "Entrée &amp; Accès" est masqué sur le site (Recommandé pour les archives et anciennes éditions).
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {/* Section 4: Statut actif */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="modal-event-active"
-                  checked={eventModalForm.is_active}
-                  onChange={(e) => setEventModalForm({ ...eventModalForm, is_active: e.target.checked })}
-                  className="w-4 h-4 rounded-md accent-blue-600 cursor-pointer shrink-0"
-                />
-                <label htmlFor="modal-event-active" className="text-xs text-slate-700 font-bold cursor-pointer select-none">
-                  Définir immédiatement cet événement comme l'événement vedette actif sur la page d'accueil
-                </label>
+              {/* Section 5: Ambiance & Souvenirs (WITH TOGGLE) */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-purple-200 text-purple-800 flex items-center justify-center text-xs font-bold">✨</span>
+                      <h4 className="text-xs font-black uppercase text-purple-900 tracking-wider">
+                        5. Ambiance &amp; Souvenirs
+                      </h4>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <span className="text-[11px] font-bold text-purple-900">
+                        {eventModalForm.include_ambiance ? 'Inclure' : 'Masquer'}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={eventModalForm.include_ambiance}
+                        onChange={(e) => setEventModalForm({ ...eventModalForm, include_ambiance: e.target.checked })}
+                        className="w-4 h-4 rounded accent-purple-600 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+
+                  {eventModalForm.include_ambiance ? (
+                    <div>
+                      <input
+                        type="text"
+                        value={eventModalForm.ambiance_info}
+                        onChange={(e) => setEventModalForm({ ...eventModalForm, ambiance_info: e.target.value })}
+                        placeholder="Ex: Musique live, animations, buffet &amp; tombola du club Joker ESEN."
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-purple-200 text-xs font-medium text-slate-900 outline-none focus:border-purple-500 transition-all"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-purple-900/70 italic bg-white/70 p-2.5 rounded-xl border border-purple-100">
+                      ℹ️ "Ambiance" est masqué sur le site.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 6: Billetterie & Réservation (WITH TOGGLE) */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                      6. Billetterie &amp; Réservation de Pass
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      {eventModalForm.ticket_available
+                        ? 'Le bouton "Réserver un Pass" sera affiché sur la fiche et l\'affiche.'
+                        : 'Aucun bouton de réservation ne sera affiché (Idéal pour les événements passés).'}
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
+                    <span className="text-[11px] font-bold text-slate-700">
+                      {eventModalForm.ticket_available ? 'Activée' : 'Désactivée'}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={eventModalForm.ticket_available}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, ticket_available: e.target.checked })}
+                      className="w-4 h-4 rounded accent-blue-600 cursor-pointer"
+                    />
+                  </label>
+                </div>
               </div>
 
             </form>
@@ -2817,7 +3140,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 form="event-modal-form"
                 className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-800 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
               >
-                {editingEvent ? "Mettre à jour l'Événement" : "Créer l'Événement"}
+                {editingEvent ? "Mettre à jour l'Événement" : "Enregistrer l'Événement"}
               </button>
             </div>
 
@@ -3098,10 +3421,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setMemberForm({ ...memberForm, suit: e.target.value as any })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
                   >
-                    <option value="â™ ">â™  Pique (Présidence)</option>
-                    <option value="â™¥">â™¥ CÅ“ur (Vice-Présidence)</option>
-                    <option value="â™¦">â™¦ Carreau (Secrétariat / Design)</option>
-                    <option value="â™£">â™£ Trèfle (Trésorerie / Logistique)</option>
+                    <option value="♠">♠ Pique (Présidence)</option>
+                    <option value="♥">♥ Cœur (Vice-Présidence)</option>
+                    <option value="♦">♦ Carreau (Secrétariat / Design)</option>
+                    <option value="♣">♣ Trèfle (Trésorerie / Logistique)</option>
                   </select>
                 </div>
 

@@ -8,7 +8,8 @@ import { MembershipForm } from './components/MembershipForm';
 import { LoginModal } from './components/LoginModal';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { fetchActiveEvent, getCachedEvent } from './services/eventService';
+import { fetchAllEvents, getCachedEvent, getCachedAllEvents, cacheAllEvents } from './services/eventService';
+import type { EventRecord } from './types/database';
 import { fetchTeamMembers, getCachedTeam, cacheTeam } from './services/teamService';
 import { fetchClubSettings, getCachedSettings, cacheSettings } from './services/settingsService';
 
@@ -31,6 +32,9 @@ export function App() {
     }
     return true;
   });
+
+  // Dynamic All Events State (Includes active, upcoming, and past archive editions)
+  const [allEvents, setAllEvents] = useState<EventRecord[]>(() => getCachedAllEvents());
 
   // Dynamic Event Data: Initialized immediately from Supabase active event
   const [eventData, setEventData] = useState<{
@@ -118,28 +122,33 @@ export function App() {
           cacheSettings({ recruitment_open: settings.recruitment_open });
         }
 
-        // 2. Active Event
-        const event = await fetchActiveEvent();
-        if (event) {
-          const rawProgram = event.program || '';
-          const isJunkHtml = rawProgram.includes('Avantages de HTML') || rawProgram.includes('<section>');
-          const cleanProgram = isJunkHtml
-            ? 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.'
-            : rawProgram;
+        // 2. All Events & Active Event
+        const events = await fetchAllEvents();
+        if (events && events.length > 0) {
+          setAllEvents(events);
+          cacheAllEvents(events);
+          const active = events.find((e) => e.is_active) || events[0];
+          if (active) {
+            const rawProgram = active.program || '';
+            const isJunkHtml = rawProgram.includes('Avantages de HTML') || rawProgram.includes('<section>');
+            const cleanProgram = isJunkHtml
+              ? 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.'
+              : rawProgram;
 
-          setEventData({
-            id: event.id,
-            title: event.title,
-            edition: event.edition,
-            date: event.date,
-            location: event.location,
-            program: cleanProgram,
-            bannerUrl: event.banner_url || '/images/event_banner.jpg',
-            banner_url: event.banner_url || '/images/event_banner.jpg',
-            access_info: event.access_info,
-            entry_info: event.entry_info,
-            ambiance_info: event.ambiance_info,
-          });
+            setEventData({
+              id: active.id,
+              title: active.title,
+              edition: active.edition,
+              date: active.date,
+              location: active.location,
+              program: cleanProgram,
+              bannerUrl: active.banner_url || '/images/event_banner.jpg',
+              banner_url: active.banner_url || '/images/event_banner.jpg',
+              access_info: active.access_info,
+              entry_info: active.entry_info,
+              ambiance_info: active.ambiance_info,
+            });
+          }
         }
 
         // 3. Team Members
@@ -160,6 +169,27 @@ export function App() {
     cacheTeam(newMembers);
   };
 
+  const handleUpdateAllEvents = (newEvents: EventRecord[]) => {
+    setAllEvents(newEvents);
+    cacheAllEvents(newEvents);
+    const active = newEvents.find((e) => e.is_active) || newEvents[0];
+    if (active) {
+      setEventData({
+        id: active.id,
+        title: active.title,
+        edition: active.edition,
+        date: active.date,
+        location: active.location,
+        program: active.program,
+        bannerUrl: active.banner_url || '/images/event_banner.jpg',
+        banner_url: active.banner_url || '/images/event_banner.jpg',
+        access_info: active.access_info,
+        entry_info: active.entry_info,
+        ambiance_info: active.ambiance_info,
+      });
+    }
+  };
+
   const handleToggleRecruitment = (isOpen: boolean) => {
     setRecruitmentOpen(isOpen);
     cacheSettings({ recruitment_open: isOpen });
@@ -173,6 +203,8 @@ export function App() {
         onToggleRecruitment={handleToggleRecruitment}
         eventData={eventData}
         onUpdateEvent={setEventData}
+        allEventsProp={allEvents}
+        onUpdateAllEvents={handleUpdateAllEvents}
         teamMembers={teamMembers}
         onUpdateTeamMembers={handleUpdateTeam}
       />
@@ -188,7 +220,7 @@ export function App() {
       <main>
         <About />
         <Team teamMembers={teamMembers} />
-        <Event eventData={eventData} />
+        <Event eventData={eventData} events={allEvents} />
         <Gallery />
         {recruitmentOpen ? (
           <MembershipForm />

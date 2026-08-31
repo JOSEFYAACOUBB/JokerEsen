@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Calendar, MapPin, Ticket, CheckCircle2, User, Mail, X, Info, Bell, History } from 'lucide-react';
 
+import { getCachedAllEvents } from '../services/eventService';
+import type { EventRecord } from '../types/database';
+
 interface EventItem {
   id: string;
   title: string;
@@ -11,6 +14,9 @@ interface EventItem {
   image: string;
   ticketAvailable?: boolean;
   edition?: string;
+  access_info?: string;
+  entry_info?: string;
+  ambiance_info?: string;
 }
 
 interface EventProps {
@@ -21,13 +27,15 @@ interface EventProps {
     location: string;
     program: string;
     bannerUrl: string;
+    banner_url?: string;
     access_info?: string;
     entry_info?: string;
     ambiance_info?: string;
   };
+  events?: EventRecord[];
 }
 
-export const Event: React.FC<EventProps> = ({ eventData }) => {
+export const Event: React.FC<EventProps> = ({ eventData, events }) => {
   // Modal states
   const [isRsvpOpen, setIsRsvpOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -56,7 +64,7 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
   const programText = isJunk
     ? 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.'
     : (rawProgram || 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.');
-  const bannerUrl = eventData?.bannerUrl || '/images/event_banner.jpg';
+  const bannerUrl = eventData?.bannerUrl || eventData?.banner_url || '/images/event_banner.jpg';
   const accessInfoText = eventData?.access_info || 'Ouvert aux étudiants munis de leur réservation / pass gratuit.';
   const entryInfoText = eventData?.entry_info || '100% Gratuite avec réservation préalable en ligne.';
   const ambianceInfoText = eventData?.ambiance_info || 'Musique live, animations, buffet & tombola du club Joker ESEN.';
@@ -79,53 +87,22 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
     return <span>{raw}</span>;
   };
 
-  // Curated previous and upcoming events list with standardized date format (Global Rule 6)
-  const eventList: EventItem[] = [
-    {
-      id: 'evt-1',
-      title: 'JOKER INTEGRATION DAY',
-      category: 'upcoming',
-      date: 'Jeudi 15 Octobre 2026 · 14h00',
-      location: 'Campus ESEN Manouba',
-      description: 'Journée festive d’accueil des nouveaux étudiants, jeux d’équipes, animations musicales, showcases et remise des packs de bienvenue Joker.',
-      image: '/images/teambuilding.jpg',
-      ticketAvailable: true,
-      edition: 'Édition Promo 2026-2027',
-    },
-    {
-      id: 'evt-2',
-      title: 'CYBER NIGHT & LAN ARENA',
-      category: 'previous',
-      date: 'Vendredi 24 Mai 2025 · 21h00',
-      location: 'ESEN Labs & Salle Polyvalente',
-      description: 'Tournoi esport inter-universitaire, compétition Valorant & FIFA, stand rétro-gaming et ambiance DJ jusqu’au petit matin.',
-      image: '/images/hero_deck.jpg',
-      ticketAvailable: false,
-      edition: 'Édition Spring 2025',
-    },
-    {
-      id: 'evt-3',
-      title: 'CREATIVE WORKSHOP & DJ ACADEMY',
-      category: 'previous',
-      date: 'Mercredi 12 Février 2025 · 15h00',
-      location: 'Amphi B, ESEN Manouba',
-      description: 'Masterclass sur la production audio, création visuelle pour festivals et initiation aux platines numériques animée par le pôle technique.',
-      image: '/images/workshop.jpg',
-      ticketAvailable: false,
-      edition: 'Session Hiver 2025',
-    },
-    {
-      id: 'evt-4',
-      title: 'JOKER GALA & RETROSPECTIVE',
-      category: 'previous',
-      date: 'Samedi 18 Mai 2024 · 19h30',
-      location: 'Espace Culturel Manouba',
-      description: 'Célébration des réussites de l’année, remise des trophées du club Joker, cocktail dînatoire et rétrospective en images des grands projets.',
-      image: '/images/about_card_fan.jpg',
-      ticketAvailable: false,
-      edition: 'Édition Annuelle 2024',
-    },
-  ];
+  // Dynamic previous and upcoming events list from Supabase / Props with standardized date format
+  const sourceEvents: EventRecord[] = events && events.length > 0 ? events : getCachedAllEvents();
+  const eventList: EventItem[] = sourceEvents.map((evt, idx) => ({
+    id: evt.id || `evt-${idx}`,
+    title: evt.title,
+    category: evt.category || (evt.is_active ? 'upcoming' : 'previous'),
+    date: evt.date,
+    location: evt.location,
+    description: evt.program,
+    image: evt.banner_url || '/images/event_banner.jpg',
+    ticketAvailable: evt.ticket_available ?? (evt.category === 'upcoming' || evt.is_active),
+    edition: evt.edition,
+    access_info: evt.access_info,
+    entry_info: evt.entry_info,
+    ambiance_info: evt.ambiance_info,
+  }));
 
   const filteredEvents = activeTab === 'all'
     ? eventList
@@ -532,34 +509,81 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
               </span>
               <div>
                 <span className="text-[10px] font-mono font-bold uppercase text-[#F3BB99] tracking-widest">
-                  {selectedEventModal?.category === 'previous' ? 'ARCHIVE ÉVÉNEMENT' : 'DÉTAILS DE L\'ÉVÉNEMENT'}
+                  {selectedEventModal?.category === 'previous' ? 'ARCHIVE & SOUVENIRS' : 'DÉTAILS DE L\'ÉVÉNEMENT'}
                 </span>
                 <h3 className="text-xl sm:text-2xl font-black text-white uppercase leading-tight font-display">
                   {selectedEventModal ? selectedEventModal.title : title}
                 </h3>
+                {(selectedEventModal?.edition || (!selectedEventModal && edition)) && (
+                  <p className="text-xs text-[#F3C4A0]/80 mt-0.5">
+                    {selectedEventModal ? selectedEventModal.edition : edition}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Modal Content */}
             <div className="space-y-4 text-xs sm:text-sm">
-              <div className="p-4 rounded-2xl bg-white/[0.04] border border-[#F3C4A0]/20 space-y-2">
-                <p className="text-[11px] font-mono text-[#F3BB99] uppercase font-bold tracking-wider">
-                  Description &amp; Programme
-                </p>
-                <div className="text-[#F5EDE4]/80 leading-relaxed">
-                  {renderFormattedDescription(selectedEventModal ? selectedEventModal.description : programText)}
+              {/* Description / Programme / Rétrospective (only if non-empty) */}
+              {Boolean((selectedEventModal ? selectedEventModal.description : programText)?.trim()) && (
+                <div className="p-4 rounded-2xl bg-white/[0.04] border border-[#F3C4A0]/20 space-y-2">
+                  <p className="text-[11px] font-mono text-[#F3BB99] uppercase font-bold tracking-wider">
+                    {selectedEventModal?.category === 'previous' ? 'Rétrospective & Description' : 'Description & Programme'}
+                  </p>
+                  <div className="text-[#F5EDE4]/80 leading-relaxed">
+                    {renderFormattedDescription(selectedEventModal ? selectedEventModal.description : programText)}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="p-4 rounded-2xl bg-white/[0.04] border border-[#F3C4A0]/20 space-y-2">
+              {/* Informations Pratiques */}
+              <div className="p-4 rounded-2xl bg-white/[0.04] border border-[#F3C4A0]/20 space-y-2.5">
                 <p className="text-[11px] font-mono text-[#F3BB99] uppercase font-bold tracking-wider">
                   Informations Pratiques
                 </p>
-                <div className="text-[#F5EDE4]/80 space-y-1.5">
-                  <p>📍 <strong className="text-white">Lieu :</strong> {selectedEventModal ? selectedEventModal.location : locationText}</p>
-                  <p>📅 <strong className="text-white">Date :</strong> {selectedEventModal ? selectedEventModal.date : dateText}</p>
-                  <p>🎟️ <strong className="text-white">Entrée &amp; Accès :</strong> {entryInfoText} — {accessInfoText}</p>
-                  <p>✨ <strong className="text-white">Ambiance :</strong> {ambianceInfoText}</p>
+                <div className="text-[#F5EDE4]/80 space-y-2">
+                  {(selectedEventModal?.location || (!selectedEventModal && locationText)) && (
+                    <p className="flex items-start gap-2">
+                      <span className="shrink-0">📍</span>
+                      <span><strong className="text-white">Lieu :</strong> {selectedEventModal ? selectedEventModal.location : locationText}</span>
+                    </p>
+                  )}
+                  {(selectedEventModal?.date || (!selectedEventModal && dateText)) && (
+                    <p className="flex items-start gap-2">
+                      <span className="shrink-0">📅</span>
+                      <span><strong className="text-white">Date :</strong> {selectedEventModal ? selectedEventModal.date : dateText}</span>
+                    </p>
+                  )}
+
+                  {/* Entrée & Accès - Rendered ONLY if non-empty */}
+                  {(() => {
+                    const entry = (selectedEventModal ? selectedEventModal.entry_info : entryInfoText)?.trim();
+                    const access = (selectedEventModal ? selectedEventModal.access_info : accessInfoText)?.trim();
+                    if (!entry && !access) return null;
+                    return (
+                      <p className="flex items-start gap-2">
+                        <span className="shrink-0">🎟️</span>
+                        <span>
+                          <strong className="text-white">Entrée &amp; Accès :</strong>{' '}
+                          {[entry, access].filter(Boolean).join(' — ')}
+                        </span>
+                      </p>
+                    );
+                  })()}
+
+                  {/* Ambiance - Rendered ONLY if non-empty */}
+                  {(() => {
+                    const ambiance = (selectedEventModal ? selectedEventModal.ambiance_info : ambianceInfoText)?.trim();
+                    if (!ambiance) return null;
+                    return (
+                      <p className="flex items-start gap-2">
+                        <span className="shrink-0">✨</span>
+                        <span>
+                          <strong className="text-white">Ambiance :</strong> {ambiance}
+                        </span>
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -575,7 +599,7 @@ export const Event: React.FC<EventProps> = ({ eventData }) => {
                 Fermer
               </button>
 
-              {(!selectedEventModal || selectedEventModal.ticketAvailable) && (
+              {(!selectedEventModal || (selectedEventModal.ticketAvailable && selectedEventModal.category !== 'previous')) && (
                 <button
                   onClick={() => {
                     setIsInfoOpen(false);

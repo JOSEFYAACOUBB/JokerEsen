@@ -70,6 +70,12 @@ export interface EventRecord {
   program: string;
   banner_url: string;
   is_active: boolean;
+  category?: 'upcoming' | 'previous';
+  ticket_available?: boolean;
+  show_access_info?: boolean;
+  show_entry_info?: boolean;
+  show_ambiance_info?: boolean;
+  show_program?: boolean;
   access_info?: string;
   entry_info?: string;
   ambiance_info?: string;

@@ -90,6 +90,17 @@ export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
   return cached;
 }
 
+export function normalizeSuit(suit?: string): '♠' | '♥' | '♦' | '♣' {
+  if (!suit) return '♠';
+  const str = String(suit).trim();
+  if (str === '♠' || str === '♥' || str === '♦' || str === '♣') return str as '♠' | '♥' | '♦' | '♣';
+  if (str.includes('♠') || str.toLowerCase().includes('pique') || str.toLowerCase().includes('spade') || str.includes('â™ ') || str.includes('\u2660')) return '♠';
+  if (str.includes('♥') || str.toLowerCase().includes('cœur') || str.toLowerCase().includes('coeur') || str.toLowerCase().includes('heart') || str.includes('â™¥') || str.includes('\u2665')) return '♥';
+  if (str.includes('♦') || str.toLowerCase().includes('carreau') || str.toLowerCase().includes('diamond') || str.includes('â™¦') || str.includes('\u2666')) return '♦';
+  if (str.includes('♣') || str.toLowerCase().includes('trèfle') || str.toLowerCase().includes('trefle') || str.toLowerCase().includes('club') || str.includes('â™£') || str.includes('\u2663')) return '♣';
+  return '♠';
+}
+
 export async function saveTeamMember(
   member: TeamMember,
   orderIndex: number = 0,
@@ -121,7 +132,7 @@ export async function saveTeamMember(
   const payload: Partial<TeamMemberRecord> = {
     name: member.name,
     role: member.role,
-    suit: (member.suit as '♠' | '♥' | '♦' | '♣') || '♠',
+    suit: normalizeSuit(member.suit),
     suit_color: member.suitColor || '#F3C4A0',
     avatar: member.avatar,
     instagram: member.socials?.instagram || '#',
