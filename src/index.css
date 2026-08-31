@@ -8,14 +8,17 @@
 
 @layer base {
   :root {
-    --bg-dark: #1A0E14;
-    --bg-dark-secondary: #2B1420;
+    --bg-dark: #140B10;
+    --bg-dark-secondary: #1C0F17;
+    --surface-dark: #1A0E15;
+    --surface-card: #20101B;
     --text-light: #F5EDE4;
     --rouge-vif: #B93A34;
+    --rouge-coral: #E05A52;
     --bordeaux: #7A1F3D;
-    --indigo: #4E4F9E;
-    --mauve: #A66B95;
+    --ambre: #F3BB99;
     --peche: #F3C4A0;
+    --border-warm: rgba(243, 196, 160, 0.18);
   }
 
   body {
@@ -48,63 +51,111 @@
   }
 }
 
-/* -- UI BUTTON DESIGN SYSTEM -- */
-.btn-pill-primary {
-  background-color: #3B66FF !important;
-  color: #FFFFFF !important;
-  border-radius: 9999px !important;
-  box-shadow: 0 4px 14px rgba(59, 102, 255, 0.35) !important;
-}
-.btn-pill-primary:hover {
-  background-color: #2552E0 !important;
-  transform: translateY(-1px) scale(1.02) !important;
-  box-shadow: 0 6px 20px rgba(59, 102, 255, 0.45) !important;
-}
-
-.btn-pill-secondary {
-  background-color: #EEF2FF !important;
-  color: #3B66FF !important;
-  border-radius: 9999px !important;
-}
-.btn-pill-secondary:hover {
-  background-color: #E0E7FF !important;
-  transform: translateY(-1px) scale(1.02) !important;
+/* ── STANDARDIZED CHAPTER BADGE (GLOBAL RULE 1) ── */
+.chapter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  background-color: rgba(185, 58, 52, 0.12);
+  border: 1px solid rgba(185, 58, 52, 0.35);
+  color: #F3C4A0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.btn-pill-outline {
-  background-color: #FFFFFF !important;
-  border: 2px solid #3B66FF !important;
-  color: #3B66FF !important;
-  border-radius: 9999px !important;
+.chapter-badge-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: #B93A34;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
-.btn-pill-outline:hover {
-  background-color: #F8FAFC !important;
-  transform: translateY(-1px) scale(1.02) !important;
+
+/* ── STANDARDIZED SECTION HEADLINE (GLOBAL RULE 2) ── */
+.section-headline {
+  font-family: 'Plus Jakarta Sans', 'Bebas Neue', sans-serif;
+  font-size: clamp(2.2rem, 5.2vw, 4.2rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #F5EDE4;
+  text-align: left;
+}
+
+/* ── CLEAN DARK CARD SURFACE (GLOBAL RULE 8 - REDUCE GRADIENTS) ── */
+.card-flat-dark {
+  background-color: #1A0E15;
+  border: 1px solid rgba(243, 196, 160, 0.18);
+  border-radius: 1.5rem;
+  transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-flat-dark:hover {
+  border-color: rgba(185, 58, 52, 0.45);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+}
+
+/* ── SCROLL-REVEAL & STAGGER ANIMATIONS (GLOBAL RULE 3) ── */
+@keyframes slideFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: slideFadeUp 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 80ms; }
+.stagger-3 { animation-delay: 160ms; }
+.stagger-4 { animation-delay: 240ms; }
+.stagger-5 { animation-delay: 320ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .card-flat-dark,
+  .playing-card-dark {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
 }
 
 /* Custom Watermark Suit Pattern */
 .bg-suits-dark-watermark {
-  background-color: #1A0E14;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140' opacity='0.035'%3E%3Ctext x='15' y='40' font-size='28' fill='%23F3C4A0'%3E♠%3C/text%3E%3Ctext x='85' y='40' font-size='28' fill='%23B93A34'%3E♥%3C/text%3E%3Ctext x='50' y='100' font-size='28' fill='%23B93A34'%3E♦%3C/text%3E%3Ctext x='110' y='100' font-size='28' fill='%234E4F9E'%3E♣%3C/text%3E%3C/svg%3E");
+  background-color: #140B10;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140' opacity='0.035'%3E%3Ctext x='15' y='40' font-size='28' fill='%23F3C4A0'%3E♠%3C/text%3E%3Ctext x='85' y='40' font-size='28' fill='%23B93A34'%3E♥%3C/text%3E%3Ctext x='50' y='100' font-size='28' fill='%23B93A34'%3E♦%3C/text%3E%3Ctext x='110' y='100' font-size='28' fill='%23E05A52'%3E♣%3C/text%3E%3C/svg%3E");
 }
 
 .bg-cabaret-alt {
-  background-color: #2B1420;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140' opacity='0.025'%3E%3Ctext x='15' y='40' font-size='28' fill='%23F5EDE4'%3E♠%3C/text%3E%3Ctext x='85' y='40' font-size='28' fill='%23B93A34'%3E♥%3C/text%3E%3Ctext x='50' y='100' font-size='28' fill='%23B93A34'%3E♦%3C/text%3E%3Ctext x='110' y='100' font-size='28' fill='%234E4F9E'%3E♣%3C/text%3E%3C/svg%3E");
+  background-color: #1C0F17;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140' opacity='0.025'%3E%3Ctext x='15' y='40' font-size='28' fill='%23F5EDE4'%3E♠%3C/text%3E%3Ctext x='85' y='40' font-size='28' fill='%23B93A34'%3E♥%3C/text%3E%3Ctext x='50' y='100' font-size='28' fill='%23B93A34'%3E♦%3C/text%3E%3Ctext x='110' y='100' font-size='28' fill='%23E05A52'%3E♣%3C/text%3E%3C/svg%3E");
 }
 
 /* Playing Card Frame */
 .playing-card-dark {
-  background: #25121B;
-  border: 2px solid rgba(243, 196, 160, 0.25);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.65), inset 0 0 20px rgba(122, 31, 61, 0.2);
+  background: #1A0E15;
+  border: 1.5px solid rgba(243, 196, 160, 0.2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .playing-card-dark:hover {
   border-color: #B93A34;
-  box-shadow: 0 24px 50px rgba(185, 58, 52, 0.35), inset 0 0 30px rgba(185, 58, 52, 0.15);
-  transform: translateY(-8px) rotate(0deg) scale(1.02) !important;
+  box-shadow: 0 20px 40px rgba(185, 58, 52, 0.25);
+  transform: translateY(-6px) scale(1.01) !important;
   z-index: 30;
 }
 
@@ -123,20 +174,195 @@
   animation-play-state: paused;
 }
 
-/* Custom Scrollbar */
+/* Custom Sleek Scrollbar (Subtle Dark Warm Aesthetics) */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #1A0E14;
+  background: #0D0708;
 }
 ::-webkit-scrollbar-thumb {
-  background: #B93A34;
+  background: rgba(243, 196, 160, 0.2);
   border-radius: 9999px;
-  border: 2px solid #1A0E14;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #F3C4A0;
+  background: rgba(185, 58, 52, 0.6);
+}
+
+/* =====================================================================
+   GLOBAL ANIMATION SYSTEM
+   Easing: cubic-bezier(0.16, 1, 0.3, 1) for entrances (ease-out spring)
+           cubic-bezier(0.4, 0, 1, 1) for exits (ease-in)
+   Scale:  fast = 150ms (hover/focus)
+           medium = 250ms (modal open, card transitions)
+           photo = 300ms (slide transitions)
+           never > 400ms except scroll-reveal stagger
+===================================================================== */
+
+/* ── Modal Backdrop ── */
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes backdropFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ── Modal Card Enter (scale 0.95 → 1 + fade) ── */
+@keyframes modalEnter {
+  0%   { opacity: 0; transform: scale(0.95) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Modal Card Exit (faster, scale 1 → 0.96 + fade) ── */
+@keyframes modalExit {
+  0%   { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.96) translateY(4px); }
+}
+
+/* ── X Close Button Feedback (rotate + scale) ── */
+@keyframes closeRotate {
+  0%   { transform: scale(1) rotate(0deg); }
+  40%  { transform: scale(0.85) rotate(15deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* ── Photo Slide (prev) ── */
+@keyframes photoSlideInRight {
+  0%   { opacity: 0; transform: translateX(-28px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Photo Slide (next) ── */
+@keyframes photoSlideInLeft {
+  0%   { opacity: 0; transform: translateX(28px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Input Focus Glow (grow from transparent) ── */
+@keyframes focusGlow {
+  0%   { box-shadow: 0 0 0 0 rgba(185, 58, 52, 0); }
+  100% { box-shadow: 0 0 0 3px rgba(185, 58, 52, 0.25); }
+}
+
+/* ── Validation Shake (field error) ── */
+@keyframes shakeField {
+  0%, 100% { transform: translateX(0); }
+  18%       { transform: translateX(-7px); }
+  36%       { transform: translateX(7px); }
+  54%       { transform: translateX(-5px); }
+  72%       { transform: translateX(5px); }
+  88%       { transform: translateX(-2px); }
+}
+
+/* ── Thumbnail Active Pulse Ring ── */
+@keyframes thumbRing {
+  0%   { box-shadow: 0 0 0 0   rgba(185,58,52, 0.7); }
+  70%  { box-shadow: 0 0 0 6px rgba(185,58,52, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(185,58,52, 0); }
+}
+
+/* ── Skeleton Loading Pulse ── */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.6; }
+}
+
+/* ── Success Checkmark Draw ── */
+@keyframes checkmarkDraw {
+  0%   { stroke-dashoffset: 100; opacity: 0; }
+  30%  { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+
+/* ── Spinner (button loading state) ── */
+@keyframes spinSmooth {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Utility classes ── */
+
+/* Backdrop */
+.anim-backdrop-in  { animation: backdropFadeIn  150ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.anim-backdrop-out { animation: backdropFadeOut 150ms cubic-bezier(0.4, 0, 1, 1) both; }
+
+/* Modal card */
+.anim-modal-in  { animation: modalEnter 250ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-modal-out { animation: modalExit  150ms cubic-bezier(0.4, 0, 1, 1) both; }
+
+/* Close button click */
+.anim-close-click { animation: closeRotate 300ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Photo slide */
+.anim-photo-left  { animation: photoSlideInLeft  300ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.anim-photo-right { animation: photoSlideInRight 300ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Shake */
+.anim-shake { animation: shakeField 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+
+/* Thumbnail active ring */
+.anim-thumb-ring { animation: thumbRing 1.4s ease-out infinite; }
+
+/* Skeleton */
+.anim-skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 100%);
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+  border-radius: 0.75rem;
+}
+
+/* Button loading spinner */
+.anim-btn-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 9999px;
+  animation: spinSmooth 0.7s linear infinite;
+  vertical-align: middle;
+}
+
+/* Focused input glow (apply to inputs on :focus) */
+.input-cabaret {
+  transition: border-color 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow   200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.input-cabaret:focus {
+  border-color: #B93A34 !important;
+  box-shadow: 0 0 0 3px rgba(185, 58, 52, 0.22) !important;
+  outline: none !important;
+}
+.input-cabaret.input-error {
+  border-color: #E05A52 !important;
+  box-shadow: 0 0 0 3px rgba(224, 90, 82, 0.2) !important;
+}
+
+/* Gallery card hover — consistent with global 200ms */
+.gallery-card {
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 200ms ease;
+}
+.gallery-card:hover {
+  transform: scale(1.02) translateY(-4px);
+  box-shadow: 0 20px 48px rgba(0,0,0,0.55);
+}
+
+/* prefers-reduced-motion: disable everything */
+@media (prefers-reduced-motion: reduce) {
+  .anim-modal-in, .anim-modal-out,
+  .anim-backdrop-in, .anim-backdrop-out,
+  .anim-photo-left, .anim-photo-right,
+  .anim-shake, .anim-close-click,
+  .anim-thumb-ring, .anim-skeleton,
+  .anim-btn-spinner, .gallery-card,
+  .animate-fade-up, .card-flat-dark, .playing-card-dark {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
 }
 
 /* =====================================================================

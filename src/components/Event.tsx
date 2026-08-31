@@ -1,5 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Clock, Ticket, CheckCircle2, User, Mail, X, Info, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, MapPin, Ticket, CheckCircle2, User, Mail, X, Info, Bell, History } from 'lucide-react';
+
+interface EventItem {
+  id: string;
+  title: string;
+  category: 'upcoming' | 'previous';
+  date: string;
+  location: string;
+  description: string;
+  image: string;
+  ticketAvailable?: boolean;
+  edition?: string;
+}
 
 interface EventProps {
   eventData?: {
@@ -16,559 +28,676 @@ interface EventProps {
 }
 
 export const Event: React.FC<EventProps> = ({ eventData }) => {
+  // Modal states
   const [isRsvpOpen, setIsRsvpOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [selectedEventModal, setSelectedEventModal] = useState<EventItem | null>(null);
   const [rsvpSubmitted, setRsvpSubmitted] = useState(false);
+  const [rsvpLoading, setRsvpLoading] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [nameError, setNameError] = useState(false);
+  const [emailError, setEmailError] = useState(false);
 
-  // Fallback defaults
-  const title = eventData?.title || 'Joker Carnival Night 2026';
+  // Email Notification Banner State
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [notifySuccess, setNotifySuccess] = useState(false);
+
+  // Active filter tab (All, Upcoming, Previous)
+  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'previous'>('all');
+
+  // Fallback defaults for the main Next Event
+  const title = eventData?.title || 'JOKER CARNIVAL NIGHT 2026';
   const edition = eventData?.edition || 'Édition Spéciale · 10ème Anniversaire';
   const dateText = eventData?.date || 'Samedi 26 Octobre 2026 · 20h00';
   const locationText = eventData?.location || 'Grand Cour & Amphi ESEN, Campus Manouba';
-  const programText = eventData?.program || 'Concerts live · DJ set · Buffet · Tombola';
+  const rawProgram = eventData?.program || '';
+  const isJunk = rawProgram.includes('Avantages de HTML') || rawProgram.includes('<section>');
+  const programText = isJunk
+    ? 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.'
+    : (rawProgram || 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.');
   const bannerUrl = eventData?.bannerUrl || '/images/event_banner.jpg';
   const accessInfoText = eventData?.access_info || 'Ouvert aux étudiants munis de leur réservation / pass gratuit.';
   const entryInfoText = eventData?.entry_info || '100% Gratuite avec réservation préalable en ligne.';
   const ambianceInfoText = eventData?.ambiance_info || 'Musique live, animations, buffet & tombola du club Joker ESEN.';
 
-  const eventDate = new Date('2026-10-26T20:00:00');
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  // Helper to render description safely without displaying raw HTML tag strings (Fix HTML bug)
+  const renderFormattedDescription = (raw?: string) => {
+    if (!raw) return 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola.';
+    if (raw.includes('Avantages de HTML') || raw.includes('<section>')) {
+      return <span>Concerts live · DJ sets exclusifs · Buffet festif &amp; Tombola avec de nombreux lots à gagner.</span>;
+    }
+    // If it has HTML tags, render it cleanly with parsed HTML
+    if (/<[a-z][\s\S]*>/i.test(raw)) {
+      return (
+        <div
+          className="rich-event-desc leading-relaxed space-y-1.5"
+          dangerouslySetInnerHTML={{ __html: raw }}
+        />
+      );
+    }
+    return <span>{raw}</span>;
+  };
 
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const difference = +eventDate - +new Date();
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60),
-        });
-      }
-    };
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // Curated previous and upcoming events list with standardized date format (Global Rule 6)
+  const eventList: EventItem[] = [
+    {
+      id: 'evt-1',
+      title: 'JOKER INTEGRATION DAY',
+      category: 'upcoming',
+      date: 'Jeudi 15 Octobre 2026 · 14h00',
+      location: 'Campus ESEN Manouba',
+      description: 'Journée festive d’accueil des nouveaux étudiants, jeux d’équipes, animations musicales, showcases et remise des packs de bienvenue Joker.',
+      image: '/images/teambuilding.jpg',
+      ticketAvailable: true,
+      edition: 'Édition Promo 2026-2027',
+    },
+    {
+      id: 'evt-2',
+      title: 'CYBER NIGHT & LAN ARENA',
+      category: 'previous',
+      date: 'Vendredi 24 Mai 2025 · 21h00',
+      location: 'ESEN Labs & Salle Polyvalente',
+      description: 'Tournoi esport inter-universitaire, compétition Valorant & FIFA, stand rétro-gaming et ambiance DJ jusqu’au petit matin.',
+      image: '/images/hero_deck.jpg',
+      ticketAvailable: false,
+      edition: 'Édition Spring 2025',
+    },
+    {
+      id: 'evt-3',
+      title: 'CREATIVE WORKSHOP & DJ ACADEMY',
+      category: 'previous',
+      date: 'Mercredi 12 Février 2025 · 15h00',
+      location: 'Amphi B, ESEN Manouba',
+      description: 'Masterclass sur la production audio, création visuelle pour festivals et initiation aux platines numériques animée par le pôle technique.',
+      image: '/images/workshop.jpg',
+      ticketAvailable: false,
+      edition: 'Session Hiver 2025',
+    },
+    {
+      id: 'evt-4',
+      title: 'JOKER GALA & RETROSPECTIVE',
+      category: 'previous',
+      date: 'Samedi 18 Mai 2024 · 19h30',
+      location: 'Espace Culturel Manouba',
+      description: 'Célébration des réussites de l’année, remise des trophées du club Joker, cocktail dînatoire et rétrospective en images des grands projets.',
+      image: '/images/about_card_fan.jpg',
+      ticketAvailable: false,
+      edition: 'Édition Annuelle 2024',
+    },
+  ];
+
+  const filteredEvents = activeTab === 'all'
+    ? eventList
+    : eventList.filter((item) => item.category === activeTab);
+
+  // Helper to sanitize any raw HTML tags in description (Bug Fix)
+  const sanitizeText = (text: string) => {
+    if (!text) return '';
+    return text.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+  };
+
+  const handleNotifySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notifyEmail.trim()) return;
+    setNotifySuccess(true);
+    setTimeout(() => {
+      setNotifySuccess(false);
+      setNotifyEmail('');
+    }, 4000);
+  };
 
   const handleRsvpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setRsvpSubmitted(true);
+    // Validate with shake animation
+    let hasError = false;
+    if (!name.trim()) { setNameError(true); setTimeout(() => setNameError(false), 400); hasError = true; }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailError(true); setTimeout(() => setEmailError(false), 400); hasError = true; }
+    if (hasError) return;
+
+    setRsvpLoading(true);
     setTimeout(() => {
-      setIsRsvpOpen(false);
-      setRsvpSubmitted(false);
-      setName('');
-      setEmail('');
-    }, 2500);
+      setRsvpLoading(false);
+      setRsvpSubmitted(true);
+      setTimeout(() => {
+        setIsRsvpOpen(false);
+        setRsvpSubmitted(false);
+        setName('');
+        setEmail('');
+      }, 3000);
+    }, 1200);
   };
 
-  const serialNo = 'JKR-2026-00247';
+  const openEventDetails = (eventItem: EventItem) => {
+    setSelectedEventModal(eventItem);
+  };
 
   return (
     <section
       id="event"
-      className="py-16 sm:py-24 lg:py-32 relative overflow-hidden border-b border-[#F3C4A0]/15"
-      style={{ backgroundColor: '#0D0608' }}
+      className="py-16 sm:py-24 bg-[#140B10] relative overflow-hidden text-[#F5EDE4] selection:bg-[#B93A34] selection:text-white border-b border-[#F3C4A0]/15"
     >
-      {/* Background texture — faint diagonal lines */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-30"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            -45deg,
-            transparent,
-            transparent 40px,
-            rgba(243,187,153,0.03) 40px,
-            rgba(243,187,153,0.03) 41px
-          )`,
-        }}
-      />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-12 sm:space-y-16">
 
-      {/* Ambient glows with #F3BB99 theme */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse, rgba(243,187,153,0.14) 0%, transparent 70%)' }}
-      />
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-
-        {/* Section Header - High Energy Asymmetric Placement */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-12">
-          <div className="space-y-2.5">
-            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#F3BB99]/15 border border-[#F3BB99]/35 text-[#F3BB99] text-xs font-bold tracking-widest uppercase">
-              <span className="w-2 h-2 rounded-full bg-[#F3BB99] animate-ping" />
-              <span>03 &middot; PROCHAIN RENDEZ-VOUS</span>
-            </div>
-            <h2
-              className="font-black uppercase text-[#F5EDE4] leading-none"
-              style={{
-                fontFamily: "'Plus Jakarta Sans', 'Bebas Neue', sans-serif",
-                fontSize: 'clamp(2.2rem, 5.5vw, 4.5rem)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Upcoming Event
-            </h2>
-            <p className="text-[#F5EDE4]/60 text-xs sm:text-sm">
-              La grande célébration annuelle qui électrise tout le campus ESEN.
-            </p>
+        {/* ── Section Header - Standardized Left Aligned (Global Rules 1 & 2) ── */}
+        <div className="flex flex-col items-start justify-start gap-4 animate-fade-up">
+          <div className="chapter-badge">
+            <span className="chapter-badge-dot" />
+            <span>03 &middot; AGENDA &amp; BILLETTERIE</span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-[#F3BB99]/10 border border-[#F3BB99]/30 text-[#F3BB99] text-xs font-bold tracking-wider uppercase">
-            <span className="text-[#F3BB99]">✦</span>
-            <span>PASS &amp; ACCÈS OUVERTS</span>
+          <h2 className="section-headline">
+            Nos Prochains Rendez-vous &amp; Archives
+          </h2>
+
+          <p className="text-[#F5EDE4]/85 text-xs sm:text-sm md:text-base max-w-xl leading-relaxed">
+            Réservez vos accès pour les soirées mythiques et revivez l'historique des événements majeurs du club Joker ESEN.
+          </p>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════
+            1. EMAIL NOTIFICATION BAND (DISTINCT CONTAINER)
+        ══════════════════════════════════════════════════════ */}
+        <div
+          id="newsletter-band"
+          className="relative rounded-3xl p-6 sm:p-8 bg-[#1A0E15] border border-[#F3C4A0]/20 shadow-xl animate-fade-up"
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div className="space-y-2 max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#B93A34]/15 border border-[#B93A34]/35 text-[#F3C4A0] text-[10px] sm:text-xs font-bold tracking-widest uppercase">
+                <Bell className="w-3.5 h-3.5 text-[#B93A34] animate-bounce" />
+                <span>ALERTES &amp; BILLETTERIE EXCLUSIVE</span>
+              </div>
+              <h3 className="text-lg sm:text-2xl font-black uppercase text-[#F5EDE4] tracking-tight leading-snug font-display">
+                Soyez les premiers informés des billetteries
+              </h3>
+              <p className="text-xs sm:text-sm text-[#F5EDE4]/75 leading-relaxed">
+                Recevez directement par e-mail les ouvertures de places et les annonces surprises du club.
+              </p>
+            </div>
+
+            {/* Email form with unambiguous placeholder */}
+            <div className="w-full md:w-auto md:min-w-[340px]">
+              {notifySuccess ? (
+                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#B93A34]/20 border border-[#B93A34]/50 text-[#F3C4A0] text-xs font-bold animate-fadeIn">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-[#F3C4A0]" />
+                  <span>Merci ! Votre e-mail a été enregistré avec succès.</span>
+                </div>
+              ) : (
+                <form onSubmit={handleNotifySubmit} className="flex flex-col sm:flex-row items-center gap-2.5">
+                  <div className="relative w-full">
+                    <Mail className="w-4 h-4 text-[#F3C4A0]/60 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      value={notifyEmail}
+                      onChange={(e) => setNotifyEmail(e.target.value)}
+                      placeholder="votre.email@esen.tn"
+                      className="w-full pl-10 pr-4 py-3 rounded-full bg-[#140B10] border border-[#F3C4A0]/25 text-[#F5EDE4] text-xs sm:text-sm placeholder-[#F5EDE4]/40 focus:outline-none focus:border-[#B93A34] transition-colors"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto shrink-0 px-6 py-3 rounded-full bg-[#B93A34] hover:bg-[#E05A52] text-white font-black uppercase text-xs tracking-wider transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
+                  >
+                    S'inscrire
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* ── THE TICKET ── */}
-        <div className="relative mx-auto" style={{ maxWidth: '960px' }}>
+        {/* ══════════════════════════════════════════════════════
+            2. NEXT EVENT SECTION (FEATURED EVENT)
+        ══════════════════════════════════════════════════════ */}
+        <div className="space-y-6 animate-fade-up">
+          <div className="flex items-center justify-between border-b border-[#F3C4A0]/15 pb-4">
+            <span className="text-xs sm:text-sm font-mono font-bold tracking-[0.2em] text-[#F3C4A0] uppercase flex items-center gap-2">
+              <span>♠</span>
+              <span>À LA UNE · ÉVÉNEMENT PRINCIPAL</span>
+            </span>
+          </div>
 
-          {/* Ambient glow behind ticket */}
-          <div
-            className="absolute inset-0 rounded-[2.5rem] blur-3xl opacity-30 pointer-events-none"
-            style={{ background: 'linear-gradient(135deg, #F3BB99 0%, #1C0F16 60%)', transform: 'scale(0.96) translateY(16px)' }}
-          />
+          {/* Solid Container for Next Event (Global Rule 8) */}
+          <div className="p-6 sm:p-8 rounded-3xl bg-[#1A0E15] border border-[#F3C4A0]/20 shadow-xl">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
+              {/* Left: Flyer Banner */}
+              <div className="lg:col-span-7 relative group overflow-hidden rounded-2xl bg-[#140B10] border border-[#F3C4A0]/20 shadow-lg">
+                <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full overflow-hidden">
+                  <img
+                    src={bannerUrl}
+                    alt={title}
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out brightness-90 contrast-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#140B10]/90 via-[#140B10]/30 to-transparent" />
 
-          {/* ══ TICKET BODY ══ */}
-          <div
-            className="relative rounded-3xl sm:rounded-[2.5rem] overflow-hidden"
-            style={{
-              background: '#111827',
-              border: '1.5px solid rgba(243,187,153,0.3)',
-              boxShadow: '0 40px 100px rgba(0,0,0,0.75)',
-            }}
-          >
-
-            {/* ── TOP BANNER ZONE ── full-width cinematic image with overlaid title */}
-            <div className="relative h-64 sm:h-72 md:h-80 overflow-hidden">
-              <img
-                src={bannerUrl}
-                alt={title}
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{ filter: 'brightness(0.45) saturate(1.2)' }}
-              />
-
-              {/* Multi-layer gradient overlay */}
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(17,24,39,0.1) 0%, rgba(17,24,39,0.5) 55%, rgba(17,24,39,1) 100%)' }} />
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(17,24,39,0.6) 0%, transparent 60%)' }} />
-
-              {/* ADMIT ONE diagonal ribbon */}
-              <div
-                className="hidden xs:block absolute top-7 -right-10 px-20 py-2 text-[9px] font-black uppercase tracking-[0.3em] text-[#14080F]"
-                style={{ background: '#F3BB99', transform: 'rotate(35deg)', boxShadow: '0 4px 16px rgba(243,187,153,0.5)' }}
-              >
-                Admit One
-              </div>
-
-              {/* Edition pill — top left */}
-              <div className="absolute top-4 sm:top-6 left-4 sm:left-7">
-                <span
-                  className="inline-flex items-center px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase text-[#14080F]"
-                  style={{ background: '#F3BB99', boxShadow: '0 3px 14px rgba(243,187,153,0.55)', letterSpacing: '0.1em' }}
-                >
-                  {edition}
-                </span>
-              </div>
-
-              {/* Title overlaid on image — bottom left of banner */}
-              <div className="absolute bottom-0 left-0 right-0 px-5 sm:px-8 md:px-12 pb-5 sm:pb-7">
-                <div
-                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full mb-2 sm:mb-3"
-                  style={{ background: 'rgba(243,187,153,0.9)', backdropFilter: 'blur(8px)' }}
-                >
-                  <span className="text-[8px] sm:text-[9px] font-black uppercase text-[#14080F] tracking-widest">Club JokerEsen · ESEN Manouba</span>
-                </div>
-                <h2
-                  className="font-black uppercase leading-tight text-white"
-                  style={{
-                    fontFamily: "'Plus Jakarta Sans', 'Bebas Neue', sans-serif",
-                    fontSize: 'clamp(1.4rem, 4vw, 3rem)',
-                    letterSpacing: '-0.02em',
-                    textShadow: '0 4px 24px rgba(0,0,0,0.8)',
-                  }}
-                >
-                  {title}
-                </h2>
-              </div>
-            </div>
-
-            {/* ── BOTTOM CONTENT ZONE ── two-column: info left, stub right */}
-            <div className="flex flex-col lg:flex-row items-stretch">
-
-              {/* ── LEFT: Main Info & Actions ── */}
-              <div className="flex-1 p-5 sm:p-8 flex flex-col justify-between gap-5 sm:gap-6 min-w-0">
-
-                {/* Info Cards Grid — 2 columns on top, full-width Programme on bottom */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-
-                  {/* Date & Heure */}
-                  <div className="flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-[#F3BB99]/25 hover:border-[#F3BB99]/50 transition-colors">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center"
-                      style={{ background: '#F3BB99', boxShadow: '0 4px 16px rgba(243,187,153,0.45)' }}>
-                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#14080F]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase text-[#F3BB99] tracking-wider mb-1">Date &amp; Heure</p>
-                      <p className="text-xs sm:text-base font-black text-white leading-snug">{dateText}</p>
-                    </div>
+                  {/* Floating Date Badge Top-Left */}
+                  <div className="absolute top-4 left-4 bg-[#140B10]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-[#F3C4A0]/30">
+                    <p className="text-[11px] sm:text-xs font-mono font-black text-[#F3C4A0] uppercase tracking-wider">
+                      {dateText.split('·')[0] || dateText}
+                    </p>
                   </div>
 
-                  {/* Lieu */}
-                  <div className="flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#F3BB99]/30 transition-colors">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center"
-                      style={{ background: '#F3BB99', boxShadow: '0 4px 14px rgba(243,187,153,0.3)' }}>
-                      <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-[#14080F]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase text-[#F3BB99]/80 tracking-wider mb-1">Lieu</p>
-                      <p className="text-xs sm:text-base font-black text-white leading-snug">{locationText}</p>
-                    </div>
+                  {/* Tag pill top right */}
+                  <div className="absolute top-4 right-4 bg-[#B93A34] text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                    {edition}
                   </div>
 
-                  {/* Programme (spans both columns for maximum readability) */}
-                  <div className="sm:col-span-2 flex items-start gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-[#F3BB99]/30 transition-colors">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center"
-                      style={{ background: '#F3BB99', boxShadow: '0 4px 14px rgba(243,187,153,0.3)' }}>
-                      <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-[#14080F]" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-bold uppercase text-[#F3BB99]/80 tracking-wider mb-1">Programme</p>
-                      <p className="text-xs sm:text-base font-black text-white leading-snug">{programText}</p>
-                    </div>
+                  {/* Title badge overlay */}
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <p className="text-[10px] font-mono uppercase text-[#F3C4A0] tracking-widest font-bold">
+                      CLUB JOKER ESEN PRESENTS
+                    </p>
+                    <p className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight line-clamp-1 drop-shadow-md">
+                      {title}
+                    </p>
                   </div>
                 </div>
+              </div>
 
-                {/* Bottom Bar: Action Button on Left + Serial & Barcode on Right */}
-                <div
-                  className="flex flex-wrap items-center justify-between gap-4 pt-4"
-                  style={{ borderTop: '1px dashed rgba(243,187,153,0.2)' }}
-                >
-                  {/* More Info Pill Button */}
-                  <button
-                    onClick={() => setIsInfoOpen(true)}
-                    className="inline-flex items-center gap-2.5 pl-4 sm:pl-5 pr-2 py-1.5 sm:py-2 rounded-full font-black uppercase text-xs transition-all duration-300 hover:scale-105 cursor-pointer"
-                    style={{
-                      background: '#F3BB99',
-                      color: '#14080F',
-                      letterSpacing: '0.08em',
-                      boxShadow: '0 2px 14px rgba(243,187,153,0.35)',
-                    }}
+              {/* Right: Featured Event Details & Clear CTA Hierarchy */}
+              <div className="lg:col-span-5 flex flex-col justify-center space-y-5">
+                <div className="space-y-2">
+                  <h3
+                    className="text-2xl sm:text-4xl font-black uppercase text-[#F5EDE4] tracking-tight leading-[1.1]"
+                    style={{ fontFamily: "'Plus Jakarta Sans', 'Bebas Neue', sans-serif" }}
                   >
-                    <span>Plus d'infos</span>
-                    <span className="w-6 h-6 rounded-full bg-[#14080F] text-[#F3BB99] flex items-center justify-center shrink-0 shadow-sm">
-                      <Info className="w-3.5 h-3.5" />
-                    </span>
+                    {title}
+                  </h3>
+                  <p className="text-sm sm:text-base font-semibold text-[#F3C4A0] flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-[#B93A34]" />
+                    <span>{dateText}</span>
+                  </p>
+                  <p className="text-xs sm:text-sm text-[#F5EDE4]/75 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#B93A34]" />
+                    <span>{locationText}</span>
+                  </p>
+                </div>
+
+                {/* Parsed/Cleaned Text - HTML bug fix */}
+                <div className="text-xs sm:text-sm text-[#F5EDE4]/80 leading-relaxed bg-[#140B10] p-4 rounded-2xl border border-[#F3C4A0]/15">
+                  {renderFormattedDescription(programText)}
+                </div>
+
+                {/* CTA Hierarchy: Primary Solid Button vs Secondary Link */}
+                <div className="flex flex-wrap items-center gap-4 pt-2">
+                  <button
+                    onClick={() => setIsRsvpOpen(true)}
+                    className="px-8 py-3.5 rounded-full bg-[#B93A34] hover:bg-[#E05A52] text-white font-black uppercase text-xs sm:text-sm tracking-wider transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_4px_20px_rgba(185,58,52,0.4)] flex items-center gap-2 cursor-pointer"
+                  >
+                    <Ticket className="w-4 h-4 text-white" />
+                    <span>RÉSERVER MA PLACE</span>
                   </button>
 
-                  {/* Serial Number & Barcode */}
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="text-right">
-                      <p className="text-[8px] text-[#F3BB99]/60 uppercase font-bold tracking-widest">No. de Billet</p>
-                      <p className="font-mono font-black text-[#F5EDE4]/70 text-[11px] sm:text-xs tracking-wider">{serialNo}</p>
-                    </div>
-
-                    {/* Barcode Visual */}
-                    <div className="flex items-end gap-px opacity-40 h-7 sm:h-8">
-                      {[3,6,2,7,4,5,2,6,3,8,2,4,6,3,5,7,2,4,5,3,6,2].map((h, i) => (
-                        <div key={i} style={{ width: i % 3 === 0 ? '2.5px' : '1.5px', height: `${h * 3.2}px`, background: '#F3BB99', borderRadius: '1px' }} />
-                      ))}
-                    </div>
-                  </div>
+                  <button
+                    onClick={() => setIsInfoOpen(true)}
+                    className="text-[#F3C4A0] hover:text-white font-bold uppercase text-xs tracking-wider underline-offset-4 hover:underline transition-colors flex items-center gap-1.5 cursor-pointer py-2 px-1"
+                  >
+                    <Info className="w-4 h-4 text-[#F3C4A0]" />
+                    <span>Plus d'infos</span>
+                  </button>
                 </div>
-
               </div>
+            </div>
+          </div>
+        </div>
 
-              {/* ── PERFORATED DIVIDER (Horizontal on mobile, Vertical on desktop) ── */}
-              <div className="relative flex lg:hidden items-center justify-between h-6 w-full px-1 overflow-hidden">
-                <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full z-20" style={{ background: '#0D0608' }} />
-                <div className="w-full h-px border-t border-dashed border-[#F3BB99]/35" />
-                <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full z-20" style={{ background: '#0D0608' }} />
-              </div>
+        {/* ══════════════════════════════════════════════════════
+            3. UPCOMING & PREVIOUS EVENTS LIST (ROW DESIGN)
+        ══════════════════════════════════════════════════════ */}
+        <div className="space-y-8 pt-4">
+          {/* Header & Chronological Segmented Filter Tabs */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#F3C4A0]/15 pb-4">
+            <div className="flex items-center gap-3">
+              <span className="text-xs sm:text-sm font-mono font-bold tracking-[0.2em] text-[#F3C4A0] uppercase">
+                CALENDRIER DES ÉVÉNEMENTS
+              </span>
+            </div>
 
-              <div className="relative hidden lg:flex flex-col items-center justify-between py-2" style={{ width: '24px', minWidth: '24px' }}>
-                {/* Top notch cutout */}
-                <div
-                  className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full z-20"
-                  style={{ background: '#0D0608' }}
-                />
-                {/* Dashed vertical line */}
-                <div
-                  className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px"
-                  style={{ background: 'repeating-linear-gradient(to bottom, rgba(243,187,153,0.35) 0px, rgba(243,187,153,0.35) 6px, transparent 6px, transparent 12px)' }}
-                />
-                {/* Bottom notch cutout */}
-                <div
-                  className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full z-20"
-                  style={{ background: '#0D0608' }}
-                />
-              </div>
-
-              {/* ── RIGHT STUB: Countdown & RSVP CTA ── */}
-              <div
-                className="flex flex-col justify-between py-5 sm:py-6 px-5 sm:px-6 gap-4 sm:gap-5 lg:w-[210px] shrink-0"
-                style={{
-                  background: 'linear-gradient(160deg, rgba(243,187,153,0.12) 0%, rgba(17,24,39,0.4) 100%)',
-                }}
+            {/* Segmented-Control Filter (French Labels: TOUS, À VENIR, PASSÉS) */}
+            <div className="inline-flex items-center p-1 rounded-full bg-[#1A0E15] border border-[#F3C4A0]/20 self-start sm:self-auto shadow-md">
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === 'all'
+                    ? 'bg-[#B93A34] text-white shadow-sm'
+                    : 'text-[#F5EDE4]/70 hover:text-white'
+                }`}
               >
-                {/* Countdown section */}
-                <div className="space-y-2.5">
-                  <p className="text-center text-[9px] font-black uppercase text-[#F3BB99] tracking-widest">
-                    Compte à Rebours
-                  </p>
-
-                  <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
-                    {[
-                      { val: timeLeft.days, label: 'Jours' },
-                      { val: timeLeft.hours, label: 'Heures' },
-                      { val: timeLeft.minutes, label: 'Mins' },
-                      { val: timeLeft.seconds, label: 'Secs' },
-                    ].map(({ val, label }) => (
-                      <div
-                        key={label}
-                        className="flex items-center justify-between px-3.5 py-1.5 rounded-full border border-[#F3BB99]/20"
-                        style={{ background: 'rgba(243,187,153,0.12)' }}
-                      >
-                        <span className="text-[9px] text-[#F3BB99]/80 uppercase font-bold tracking-wider">
-                          {label}
-                        </span>
-                        <span className="font-mono font-black text-[#F3BB99] tabular-nums text-sm">
-                          {String(val).padStart(2, '0')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* RSVP Pill Button */}
-                <button
-                  onClick={() => setIsRsvpOpen(true)}
-                  className="w-full flex items-center justify-between py-2.5 pl-4 pr-1.5 rounded-full font-black uppercase text-xs text-[#14080F] transition-all duration-300 hover:scale-105 cursor-pointer"
-                  style={{
-                    background: '#F3BB99',
-                    letterSpacing: '0.08em',
-                    boxShadow: '0 6px 20px rgba(243,187,153,0.45)',
-                  }}
-                >
-                  <span>Réserver</span>
-                  <span className="w-7 h-7 rounded-full bg-[#14080F] text-[#F3BB99] flex items-center justify-center shrink-0 shadow-md">
-                    <Ticket className="w-3.5 h-3.5" />
-                  </span>
-                </button>
-              </div>
-
+                Tous
+              </button>
+              <button
+                onClick={() => setActiveTab('upcoming')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === 'upcoming'
+                    ? 'bg-[#B93A34] text-white shadow-sm'
+                    : 'text-[#F5EDE4]/70 hover:text-white'
+                }`}
+              >
+                À venir
+              </button>
+              <button
+                onClick={() => setActiveTab('previous')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === 'previous'
+                    ? 'bg-[#B93A34] text-white shadow-sm'
+                    : 'text-[#F5EDE4]/70 hover:text-white'
+                }`}
+              >
+                Passés
+              </button>
             </div>
           </div>
 
-          {/* Floor reflection */}
-          <div
-            className="mx-auto mt-4 h-5 blur-xl opacity-25 rounded-full"
-            style={{ background: 'linear-gradient(to right, transparent, #F3BB99, transparent)', maxWidth: '70%' }}
-          />
+          {/* List of event rows OR Empty State Fallback (Global Rule 4) */}
+          {filteredEvents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-4 bg-[#1A0E15] border border-[#F3C4A0]/20 rounded-3xl max-w-xl mx-auto animate-fade-up">
+              <div className="text-4xl mb-3 select-none text-[#F3C4A0]/50">♦️</div>
+              <p className="text-[#F5EDE4] text-sm sm:text-base font-bold uppercase tracking-wider font-display">
+                Aucun événement à venir pour le moment
+              </p>
+              <p className="text-[#F5EDE4]/70 text-xs mt-2 max-w-sm leading-relaxed mb-5">
+                Inscrivez-vous à nos alertes pour être prévenu dès la publication de la prochaine billetterie.
+              </p>
+              <a
+                href="#newsletter-band"
+                className="px-6 py-2.5 rounded-full bg-[#B93A34] text-white font-bold uppercase text-xs tracking-wider hover:bg-[#E05A52] transition-colors"
+              >
+                Recevoir les alertes
+              </a>
+            </div>
+          ) : (
+            <div className="space-y-4 sm:space-y-6">
+              {filteredEvents.map((evt, idx) => {
+                const isUpcoming = evt.category === 'upcoming';
+                const suitIcon = ['♠', '♥', '♦', '♣'][idx % 4];
+
+                return (
+                  <div
+                    key={evt.id}
+                    className="group relative flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-8 p-5 sm:p-6 rounded-3xl bg-[#1A0E15] hover:bg-[#20101B] border border-[#F3C4A0]/18 hover:border-[#B93A34]/40 transition-all duration-300 shadow-lg animate-fade-up"
+                  >
+                    {/* Corner Suit Watermark (Global Rule 5) */}
+                    <div className="absolute top-3 right-4 text-xl select-none pointer-events-none opacity-10 group-hover:opacity-25 transition-opacity text-[#F3C4A0]">
+                      {suitIcon}
+                    </div>
+
+                    {/* Left: Flyer image */}
+                    <div className="relative w-full sm:w-44 h-48 sm:h-44 shrink-0 rounded-2xl overflow-hidden bg-[#140B10] border border-[#F3C4A0]/18">
+                      <img
+                        src={evt.image}
+                        alt={evt.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 brightness-90 contrast-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      
+                      <div className="absolute top-2 left-2">
+                        <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow ${
+                          isUpcoming ? 'bg-[#B93A34] text-white' : 'bg-[#140B10]/90 text-[#F5EDE4]/80 border border-[#F3C4A0]/30'
+                        }`}>
+                          {isUpcoming ? 'À VENIR' : 'PASSÉ'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Right: Info & CTA */}
+                    <div className="flex-1 min-w-0 space-y-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-lg sm:text-2xl font-black text-[#F5EDE4] uppercase tracking-tight">
+                          {evt.title}
+                        </h4>
+                        {evt.edition && (
+                          <span className="text-[10px] font-mono text-[#F3C4A0] uppercase px-2.5 py-0.5 rounded-full bg-[#B93A34]/15 border border-[#B93A34]/30">
+                            {evt.edition}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs sm:text-sm text-[#F5EDE4]/75 leading-relaxed line-clamp-2 sm:line-clamp-3">
+                        {sanitizeText(evt.description)}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-[#F5EDE4]/90 pt-1">
+                        <span className="flex items-center gap-1.5 text-[#F3C4A0]">
+                          <Calendar className="w-3.5 h-3.5 text-[#B93A34]" />
+                          {evt.date}
+                        </span>
+                        <span className="text-[#F3C4A0]/30">•</span>
+                        <span className="flex items-center gap-1.5 text-[#F5EDE4]/65">
+                          <MapPin className="w-3.5 h-3.5 text-[#B93A34]" />
+                          {evt.location}
+                        </span>
+                      </div>
+
+                      <div className="pt-2">
+                        {isUpcoming ? (
+                          <button
+                            onClick={() => setIsRsvpOpen(true)}
+                            className="px-6 py-2.5 rounded-full bg-[#B93A34] hover:bg-[#E05A52] text-white font-black uppercase text-xs tracking-wider transition-all duration-200 hover:scale-105 active:scale-95 shadow-md flex items-center gap-2 cursor-pointer"
+                          >
+                            <Ticket className="w-3.5 h-3.5 text-white" />
+                            <span>RÉSERVER MA PLACE</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openEventDetails(evt)}
+                            className="px-5 py-2.5 rounded-full bg-white/10 hover:bg-[#B93A34] text-[#F5EDE4] hover:text-white font-bold uppercase text-xs tracking-wider border border-[#F3C4A0]/25 transition-all duration-200 flex items-center gap-2 cursor-pointer"
+                          >
+                            <History className="w-3.5 h-3.5" />
+                            <span>REVIVRE L'ÉVÉNEMENT</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
       </div>
 
-      {/* ── More Info Modal ── */}
-      {isInfoOpen && (
+      {/* ══════════════════════════════════════════════════════
+          DETAILS MODAL (FOR PREVIOUS OR MORE INFO)
+      ══════════════════════════════════════════════════════ */}
+      {(isInfoOpen || selectedEventModal) && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(8,12,24,0.94)', backdropFilter: 'blur(16px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md anim-backdrop-in"
+          style={{ background: 'rgba(0,0,0,0.90)' }}
         >
           <div
-            className="relative w-full max-w-2xl rounded-3xl p-5 sm:p-8 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto"
-            style={{
-              background: '#111827',
-              border: '1.5px solid rgba(243,187,153,0.3)',
-              boxShadow: '0 32px 80px rgba(0,0,0,0.8)',
-            }}
+            className="relative w-full max-w-2xl rounded-3xl p-6 sm:p-8 max-h-[85vh] overflow-y-auto bg-[#160B12] border border-[#F3C4A0]/30 shadow-2xl space-y-6 anim-modal-in"
           >
             <button
-              onClick={() => setIsInfoOpen(false)}
-              className="absolute top-4 sm:top-5 right-4 sm:right-5 p-2 rounded-full text-[#F3BB99]/60 hover:text-white hover:bg-[#F3BB99]/20 transition-colors cursor-pointer"
+              onClick={() => {
+                setIsInfoOpen(false);
+                setSelectedEventModal(null);
+              }}
+              id="event-info-close"
+              className="absolute top-4 right-4 p-2 rounded-full text-[#F3BB99]/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              onMouseDown={(e) => {
+                (e.currentTarget as HTMLButtonElement).classList.add('anim-close-click');
+                setTimeout(() => (e.currentTarget as HTMLButtonElement).classList.remove('anim-close-click'), 310);
+              }}
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Modal Header */}
-            <div className="flex items-center gap-3 mb-6">
-              <span className="w-10 h-10 rounded-full bg-[#F3BB99] flex items-center justify-center text-[#14080F] shrink-0 shadow-md font-bold">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-full bg-[#F3BB99] flex items-center justify-center text-[#14080F] shrink-0 font-bold">
                 <Info className="w-5 h-5" />
               </span>
               <div>
-                <span className="text-[10px] font-bold uppercase text-[#F3BB99] tracking-widest">Détails de l'événement</span>
-                <h3 className="text-2xl font-black text-white uppercase leading-tight font-display">
-                  {title}
+                <span className="text-[10px] font-mono font-bold uppercase text-[#F3BB99] tracking-widest">
+                  {selectedEventModal?.category === 'previous' ? 'ARCHIVE ÉVÉNEMENT' : 'DÉTAILS DE L\'ÉVÉNEMENT'}
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-white uppercase leading-tight font-display">
+                  {selectedEventModal ? selectedEventModal.title : title}
                 </h3>
               </div>
             </div>
 
-            {/* Info Cards Grid */}
-            <div className="space-y-4">
-              {/* Program schedule / Highlights */}
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-[#F3BB99]/20 space-y-3">
-                <div className="flex items-center gap-2 text-[#F3BB99] font-bold text-xs uppercase tracking-wider">
-                  <Clock className="w-4 h-4" />
-                  <span>Programme &amp; Highlights</span>
-                </div>
-                <p className="text-xs sm:text-sm text-white font-medium leading-relaxed bg-white/[0.03] p-3.5 rounded-xl border border-white/5">
-                  {programText}
+            {/* Modal Content */}
+            <div className="space-y-4 text-xs sm:text-sm">
+              <div className="p-4 rounded-2xl bg-white/[0.04] border border-[#F3C4A0]/20 space-y-2">
+                <p className="text-[11px] font-mono text-[#F3BB99] uppercase font-bold tracking-wider">
+                  Description &amp; Programme
                 </p>
-              </div>
-
-              {/* Location & Access */}
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-[#F3BB99]/20 space-y-3">
-                <div className="flex items-center gap-2 text-[#F3BB99] font-bold text-xs uppercase tracking-wider">
-                  <MapPin className="w-4 h-4" />
-                  <span>Accès &amp; Localisation</span>
-                </div>
-                <div className="text-xs text-[#F5EDE4]/80 leading-relaxed space-y-1.5">
-                  <p>📍 <strong className="text-white">Lieu :</strong> {locationText}</p>
-                  <p>📅 <strong className="text-white">Date &amp; Heure :</strong> {dateText}</p>
-                  <p>🎟️ <strong className="text-white">Accès :</strong> {accessInfoText}</p>
+                <div className="text-[#F5EDE4]/80 leading-relaxed">
+                  {renderFormattedDescription(selectedEventModal ? selectedEventModal.description : programText)}
                 </div>
               </div>
 
-              {/* Rules & Edition details */}
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-[#F3BB99]/20 space-y-3">
-                <div className="flex items-center gap-2 text-[#F3BB99] font-bold text-xs uppercase tracking-wider">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Édition &amp; Informations Pratiques</span>
-                </div>
-                <div className="text-xs text-[#F5EDE4]/80 space-y-1.5 leading-relaxed">
-                  <p>🎭 <strong className="text-white">Édition :</strong> {edition}</p>
-                  <p>🎟️ <strong className="text-white">Entrée :</strong> {entryInfoText}</p>
-                  <p>🎁 <strong className="text-white">Ambiance :</strong> {ambianceInfoText}</p>
+              <div className="p-4 rounded-2xl bg-white/[0.04] border border-[#F3C4A0]/20 space-y-2">
+                <p className="text-[11px] font-mono text-[#F3BB99] uppercase font-bold tracking-wider">
+                  Informations Pratiques
+                </p>
+                <div className="text-[#F5EDE4]/80 space-y-1.5">
+                  <p>📍 <strong className="text-white">Lieu :</strong> {selectedEventModal ? selectedEventModal.location : locationText}</p>
+                  <p>📅 <strong className="text-white">Date :</strong> {selectedEventModal ? selectedEventModal.date : dateText}</p>
+                  <p>🎟️ <strong className="text-white">Entrée &amp; Accès :</strong> {entryInfoText} — {accessInfoText}</p>
+                  <p>✨ <strong className="text-white">Ambiance :</strong> {ambianceInfoText}</p>
                 </div>
               </div>
             </div>
 
-            {/* Modal Bottom Action */}
-            <div className="mt-6 flex items-center justify-between gap-4 pt-4 border-t border-[#F3BB99]/20">
-              <button
-                onClick={() => setIsInfoOpen(false)}
-                className="px-5 py-2.5 rounded-full text-xs font-bold text-[#F3BB99]/70 hover:text-white uppercase tracking-wider transition-colors cursor-pointer"
-              >
-                Fermer
-              </button>
+            <div className="flex items-center justify-between pt-4 border-t border-[#F3C4A0]/20">
               <button
                 onClick={() => {
                   setIsInfoOpen(false);
-                  setIsRsvpOpen(true);
+                  setSelectedEventModal(null);
                 }}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-black uppercase text-xs text-[#14080F] transition-all duration-300 hover:scale-105 cursor-pointer"
-                style={{
-                  background: '#F3BB99',
-                  boxShadow: '0 4px 16px rgba(243,187,153,0.45)',
-                }}
+                className="px-5 py-2.5 rounded-full text-xs font-bold text-[#F3BB99]/70 hover:text-white uppercase tracking-wider cursor-pointer"
               >
-                <span>Réserver maintenant</span>
-                <Ticket className="w-3.5 h-3.5 text-[#14080F]" />
+                Fermer
               </button>
+
+              {(!selectedEventModal || selectedEventModal.ticketAvailable) && (
+                <button
+                  onClick={() => {
+                    setIsInfoOpen(false);
+                    setSelectedEventModal(null);
+                    setIsRsvpOpen(true);
+                  }}
+                  className="px-6 py-2.5 rounded-full bg-[#F3BB99] hover:bg-[#F3C4A0] text-[#14080F] font-black uppercase text-xs tracking-wider transition-all duration-200 hover:scale-105 cursor-pointer"
+                >
+                  Réserver un Pass
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── RSVP Modal ── */}
+      {/* ══════════════════════════════════════════════════════
+          RSVP TICKET MODAL
+      ══════════════════════════════════════════════════════ */}
       {isRsvpOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(8,12,24,0.94)', backdropFilter: 'blur(16px)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md anim-backdrop-in"
+          style={{ background: 'rgba(0,0,0,0.92)' }}
         >
           <div
-            className="relative w-full max-w-md rounded-3xl p-6 sm:p-8 max-h-[85vh] overflow-y-auto"
-            style={{
-              background: '#111827',
-              border: '1.5px solid rgba(243,187,153,0.3)',
-              boxShadow: '0 32px 80px rgba(0,0,0,0.8)',
-            }}
+            className="relative w-full max-w-md rounded-3xl p-6 sm:p-8 max-h-[85vh] overflow-y-auto bg-[#160B12] border border-[#F3C4A0]/30 shadow-2xl anim-modal-in"
           >
             <button
               onClick={() => setIsRsvpOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-full text-[#F3BB99]/60 hover:text-white hover:bg-[#F3BB99]/20 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-2 rounded-full text-[#F3BB99]/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              onMouseDown={(e) => {
+                (e.currentTarget as HTMLButtonElement).classList.add('anim-close-click');
+                setTimeout(() => (e.currentTarget as HTMLButtonElement).classList.remove('anim-close-click'), 310);
+              }}
             >
               <X className="w-5 h-5" />
             </button>
 
             {rsvpSubmitted ? (
-              <div className="text-center py-8 space-y-4">
-                <CheckCircle2 className="w-16 h-16 text-[#F3BB99] mx-auto animate-bounce" />
+              <div className="text-center py-8 space-y-4 anim-modal-in">
+                {/* Animated SVG Checkmark */}
+                <svg className="w-20 h-20 mx-auto" viewBox="0 0 80 80" fill="none">
+                  <circle cx="40" cy="40" r="36" fill="rgba(243,187,153,0.12)" stroke="#F3BB99" strokeWidth="2.5" />
+                  <path
+                    d="M22 40 L34 52 L58 28"
+                    stroke="#F3BB99"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                    strokeDasharray="100"
+                    strokeDashoffset="100"
+                    style={{ animation: 'checkmarkDraw 600ms cubic-bezier(0.16,1,0.3,1) 100ms both' }}
+                  />
+                </svg>
                 <h3 className="text-2xl font-black uppercase text-white font-display">
                   Pass Réservé !
                 </h3>
-                <p className="text-sm text-[#F5EDE4]/70">
-                  Merci {name} ! Un e-mail de confirmation a été envoyé à {email}.
+                <p className="text-sm text-[#F5EDE4]/80">
+                  Merci {name} ! Votre confirmation a été envoyée à <span className="text-[#F3BB99] font-semibold">{email}</span>.
                 </p>
               </div>
             ) : (
               <form onSubmit={handleRsvpSubmit} className="space-y-5">
                 <div className="text-center space-y-1">
-                  <div className="text-4xl mb-3">🎭</div>
-                  <h3
-                    className="text-2xl font-black uppercase text-white font-display"
-                    style={{ letterSpacing: '-0.01em' }}
-                  >
-                    Pass Joker Carnival
+                  <div className="text-3xl mb-2">🎟️</div>
+                  <h3 className="text-2xl font-black uppercase text-white font-display tracking-tight">
+                    Pass Billetterie Joker
                   </h3>
-                  <p className="text-xs font-bold text-[#F3BB99]" style={{ letterSpacing: '0.1em' }}>
-                    Entrée gratuite · Étudiants ESEN uniquement
+                  <p className="text-xs font-mono font-bold text-[#F3BB99] tracking-wider">
+                    Entrée gratuite · Réservé aux étudiants ESEN
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-[#F3BB99]/80 uppercase tracking-wider mb-1.5">Nom et Prénom</label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-[#F3BB99] absolute left-3.5 top-3.5" />
+                  <label className="block text-[11px] font-mono font-bold text-[#F3BB99]/80 uppercase tracking-wider mb-1.5">
+                    Nom et Prénom
+                  </label>
+                  <div className={`relative ${nameError ? 'anim-shake' : ''}`}>
+                    <User className="w-4 h-4 text-[#F3BB99] absolute left-3.5 top-3.5 pointer-events-none" />
                     <input
                       type="text"
-                      required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Ex: Sara Mansouri"
-                      className="w-full pl-10 pr-4 py-3 rounded-full text-white text-sm outline-none transition-colors"
-                      style={{
-                        border: '1px solid rgba(243,187,153,0.3)',
-                        backgroundColor: 'rgba(243,187,153,0.06)',
-                      }}
-                      onFocus={e => e.currentTarget.style.borderColor = '#F3BB99'}
-                      onBlur={e => e.currentTarget.style.borderColor = 'rgba(243,187,153,0.3)'}
+                      placeholder="Ex: Yasmine Mansouri"
+                      className={`input-cabaret w-full pl-10 pr-4 py-3 rounded-full bg-[#0D0608]/80 border text-[#F5EDE4] text-xs sm:text-sm ${
+                        nameError ? 'border-[#E05A52] input-error' : 'border-[#F3C4A0]/25'
+                      }`}
                     />
                   </div>
+                  {nameError && <p className="text-[10px] text-[#E05A52] mt-1 pl-4">Ce champ est requis</p>}
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-[#F3BB99]/80 uppercase tracking-wider mb-1.5">Adresse E-mail</label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-[#F3BB99] absolute left-3.5 top-3.5" />
+                  <label className="block text-[11px] font-mono font-bold text-[#F3BB99]/80 uppercase tracking-wider mb-1.5">
+                    Adresse E-mail
+                  </label>
+                  <div className={`relative ${emailError ? 'anim-shake' : ''}`}>
+                    <Mail className="w-4 h-4 text-[#F3BB99] absolute left-3.5 top-3.5 pointer-events-none" />
                     <input
                       type="email"
-                      required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="sara@esen.tn"
-                      className="w-full pl-10 pr-4 py-3 rounded-full text-white text-sm outline-none transition-colors"
-                      style={{
-                        border: '1px solid rgba(243,187,153,0.3)',
-                        backgroundColor: 'rgba(243,187,153,0.06)',
-                      }}
-                      onFocus={e => e.currentTarget.style.borderColor = '#F3BB99'}
-                      onBlur={e => e.currentTarget.style.borderColor = 'rgba(243,187,153,0.3)'}
+                      placeholder="yasmine@esen.tn"
+                      className={`input-cabaret w-full pl-10 pr-4 py-3 rounded-full bg-[#0D0608]/80 border text-[#F5EDE4] text-xs sm:text-sm ${
+                        emailError ? 'border-[#E05A52] input-error' : 'border-[#F3C4A0]/25'
+                      }`}
                     />
                   </div>
+                  {emailError && <p className="text-[10px] text-[#E05A52] mt-1 pl-4">Email invalide</p>}
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-full font-black uppercase text-xs text-[#14080F] transition-all hover:scale-[1.02] cursor-pointer"
-                  style={{
-                    background: '#F3BB99',
-                    letterSpacing: '0.12em',
-                    boxShadow: '0 6px 24px rgba(243,187,153,0.45)',
-                  }}
+                  disabled={rsvpLoading}
+                  className="w-full py-3.5 rounded-full bg-[#F3BB99] hover:bg-[#F3C4A0] disabled:opacity-80 text-[#14080F] font-black uppercase text-xs tracking-wider transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-[0_4px_18px_rgba(243,187,153,0.4)] cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Confirmer ma Réservation
+                  {rsvpLoading ? (
+                    <><span className="anim-btn-spinner" style={{ borderColor: 'rgba(20,8,15,0.3)', borderTopColor: '#14080F' }} /> Envoi en cours...</>
+                  ) : (
+                    'Confirmer ma Réservation'
+                  )}
                 </button>
               </form>
             )}

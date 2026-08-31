@@ -47,13 +47,19 @@ export function App() {
     ambiance_info?: string;
   }>(() => {
     const cached = getCachedEvent();
+    const rawProgram = cached.program || '';
+    const isJunkHtml = rawProgram.includes('Avantages de HTML') || rawProgram.includes('<section>');
+    const cleanProgram = isJunkHtml
+      ? 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.'
+      : (rawProgram || 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.');
+
     return {
       id: cached.id,
       title: cached.title,
       edition: cached.edition,
       date: cached.date,
       location: cached.location,
-      program: cached.program,
+      program: cleanProgram,
       bannerUrl: cached.banner_url || '/images/event_banner.jpg',
       banner_url: cached.banner_url || '/images/event_banner.jpg',
       access_info: cached.access_info,
@@ -115,13 +121,19 @@ export function App() {
         // 2. Active Event
         const event = await fetchActiveEvent();
         if (event) {
+          const rawProgram = event.program || '';
+          const isJunkHtml = rawProgram.includes('Avantages de HTML') || rawProgram.includes('<section>');
+          const cleanProgram = isJunkHtml
+            ? 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.'
+            : rawProgram;
+
           setEventData({
             id: event.id,
             title: event.title,
             edition: event.edition,
             date: event.date,
             location: event.location,
-            program: event.program,
+            program: cleanProgram,
             bannerUrl: event.banner_url || '/images/event_banner.jpg',
             banner_url: event.banner_url || '/images/event_banner.jpg',
             access_info: event.access_info,

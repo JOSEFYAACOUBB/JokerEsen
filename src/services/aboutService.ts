@@ -16,9 +16,9 @@ export const defaultAboutData: AboutData = {
   editorial_text: "L'énergie étudiante & créative au cœur de l'ESEN Manouba.",
   stats: [
     { number: '2016', label: 'Fondation', color: '#F3C4A0', icon: 'Calendar' },
-    { number: '500+', label: 'Membres', color: '#E06060', icon: 'Users' },
-    { number: '50+', label: 'Événements', color: '#7B7EDA', icon: 'Trophy' },
-    { number: '100%', label: 'Passion', color: '#C98EC0', icon: 'Heart' },
+    { number: '500+', label: 'Membres', color: '#E05A52', icon: 'Users' },
+    { number: '50+', label: 'Événements', color: '#F3BB99', icon: 'Trophy' },
+    { number: '100%', label: 'Passion', color: '#B93A34', icon: 'Heart' },
   ],
   pillars: [
     {
@@ -27,8 +27,8 @@ export const defaultAboutData: AboutData = {
       name: 'As de Pique',
       title: 'Audace & Créativité',
       desc: "Inventer des concepts d'événements uniques qui marquent la vie universitaire.",
-      color: '#E05A52',
-      bgGlow: 'rgba(224, 90, 82, 0.15)',
+      color: '#B93A34',
+      bgGlow: 'rgba(185, 58, 52, 0.15)',
     },
     {
       id: 'heart',
@@ -36,8 +36,8 @@ export const defaultAboutData: AboutData = {
       name: 'As de Cœur',
       title: 'Esprit de Famille',
       desc: "Une communauté chaleureuse où chaque étudiant s'épanouit et crée du lien.",
-      color: '#E87A5D',
-      bgGlow: 'rgba(232, 122, 93, 0.15)',
+      color: '#E05A52',
+      bgGlow: 'rgba(224, 90, 82, 0.15)',
     },
     {
       id: 'diamond',
@@ -45,8 +45,8 @@ export const defaultAboutData: AboutData = {
       name: 'As de Carreau',
       title: 'Excellence & Impact',
       desc: "Une organisation rigoureuse au service de projets ambitieux à l'ESEN.",
-      color: '#7B7EDA',
-      bgGlow: 'rgba(123, 126, 218, 0.15)',
+      color: '#E87A5D',
+      bgGlow: 'rgba(232, 122, 93, 0.15)',
     },
     {
       id: 'club',
@@ -54,8 +54,8 @@ export const defaultAboutData: AboutData = {
       name: 'As de Trèfle',
       title: 'Opportunités & Talent',
       desc: 'Développer des compétences pratiques en design, évènementiel & communication.',
-      color: '#C98EC0',
-      bgGlow: 'rgba(201, 142, 192, 0.15)',
+      color: '#F3C4A0',
+      bgGlow: 'rgba(243, 196, 160, 0.15)',
     },
   ],
 };
