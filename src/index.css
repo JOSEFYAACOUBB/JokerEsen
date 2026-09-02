@@ -1,10 +1,30 @@
-@import url('https://fonts.cdnfonts.com/css/groste');
-@import url('https://fonts.cdnfonts.com/css/lemon-tea');
-@import url('https://fonts.cdnfonts.com/css/fluctuation');
-@import url('https://fonts.cdnfonts.com/css/utendo');
-@import url('https://fonts.cdnfonts.com/css/kg-red-hands');
-@import url('https://fonts.cdnfonts.com/css/sunny-spells');
 @import "tailwindcss";
+
+/* ── Optimized Non-blocking Font Declarations with font-display: swap ── */
+@font-face {
+  font-family: 'Fluctuation';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://fonts.cdnfonts.com/s/153090/Fluctuation%20Lt.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'GROSTE';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('https://fonts.cdnfonts.com/s/114263/GROSTE.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'KG Red Hands';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://fonts.cdnfonts.com/s/58387/KGRedHands.woff') format('woff');
+}
+
 
 @layer base {
   :root {

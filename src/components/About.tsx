@@ -75,8 +75,12 @@ export const About: React.FC<AboutProps> = ({ initialData }) => {
             {/* Background image overlay with functional text readability gradient */}
             <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-700 pointer-events-none">
               <img
-                src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=1000"
+                src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=70&w=680"
                 alt="JokerEsen Team"
+                width={680}
+                height={380}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#140B10] via-[#140B10]/80 to-transparent" />

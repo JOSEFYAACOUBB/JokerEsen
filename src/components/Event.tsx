@@ -445,7 +445,7 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
               <div className="lg:col-span-6 flex flex-col">
                 <div className="relative w-full h-full min-h-[300px] sm:min-h-[360px] rounded-2xl overflow-hidden bg-[#140B10] border border-[#F3C4A0]/25 shadow-lg group">
                   <img
-                    src={optimizeCloudinaryUrl(bannerUrl, { width: 900, quality: 'auto' }) || bannerUrl}
+                    src={optimizeCloudinaryUrl(bannerUrl, { width: 640, quality: 'auto' }) || bannerUrl}
                     alt={title}
                     width={588}
                     height={441}
@@ -647,7 +647,7 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
                     {/* Left: Flyer Thumbnail Image */}
                     <div className="relative w-full sm:w-56 h-48 sm:h-auto shrink-0 rounded-2xl overflow-hidden bg-[#140B10] border border-[#F3C4A0]/20">
                       <img
-                        src={optimizeCloudinaryUrl(evt.image, { width: 500, quality: 'auto' }) || evt.image}
+                        src={optimizeCloudinaryUrl(evt.image, { width: 380, quality: 'auto' }) || evt.image}
                         alt={evt.title}
                         width={224}
                         height={192}
