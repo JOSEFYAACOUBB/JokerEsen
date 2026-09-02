@@ -28,6 +28,7 @@
 
 @layer base {
   :root {
+    /* ── Old warm tokens (kept for public site compatibility) ── */
     --bg-dark: #140B10;
     --bg-dark-secondary: #1C0F17;
     --surface-dark: #1A0E15;
@@ -39,12 +40,31 @@
     --ambre: #F3BB99;
     --peche: #F3C4A0;
     --border-warm: rgba(243, 196, 160, 0.18);
+
+    /* ── Admin Blue/White Design System Tokens ── */
+    --color-brand: #0B2545;          /* Dark navy — sidebar, headers */
+    --color-primary: #2563EB;        /* Blue 600 — CTA, links, accents */
+    --color-primary-dark: #1D4ED8;   /* Blue 700 — hover states */
+    --color-primary-light: #DBEAFE;  /* Blue 100 — badge bg, hover bg */
+    --color-primary-pale: #EFF6FF;   /* Blue 50 — page bg, section bg */
+    --color-surface: #FFFFFF;        /* Pure white — cards, modals */
+    --color-text: #0F172A;           /* Slate 900 — primary text on white */
+    --color-text-muted: #64748B;     /* Slate 500 — secondary/disabled text */
+    --color-border: #BFDBFE;         /* Blue 200 — subtle borders */
+    --color-border-dark: rgba(59,130,246,0.3); /* Blue border on dark bg */
   }
 
   body {
     background-color: var(--bg-dark);
     color: var(--text-light);
     font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  /* Admin panel overrides — force blue/white system inside [data-admin-panel] */
+  [data-admin-panel] {
+    background-color: var(--color-primary-pale);
+    color: var(--color-text);
+    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, sans-serif;
   }
 
   h1, h2, h3, .font-display, .font-normal-text {
