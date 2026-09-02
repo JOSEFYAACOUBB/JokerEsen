@@ -192,6 +192,23 @@ create policy "Public manage gallery"
   with check (true);
 
 -- ------------------------------------------------------------------------------
+-- 8. NEWSLETTER SUBSCRIBERS
+-- ------------------------------------------------------------------------------
+create table if not exists public.newsletter_subscribers (
+  id uuid default gen_random_uuid() primary key,
+  email text unique not null,
+  source text default 'website_agenda',
+  synced_to_brevo boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create policy "Public manage newsletter"
+  on public.newsletter_subscribers for all
+  to anon, authenticated, public, service_role
+  using (true)
+  with check (true);
+
+-- ------------------------------------------------------------------------------
 -- 9. REALTIME REPLICATION
 -- ------------------------------------------------------------------------------
 alter publication supabase_realtime add table public.club_settings;
@@ -200,3 +217,4 @@ alter publication supabase_realtime add table public.events;
 alter publication supabase_realtime add table public.team_members;
 alter publication supabase_realtime add table public.recruitment_applications;
 alter publication supabase_realtime add table public.gallery_images;
+alter publication supabase_realtime add table public.newsletter_subscribers;

@@ -13,7 +13,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenLogin }) => {
       <section
         className="relative min-h-screen flex flex-col overflow-hidden"
         style={{
-          backgroundImage: 'url("/images/background-image.png")',
+          backgroundImage: 'url("https://res.cloudinary.com/qvnoo1cy/image/upload/v1788313989/background-image.png")',
           backgroundSize: 'cover',
           backgroundPosition: 'center top',
           backgroundRepeat: 'no-repeat',

@@ -51,8 +51,8 @@ export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
         suitColor: item.suit_color || '#F3C4A0',
         avatar: item.avatar,
         socials: {
-          instagram: item.instagram || '#',
-          linkedin: item.linkedin || '#',
+          instagram: item.instagram && item.instagram !== '#' ? item.instagram : '',
+          linkedin: item.linkedin && item.linkedin !== '#' ? item.linkedin : '',
         },
       }));
 
@@ -75,8 +75,8 @@ export async function fetchTeamMembers(): Promise<TeamMember[] | null> {
         suitColor: item.suit_color,
         avatar: item.avatar,
         socials: {
-          instagram: item.instagram || '#',
-          linkedin: item.linkedin || '#',
+          instagram: item.instagram && item.instagram !== '#' ? item.instagram : '',
+          linkedin: item.linkedin && item.linkedin !== '#' ? item.linkedin : '',
         },
       }));
 
@@ -135,8 +135,8 @@ export async function saveTeamMember(
     suit: normalizeSuit(member.suit),
     suit_color: member.suitColor || '#F3C4A0',
     avatar: member.avatar,
-    instagram: member.socials?.instagram || '#',
-    linkedin: member.socials?.linkedin || '#',
+    instagram: member.socials?.instagram && member.socials.instagram !== '#' ? member.socials.instagram : null,
+    linkedin: member.socials?.linkedin && member.socials.linkedin !== '#' ? member.socials.linkedin : null,
     order_index: orderIndex,
   };
 

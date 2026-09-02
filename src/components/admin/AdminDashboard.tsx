@@ -28,6 +28,9 @@ import {
   Check,
   Clock,
   MapPin,
+  Send,
+  Eye,
+  FileText,
 } from 'lucide-react';
 
 import type { TeamMember } from '../Team';
@@ -68,6 +71,17 @@ import {
 } from '../../services/galleryService';
 import { uploadToCloudinary } from '../../lib/cloudinary';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import {
+  getBrevoConfig,
+  saveBrevoConfig,
+  testBrevoConnection,
+  getCachedSubscribers,
+  getBrevoSenders,
+  sendNewsletterBroadcast,
+  generateJokerEmailTemplate,
+  type NewsletterSubscriber,
+  type BrevoSender
+} from '../../services/brevoService';
 
 interface AdminDashboardProps {
   onBackToPublic: () => void;
@@ -236,10 +250,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [eventBannerUploadLoading, setEventBannerUploadLoading] = useState(false);
   const eventBannerInputRef = useRef<HTMLInputElement>(null);
 
-  // â”€â”€ 5. Form Config State â”€â”€
+  // ── 5. Form Config State ──
   const [formConfig, setFormConfig] = useState<FormConfig>(defaultFormConfig);
   const [newMajorInput, setNewMajorInput] = useState('');
   const [newDepartmentInput, setNewDepartmentInput] = useState('');
+
+  // ── Brevo & Newsletter Config State ──
+  const [brevoApiKey, setBrevoApiKey] = useState(() => getBrevoConfig().apiKey);
+  const [brevoListId, setBrevoListId] = useState<string>(() => String(getBrevoConfig().listId || ''));
+  const [brevoSenderName, setBrevoSenderName] = useState(() => getBrevoConfig().senderName || 'Club Joker ESEN');
+  const [brevoSenderEmail, setBrevoSenderEmail] = useState(() => getBrevoConfig().senderEmail || '');
+  const [verifiedSenders, setVerifiedSenders] = useState<BrevoSender[]>([]);
+  const [brevoTesting, setBrevoTesting] = useState(false);
+  const [brevoStatus, setBrevoStatus] = useState<{ success?: boolean; message?: string } | null>(null);
+  const [subscribers] = useState<NewsletterSubscriber[]>(() => getCachedSubscribers());
+
+  // ── Email Composer Modal State ──
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('🃏 Nouvelle Soirée & Billetterie Joker ESEN !');
+  const [emailTitle, setEmailTitle] = useState('Joker Carnival Night 2026');
+  const [emailBadge, setEmailBadge] = useState('Événement Exclusif');
+  const [emailSubtitle, setEmailSubtitle] = useState('Samedi 26 Octobre 2026 · Grand Cour ESEN');
+  const [emailMessage, setEmailMessage] = useState(
+    'Chers membres et étudiants de l\'ESEN,\n\nNous avons le plaisir de vous annoncer l\'ouverture officielle de la billetterie pour notre prochaine grande soirée !\n\nAu programme : concerts live, sets DJ exclusifs, animations surprises et buffet festif.\n\nRéservez votre place dès maintenant avant épuisement des quotas gratuits.'
+  );
+  const [emailCtaText, setEmailCtaText] = useState('Réserver mon Pass Gratuit');
+  const [emailCtaUrl, setEmailCtaUrl] = useState('https://jokeresen.tn/#event');
+  const [emailRecipientMode, setEmailRecipientMode] = useState<'all' | 'test'>('test');
+  const [emailTestRecipient, setEmailTestRecipient] = useState('contact@jokeresen.tn');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSendResult, setEmailSendResult] = useState<{ success?: boolean; message?: string } | null>(null);
+  const [emailPreviewMode, setEmailPreviewMode] = useState<'form' | 'preview'>('form');
+
+  // ── Club Social Links State ──
+  const [clubInstagram, setClubInstagram] = useState(() => localStorage.getItem('joker_club_instagram') || 'https://www.instagram.com/joker_esen/');
+  const [clubFacebook, setClubFacebook] = useState(() => localStorage.getItem('joker_club_facebook') || 'https://www.facebook.com/joker.esen');
+  const [clubTiktok, setClubTiktok] = useState(() => localStorage.getItem('joker_club_tiktok') || 'https://www.tiktok.com/@joker.esen');
+  const [clubLinkedin, setClubLinkedin] = useState(() => localStorage.getItem('joker_club_linkedin') || 'https://www.linkedin.com/company/jokeresen/');
+  const [clubSocialsSaved, setClubSocialsSaved] = useState(false);
 
   // â”€â”€ 6. Photos & Albums State â”€â”€
   const [photos, setPhotos] = useState<AdminPhoto[]>([]);
@@ -278,7 +326,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     suit: '♠',
     suitColor: '#F3C4A0',
     avatar: '',
-    socials: { instagram: '#', linkedin: '#' },
+    socials: { instagram: '', linkedin: '' },
   });
   const [avatarUploadLoading, setAvatarUploadLoading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -2454,6 +2502,338 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   ))}
                 </div>
               </div>
+
+              {/* ── Club Social Media Links ── */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#E1306C] animate-pulse" />
+                      <h4 className="font-bold text-base text-white font-display uppercase tracking-tight">
+                        Réseaux Sociaux du Club Joker ESEN
+                      </h4>
+                    </div>
+                    <p className="text-xs text-[#F3C4A0]/70 mt-1">
+                      URLs officielles affichées dans le footer et sur les cartes du bureau. Laissez vide pour désactiver un lien.
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-[#E1306C]/20 text-[#E1306C] border border-[#E1306C]/40 shrink-0 self-start sm:self-auto">
+                    Club Links
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Instagram */}
+                  <div>
+                    <label className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-[#F3C4A0] uppercase tracking-wider mb-1.5">
+                      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.366.062 2.633.334 3.608 1.308.975.975 1.246 2.242 1.308 3.608.058 1.266.07 1.646.07 4.851s-.012 3.584-.07 4.85c-.062 1.366-.333 2.633-1.308 3.608-.975.975-2.242 1.246-3.608 1.308-1.266.058-1.646.07-4.85.07s-3.584-.012-4.85-.07c-1.366-.062-2.633-.333-3.608-1.308-.975-.975-1.246-2.242-1.308-3.608C2.175 15.584 2.163 15.204 2.163 12s.012-3.584.07-4.85c.062-1.366.333-2.633 1.308-3.608C4.516 2.497 5.783 2.225 7.15 2.163 8.416 2.105 8.796 2.163 12 2.163zm0-2.163C8.741 0 8.333.014 7.053.072 5.197.157 3.355.673 2.014 2.014.673 3.355.157 5.197.072 7.053.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.085 1.856.601 3.698 1.942 5.038 1.341 1.341 3.183 1.857 5.038 1.942C8.333 23.986 8.741 24 12 24s3.668-.014 4.948-.072c1.856-.085 3.698-.601 5.038-1.942 1.341-1.34 1.857-3.182 1.942-5.038C23.986 15.668 24 15.259 24 12c0-3.259-.014-3.667-.072-4.947-.085-1.857-.601-3.699-1.942-5.04C20.646.673 18.804.157 16.948.072 15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
+                      </svg>
+                      Instagram
+                    </label>
+                    <input
+                      type="url"
+                      value={clubInstagram}
+                      onChange={(e) => { setClubInstagram(e.target.value); setClubSocialsSaved(false); }}
+                      placeholder="https://www.instagram.com/joker_esen/"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#E1306C] font-mono"
+                    />
+                  </div>
+
+                  {/* Facebook */}
+                  <div>
+                    <label className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-[#F3C4A0] uppercase tracking-wider mb-1.5">
+                      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+                      </svg>
+                      Facebook
+                    </label>
+                    <input
+                      type="url"
+                      value={clubFacebook}
+                      onChange={(e) => { setClubFacebook(e.target.value); setClubSocialsSaved(false); }}
+                      placeholder="https://www.facebook.com/joker.esen"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#1877F2] font-mono"
+                    />
+                  </div>
+
+                  {/* TikTok */}
+                  <div>
+                    <label className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-[#F3C4A0] uppercase tracking-wider mb-1.5">
+                      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.79 1.52V6.76a4.85 4.85 0 0 1-1.02-.07z"/>
+                      </svg>
+                      TikTok
+                    </label>
+                    <input
+                      type="url"
+                      value={clubTiktok}
+                      onChange={(e) => { setClubTiktok(e.target.value); setClubSocialsSaved(false); }}
+                      placeholder="https://www.tiktok.com/@joker.esen"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-white/50 font-mono"
+                    />
+                  </div>
+
+                  {/* LinkedIn */}
+                  <div>
+                    <label className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-[#F3C4A0] uppercase tracking-wider mb-1.5">
+                      <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.45a1.64 1.64 0 1 0 0 3.28 1.64 1.64 0 0 0 0-3.28z"/>
+                      </svg>
+                      LinkedIn
+                    </label>
+                    <input
+                      type="url"
+                      value={clubLinkedin}
+                      onChange={(e) => { setClubLinkedin(e.target.value); setClubSocialsSaved(false); }}
+                      placeholder="https://www.linkedin.com/company/jokeresen/"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#0A66C2] font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem('joker_club_instagram', clubInstagram);
+                      localStorage.setItem('joker_club_facebook', clubFacebook);
+                      localStorage.setItem('joker_club_tiktok', clubTiktok);
+                      localStorage.setItem('joker_club_linkedin', clubLinkedin);
+                      setClubSocialsSaved(true);
+                      showNotification('Liens des réseaux sociaux du club enregistrés !');
+                      setTimeout(() => setClubSocialsSaved(false), 3000);
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-[#E1306C] hover:bg-[#C0185A] text-white text-xs font-bold cursor-pointer transition-colors shadow-md flex items-center gap-2"
+                  >
+                    {clubSocialsSaved ? <Check className="w-4 h-4" /> : null}
+                    <span>{clubSocialsSaved ? 'Liens enregistrés !' : 'Enregistrer les liens'}</span>
+                  </button>
+                  <p className="text-[10px] text-[#F3C4A0]/50">
+                    ⚠️ Les liens du Footer se mettent à jour après rechargement de la page.
+                  </p>
+                </div>
+              </div>
+
+              {/* ── Brevo (Sendinblue) Newsletter & Contact Sync ── */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#1F0E18] border border-[#F3C4A0]/20 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#3B66FF] animate-pulse" />
+                      <h4 className="font-bold text-base text-white font-display uppercase tracking-tight">
+                        Intégration Newsletter Brevo (Sendinblue)
+                      </h4>
+                    </div>
+                    <p className="text-xs text-[#F3C4A0]/70 mt-1">
+                      Connectez votre compte Brevo pour synchroniser automatiquement les e-mails des étudiants inscrits aux alertes du club.
+                    </p>
+                  </div>
+
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-[#3B66FF]/20 text-[#3B66FF] border border-[#3B66FF]/40 shrink-0 self-start sm:self-auto">
+                    Brevo v3 API
+                  </span>
+                </div>
+
+                {/* API Key Input */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-mono font-bold text-[#F3C4A0] uppercase tracking-wider mb-1.5">
+                      Clé API Brevo (v3 API Key)
+                    </label>
+                    <input
+                      type="password"
+                      value={brevoApiKey}
+                      onChange={(e) => setBrevoApiKey(e.target.value)}
+                      placeholder="xkeysib-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF] font-mono"
+                    />
+                    <p className="text-[10px] text-[#F3C4A0]/50 mt-1">
+                      Trouvez votre clé dans Brevo : <span className="text-white">Paramètres &gt; Clés API &gt; Clés API v3</span>
+                    </p>
+                  </div>
+
+                  {/* Sender Config */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-mono font-bold text-[#F3C4A0] uppercase tracking-wider mb-1.5">
+                        Nom de l'Expéditeur
+                      </label>
+                      <input
+                        type="text"
+                        value={brevoSenderName}
+                        onChange={(e) => setBrevoSenderName(e.target.value)}
+                        placeholder="Ex: Club Joker ESEN"
+                        className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-mono font-bold text-[#F3C4A0] uppercase tracking-wider mb-1.5">
+                        E-mail de l'Expéditeur (Vérifié dans Brevo)
+                      </label>
+                      <input
+                        type="email"
+                        value={brevoSenderEmail}
+                        onChange={(e) => setBrevoSenderEmail(e.target.value)}
+                        placeholder="Ex: contact@jokeresen.tn ou votre email Brevo"
+                        className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF] font-mono"
+                      />
+                      {verifiedSenders.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          <span className="text-[10px] text-[#F3C4A0]/60">Expéditeurs vérifiés :</span>
+                          {verifiedSenders.map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => {
+                                setBrevoSenderEmail(s.email);
+                                if (s.name) setBrevoSenderName(s.name);
+                              }}
+                              className="text-[10px] text-[#3B66FF] hover:underline font-mono"
+                            >
+                              {s.email}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* List ID Input */}
+                  <div>
+                    <label className="block text-[11px] font-mono font-bold text-[#F3C4A0] uppercase tracking-wider mb-1.5">
+                      ID de la Liste de Contacts (Optionnel)
+                    </label>
+                    <input
+                      type="number"
+                      value={brevoListId}
+                      onChange={(e) => setBrevoListId(e.target.value)}
+                      placeholder="Ex: 2 (ID de votre liste Brevo)"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF] font-mono"
+                    />
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const parsedListId = brevoListId ? Number(brevoListId) : undefined;
+                        saveBrevoConfig(brevoApiKey, parsedListId, brevoSenderName, brevoSenderEmail);
+                        showNotification('Paramètres Brevo enregistrés avec succès !');
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-[#3B66FF] hover:bg-[#2552E0] text-white text-xs font-bold cursor-pointer transition-colors shadow-md"
+                    >
+                      Enregistrer la configuration
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={brevoTesting || !brevoApiKey.trim()}
+                      onClick={async () => {
+                        setBrevoTesting(true);
+                        setBrevoStatus(null);
+                        const res = await testBrevoConnection(brevoApiKey);
+                        setBrevoTesting(false);
+                        setBrevoStatus(res);
+                        if (res.success) {
+                          showNotification('Connexion Brevo validée !');
+                          const senders = await getBrevoSenders();
+                          setVerifiedSenders(senders);
+                          if (senders.length > 0 && !brevoSenderEmail) {
+                            setBrevoSenderEmail(senders[0].email);
+                            if (senders[0].name) setBrevoSenderName(senders[0].name);
+                          }
+                        }
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white text-xs font-bold cursor-pointer transition-colors border border-white/15"
+                    >
+                      {brevoTesting ? 'Test en cours...' : 'Tester la connexion'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEmailComposerOpen(true);
+                        setEmailSendResult(null);
+                      }}
+                      className="px-6 py-2.5 rounded-xl bg-[#B93A34] hover:bg-[#E05A52] text-white text-xs font-black uppercase tracking-wider cursor-pointer transition-all hover:scale-105 shadow-[0_4px_15px_rgba(185,58,52,0.4)] flex items-center gap-2 ml-auto"
+                    >
+                      <Send className="w-4 h-4 text-white" />
+                      <span>Rédiger &amp; Envoyer une Newsletter</span>
+                    </button>
+                  </div>
+
+                  {brevoStatus && (
+                    <div
+                      className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                        brevoStatus.success
+                          ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
+                          : 'bg-rose-500/20 border border-rose-500/40 text-rose-300'
+                      }`}
+                    >
+                      {brevoStatus.success ? <Check className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                      <span>{brevoStatus.message}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Subscribers list overview */}
+                <div className="pt-4 border-t border-[#F3C4A0]/10 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="font-bold text-xs text-white uppercase tracking-wider">
+                        Inscrits Récents à la Newsletter ({subscribers.length})
+                      </h5>
+                      <p className="text-[11px] text-[#F3C4A0]/60">
+                        Liste locale / synchronisée des adresses e-mails enregistrées via le site.
+                      </p>
+                    </div>
+
+                    {subscribers.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const csvHeader = 'Email,Date Inscription,Source,Brevo Sync\n';
+                          const csvRows = subscribers.map(s => `"${s.email}","${s.created_at || ''}","${s.source || ''}","${s.synced_to_brevo ? 'Oui' : 'Non'}"`).join('\n');
+                          const blob = new Blob([csvHeader + csvRows], { type: 'text/csv;charset=utf-8;' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `joker_subscribers_${new Date().toISOString().split('T')[0]}.csv`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#F3C4A0] hover:text-white border border-[#F3C4A0]/20 text-[11px] font-bold cursor-pointer transition-colors"
+                      >
+                        Exporter CSV
+                      </button>
+                    )}
+                  </div>
+
+                  {subscribers.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic py-2">
+                      Aucun abonné enregistré pour le moment.
+                    </p>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto space-y-1.5 pr-2">
+                      {subscribers.map((sub, idx) => (
+                        <div
+                          key={sub.id || idx}
+                          className="flex items-center justify-between p-2.5 rounded-lg bg-[#11070D] border border-white/5 text-xs text-[#E8DCD5]"
+                        >
+                          <span className="font-mono text-white">{sub.email}</span>
+                          <span className="text-[10px] text-[#F3C4A0]/70 font-mono">
+                            {sub.created_at ? new Date(sub.created_at).toLocaleDateString('fr-FR') : 'Récent'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
             </div>
           )}
 
@@ -3475,6 +3855,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
+              {/* Social Links */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                    Profil Instagram (URL)
+                  </label>
+                  <input
+                    type="url"
+                    value={memberForm.socials?.instagram || ''}
+                    onChange={(e) => setMemberForm({ ...memberForm, socials: { ...memberForm.socials, instagram: e.target.value } })}
+                    placeholder="https://www.instagram.com/prenom.nom/"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#E1306C] font-mono"
+                  />
+                  <p className="text-[10px] text-[#F3C4A0]/50 mt-1">Laissez vide → redirige vers le compte Instagram du club</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                    Profil LinkedIn (URL)
+                  </label>
+                  <input
+                    type="url"
+                    value={memberForm.socials?.linkedin || ''}
+                    onChange={(e) => setMemberForm({ ...memberForm, socials: { ...memberForm.socials, linkedin: e.target.value } })}
+                    placeholder="https://www.linkedin.com/in/prenom-nom/"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#0A66C2] font-mono"
+                  />
+                  <p className="text-[10px] text-[#F3C4A0]/50 mt-1">Laissez vide → redirige vers la page LinkedIn du club</p>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="w-full py-3 rounded-full text-white text-white font-bold text-sm uppercase shadow-xl hover:opacity-90 cursor-pointer mt-2"
@@ -3485,9 +3895,453 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════
+          MODAL: EMAIL & NEWSLETTER BROADCAST COMPOSER
+      ══════════════════════════════════════════════════════ */}
+      {isEmailComposerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-in fade-in overflow-y-auto">
+          <div className="relative w-full max-w-4xl bg-[#1F0E18] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/30 shadow-2xl space-y-6 max-h-[90vh] flex flex-col">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-[#F3C4A0]/15 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#B93A34]/20 border border-[#B93A34]/40 flex items-center justify-center text-[#F3C4A0]">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black font-display uppercase text-white tracking-tight">
+                    Rédiger &amp; Envoyer une Newsletter
+                  </h3>
+                  <p className="text-xs text-[#F3C4A0]/70">
+                    Diffusez un e-mail officiel à vos abonnés via l'API Brevo.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsEmailComposerOpen(false)}
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Template Picker */}
+            <div className="space-y-2 shrink-0">
+              <span className="text-[10px] font-mono font-bold uppercase text-[#F3C4A0] tracking-wider">
+                Modèles rapides &amp; suggestions
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailSubject(`🃏 ${_eventData?.title || 'Nouvelle Soirée'} · Billetterie Ouverte !`);
+                    setEmailTitle(_eventData?.title || 'Joker Carnival Night 2026');
+                    setEmailBadge('Événement Majeur');
+                    setEmailSubtitle(`${_eventData?.date || 'Samedi 26 Octobre'} · ${_eventData?.location || 'ESEN Manouba'}`);
+                    setEmailMessage(
+                      `Chers membres et étudiants de l'ESEN,\n\nLa billetterie pour notre grand événement "${_eventData?.title || 'Joker Carnival Night'}" est désormais ouverte !\n\nProgramme : ${_eventData?.program || 'Concerts live, animations surprises et tombola.'}\n\nRéservez votre pass gratuit en ligne dès maintenant.`
+                    );
+                    setEmailCtaText('Réserver ma Place');
+                    setEmailCtaUrl('https://jokeresen.tn/#event');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-[#F3C4A0]/20 text-xs text-white font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <span>🎟️ Annonce de l'Événement Actuel</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailSubject('📢 Message Officiel · Actualités du Club Joker ESEN');
+                    setEmailTitle('Flash Info Joker ESEN');
+                    setEmailBadge('Communication Officielle');
+                    setEmailSubtitle('Année Universitaire 2026-2027');
+                    setEmailMessage(
+                      `Chers membres,\n\nNous tenons à vous remercier chaleureusement pour votre énergie et votre engagement au sein du Club Joker ESEN.\n\nRestez connectés sur nos réseaux pour les prochaines activités, ateliers et surprises que nous préparons pour vous.`
+                    );
+                    setEmailCtaText('Visiter le Site Web');
+                    setEmailCtaUrl('https://jokeresen.tn');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-[#F3C4A0]/20 text-xs text-white font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <span>📢 Message Général du Club</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailSubject('Nouveau Message');
+                    setEmailTitle('Titre de votre E-mail');
+                    setEmailBadge('Actualité');
+                    setEmailSubtitle('');
+                    setEmailMessage('Écrivez votre message ici...');
+                    setEmailCtaText('En savoir plus');
+                    setEmailCtaUrl('https://jokeresen.tn');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <span>✍️ Message Vierge</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Form vs Preview Tabs */}
+            <div className="flex items-center gap-2 border-b border-[#F3C4A0]/15 pb-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setEmailPreviewMode('form')}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  emailPreviewMode === 'form' ? 'bg-[#3B66FF] text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Éditer le Message</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEmailPreviewMode('preview')}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  emailPreviewMode === 'preview' ? 'bg-[#3B66FF] text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Aperçu en Direct</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto flex-1 pr-1 space-y-4">
+              {emailPreviewMode === 'form' ? (
+                <div className="space-y-4">
+                  
+                  {/* Recipient Mode Selection */}
+                  <div className="p-4 rounded-2xl bg-[#11070D] border border-[#F3C4A0]/20 space-y-3">
+                    <label className="block text-xs font-bold uppercase text-[#F3C4A0]">
+                      Destinataires de la Campagne
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                        emailRecipientMode === 'all'
+                          ? 'bg-[#B93A34]/20 border-[#B93A34] text-white'
+                          : 'bg-black/30 border-white/10 text-slate-300'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="recipientMode"
+                          checked={emailRecipientMode === 'all'}
+                          onChange={() => setEmailRecipientMode('all')}
+                          className="text-[#B93A34]"
+                        />
+                        <div>
+                          <p className="text-xs font-bold">Tous les abonnés inscrits</p>
+                          <p className="text-[10px] text-[#F3C4A0]/70">
+                            {subscribers.length} adresse{subscribers.length > 1 ? 's' : ''} e-mail
+                          </p>
+                        </div>
+                      </label>
+
+                      <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                        emailRecipientMode === 'test'
+                          ? 'bg-[#3B66FF]/20 border-[#3B66FF] text-white'
+                          : 'bg-black/30 border-white/10 text-slate-300'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="recipientMode"
+                          checked={emailRecipientMode === 'test'}
+                          onChange={() => setEmailRecipientMode('test')}
+                          className="text-[#3B66FF]"
+                        />
+                        <div>
+                          <p className="text-xs font-bold">Envoi de test individuel</p>
+                          <p className="text-[10px] text-[#F3C4A0]/70">Tester le rendu sur votre adresse</p>
+                        </div>
+                      </label>
+                    </div>
+
+                    {emailRecipientMode === 'test' && (
+                      <div className="pt-2 animate-fadeIn">
+                        <label className="block text-[11px] font-mono text-[#F3C4A0] mb-1">
+                          Adresse e-mail pour le test :
+                        </label>
+                        <input
+                          type="email"
+                          value={emailTestRecipient}
+                          onChange={(e) => setEmailTestRecipient(e.target.value)}
+                          placeholder="votre.email@esen.tn"
+                          className="w-full px-3.5 py-2 rounded-xl bg-[#1F0E18] border border-white/15 text-xs text-white outline-none focus:border-[#3B66FF]"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Subject Line */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                      Objet de l'E-mail (Subject)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      placeholder="Ex: 🃏 Soirée Joker Carnival Night 2026 !"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                    />
+                  </div>
+
+                  {/* Title & Badge */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                        Grand Titre dans l'E-mail
+                      </label>
+                      <input
+                        type="text"
+                        value={emailTitle}
+                        onChange={(e) => setEmailTitle(e.target.value)}
+                        placeholder="Ex: Joker Carnival Night 2026"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                        Badge Eyebrow (Optionnel)
+                      </label>
+                      <input
+                        type="text"
+                        value={emailBadge}
+                        onChange={(e) => setEmailBadge(e.target.value)}
+                        placeholder="Ex: Événement Majeur"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Subtitle */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                      Sous-titre / Date &amp; Lieu (Optionnel)
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSubtitle}
+                      onChange={(e) => setEmailSubtitle(e.target.value)}
+                      placeholder="Ex: Samedi 26 Octobre 2026 · Grand Cour ESEN"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                    />
+                  </div>
+
+                  {/* Message Body */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                      Corps du Message
+                    </label>
+                    <textarea
+                      rows={6}
+                      value={emailMessage}
+                      onChange={(e) => setEmailMessage(e.target.value)}
+                      placeholder="Rédigez ici le contenu de votre message..."
+                      className="w-full px-4 py-3 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF] leading-relaxed"
+                    />
+                  </div>
+
+                  {/* CTA Button Config */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                        Texte du Bouton d'Action
+                      </label>
+                      <input
+                        type="text"
+                        value={emailCtaText}
+                        onChange={(e) => setEmailCtaText(e.target.value)}
+                        placeholder="Ex: Réserver mon Pass"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-[#F3C4A0] mb-1">
+                        Lien URL du Bouton
+                      </label>
+                      <input
+                        type="url"
+                        value={emailCtaUrl}
+                        onChange={(e) => setEmailCtaUrl(e.target.value)}
+                        placeholder="https://jokeresen.tn/#event"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#11070D] border border-[#F3C4A0]/20 text-xs text-white outline-none focus:border-[#3B66FF]"
+                      />
+                    </div>
+                  </div>
+
+                </div>
+              ) : (
+                /* Live Visual Email Preview */
+                <div className="p-4 rounded-2xl bg-[#0D0608] border border-[#F3C4A0]/25 space-y-4">
+                  <div className="text-center py-2 text-xs font-mono text-[#F3C4A0]/70 border-b border-white/10 pb-2">
+                    Aperçu HTML Branded Joker ESEN &middot; Objet : <span className="text-white font-bold">{emailSubject}</span>
+                  </div>
+
+                  <div className="max-w-xl mx-auto rounded-2xl bg-[#1A0E15] border border-[#F3C4A0]/25 p-6 space-y-4 text-center">
+                    {/* Header */}
+                    <div>
+                      <h4 className="text-2xl font-black uppercase text-white font-display">
+                        JOKER<span className="text-[#B93A34]">ESEN</span>
+                      </h4>
+                      <p className="text-[10px] font-mono font-bold uppercase text-[#F3C4A0] tracking-widest">
+                        Club ESEN &middot; Est. 2016
+                      </p>
+                    </div>
+
+                    {/* Badge */}
+                    {emailBadge && (
+                      <div>
+                        <span className="inline-block px-3 py-1 rounded-full bg-[#B93A34]/20 border border-[#B93A34]/40 text-[#F3C4A0] text-[10px] font-bold uppercase tracking-wider">
+                          {emailBadge}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Title & Subtitle */}
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-black uppercase text-white tracking-tight font-display">
+                        {emailTitle}
+                      </h3>
+                      {emailSubtitle && (
+                        <p className="text-xs font-semibold text-[#F3C4A0]">
+                          {emailSubtitle}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Body */}
+                    <div className="text-xs text-[#E8DCD5] leading-relaxed text-left whitespace-pre-line p-3 rounded-xl bg-black/20 border border-white/5">
+                      {emailMessage}
+                    </div>
+
+                    {/* CTA Button */}
+                    {emailCtaText && (
+                      <div className="pt-2">
+                        <span className="inline-block px-6 py-3 rounded-full bg-[#B93A34] text-white font-bold uppercase text-xs tracking-wider shadow-lg">
+                          {emailCtaText} &rarr;
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="pt-4 border-t border-white/10 text-[10px] text-slate-400">
+                      Campus Universitaire Manouba &middot; &copy; {new Date().getFullYear()} Club Joker ESEN
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Message */}
+              {emailSendResult && (
+                <div
+                  className={`p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                    emailSendResult.success
+                      ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
+                      : 'bg-rose-500/20 border border-rose-500/40 text-rose-300'
+                  }`}
+                >
+                  {emailSendResult.success ? <Check className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                  <span>{emailSendResult.message}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-4 border-t border-[#F3C4A0]/15 flex items-center justify-between gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsEmailComposerOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold cursor-pointer"
+              >
+                Fermer
+              </button>
+
+              <button
+                type="button"
+                disabled={emailSending || !emailSubject.trim() || !brevoApiKey.trim()}
+                onClick={async () => {
+                  if (!brevoApiKey.trim()) {
+                    setEmailSendResult({ success: false, message: 'Veuillez configurer votre clé API Brevo.' });
+                    return;
+                  }
+
+                  const recipients = emailRecipientMode === 'all'
+                    ? subscribers.map(s => s.email)
+                    : [emailTestRecipient];
+
+                  if (recipients.length === 0 || (emailRecipientMode === 'test' && !emailTestRecipient.trim())) {
+                    setEmailSendResult({ success: false, message: 'Veuillez spécifier au moins un destinataire valide.' });
+                    return;
+                  }
+
+                  setEmailSending(true);
+                  setEmailSendResult(null);
+
+                  // Generate formatted HTML from message
+                  const formattedBodyHtml = emailMessage
+                    .split('\n\n')
+                    .map(p => `<p style="margin: 0 0 12px 0;">${p.replace(/\n/g, '<br/>')}</p>`)
+                    .join('');
+
+                  const fullHtml = generateJokerEmailTemplate({
+                    title: emailTitle,
+                    badge: emailBadge,
+                    subtitle: emailSubtitle,
+                    bodyHtml: formattedBodyHtml,
+                    ctaText: emailCtaText,
+                    ctaUrl: emailCtaUrl,
+                    bannerUrl: _eventData?.bannerUrl || _eventData?.banner_url,
+                  });
+
+                  const result = await sendNewsletterBroadcast({
+                    subject: emailSubject,
+                    htmlContent: fullHtml,
+                    senderName: brevoSenderName,
+                    senderEmail: brevoSenderEmail,
+                    recipients,
+                  });
+
+                  setEmailSending(false);
+                  setEmailSendResult(result);
+
+                  if (result.success) {
+                    showNotification(result.message);
+                  }
+                }}
+                className="px-6 py-2.5 rounded-xl bg-[#B93A34] hover:bg-[#E05A52] disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg flex items-center gap-2"
+              >
+                {emailSending ? (
+                  <>
+                    <span className="anim-btn-spinner" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#FFFFFF' }} />
+                    <span>Envoi en cours...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>
+                      {emailRecipientMode === 'all'
+                        ? `Envoyer à tous (${subscribers.length})`
+                        : 'Envoyer l’e-mail de test'}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default AdminDashboard;
+
 
