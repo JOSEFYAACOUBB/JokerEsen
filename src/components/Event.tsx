@@ -20,6 +20,7 @@ import {
 
 import { getCachedAllEvents } from '../services/eventService';
 import { subscribeToNewsletter } from '../services/brevoService';
+import { optimizeCloudinaryUrl } from '../lib/cloudinary';
 import type { EventRecord } from '../types/database';
 
 interface EventItem {
@@ -444,8 +445,11 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
               <div className="lg:col-span-6 flex flex-col">
                 <div className="relative w-full h-full min-h-[300px] sm:min-h-[360px] rounded-2xl overflow-hidden bg-[#140B10] border border-[#F3C4A0]/25 shadow-lg group">
                   <img
-                    src={bannerUrl}
+                    src={optimizeCloudinaryUrl(bannerUrl, { width: 900, quality: 'auto' }) || bannerUrl}
                     alt={title}
+                    width={588}
+                    height={441}
+                    decoding="async"
                     className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out brightness-95"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#140B10]/80 via-transparent to-[#140B10]/20 pointer-events-none" />
@@ -643,8 +647,12 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
                     {/* Left: Flyer Thumbnail Image */}
                     <div className="relative w-full sm:w-56 h-48 sm:h-auto shrink-0 rounded-2xl overflow-hidden bg-[#140B10] border border-[#F3C4A0]/20">
                       <img
-                        src={evt.image}
+                        src={optimizeCloudinaryUrl(evt.image, { width: 500, quality: 'auto' }) || evt.image}
                         alt={evt.title}
+                        width={224}
+                        height={192}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 brightness-95"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
@@ -746,8 +754,12 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
             {/* Modal Image Hero Header */}
             <div className="relative h-48 sm:h-56 w-full overflow-hidden bg-[#140B10] shrink-0">
               <img
-                src={selectedEventModal ? selectedEventModal.image : bannerUrl}
+                src={optimizeCloudinaryUrl(selectedEventModal ? selectedEventModal.image : bannerUrl, { width: 800, quality: 'auto' }) || (selectedEventModal ? selectedEventModal.image : bannerUrl)}
                 alt={selectedEventModal ? selectedEventModal.title : title}
+                width={672}
+                height={224}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover brightness-90"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#160B12] via-[#160B12]/40 to-black/60" />

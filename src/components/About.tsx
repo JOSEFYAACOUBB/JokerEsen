@@ -206,11 +206,10 @@ export const About: React.FC<AboutProps> = ({ initialData }) => {
                     </span>
 
                     <span
-                      className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider"
+                      className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider text-[#F5EDE4]"
                       style={{
-                        background: `${pillar.color}20`,
-                        color: pillar.color,
-                        border: `1px solid ${pillar.color}50`,
+                        background: `${pillar.color}40`,
+                        border: `1px solid ${pillar.color}80`,
                       }}
                     >
                       {pillar.name}

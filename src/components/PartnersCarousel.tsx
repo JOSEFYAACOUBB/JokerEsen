@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import type { Partner } from '../types/database';
 import { fetchPartners, defaultPartners } from '../services/partnersService';
 
+import { optimizeCloudinaryUrl } from '../lib/cloudinary';
+
 // Built-in vector icons for common partners (crisp vector render)
 const builtInIcons: Record<string, React.FC<{ style?: React.CSSProperties; className?: string }>> = {
   'esen': ({ style, className }) => (
@@ -118,8 +120,12 @@ export const PartnersCarousel: React.FC<PartnersCarouselProps> = ({ partnersList
                 <div className="relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 transition-all duration-500 transform group-hover:scale-115">
                   {partner.logo_url ? (
                     <img
-                      src={partner.logo_url}
+                      src={optimizeCloudinaryUrl(partner.logo_url, { width: 160, height: 160, quality: 'auto' })}
                       alt={displayName}
+                      width={64}
+                      height={64}
+                      loading="lazy"
+                      decoding="async"
                       className="max-w-full max-h-full object-contain filter grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 drop-shadow-md"
                     />
                   ) : BuiltInIcon ? (

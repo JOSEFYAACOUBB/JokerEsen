@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { InstagramIcon, LinkedinIcon } from './SocialIcons';
 import { getCachedClubSocials } from '../services/settingsService';
+import { optimizeCloudinaryUrl } from '../lib/cloudinary';
 
 export interface TeamMember {
   id?: string;
@@ -165,8 +166,12 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
                 >
                   {/* Photo */}
                   <img
-                    src={member.avatar}
+                    src={optimizeCloudinaryUrl(member.avatar, { width: 500, quality: 'auto' }) || member.avatar}
                     alt={member.name}
+                    width={360}
+                    height={540}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
                     draggable={false}
                   />
@@ -239,19 +244,23 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
             <ChevronLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {members.map((member, index) => (
               <button
                 key={index}
                 onClick={() => scrollTo(index)}
                 aria-label={`Aller au membre ${index + 1} : ${member.name}`}
-                className="transition-all duration-300 rounded-full cursor-pointer"
-                style={{
-                  width: index === activeIndex ? '28px' : '8px',
-                  height: '8px',
-                  background: index === activeIndex ? '#B93A34' : 'rgba(243,196,160,0.25)',
-                }}
-              />
+                className="p-3 flex items-center justify-center cursor-pointer -m-1"
+              >
+                <span
+                  className="transition-all duration-300 rounded-full block"
+                  style={{
+                    width: index === activeIndex ? '28px' : '8px',
+                    height: '8px',
+                    background: index === activeIndex ? '#B93A34' : 'rgba(243,196,160,0.35)',
+                  }}
+                />
+              </button>
             ))}
           </div>
 

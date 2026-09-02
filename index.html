@@ -11,17 +11,42 @@
     <title>Joker Esen</title>
     <meta name="description" content="Bienvenue chez Joker Esen, le club étudiant festif et créatif de l'ESEN (Tunisie) fondé en 2016. Événements, vie étudiante, teambuilding et communauté passionnée !" />
     
-    <!-- Google Fonts: Display Poster Fonts (Cinzel Decorative, Bebas Neue) + Body Font (Plus Jakarta Sans) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel+Decorative:wght@700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <!-- Custom Fonts: Groste, Lemon Tea, Fluctuation, Utendo, KG Red Hands & Sunny Spells -->
-    <link href="https://fonts.cdnfonts.com/css/groste" rel="stylesheet">
-    <link href="https://fonts.cdnfonts.com/css/lemon-tea" rel="stylesheet">
-    <link href="https://fonts.cdnfonts.com/css/fluctuation" rel="stylesheet">
-    <link href="https://fonts.cdnfonts.com/css/utendo" rel="stylesheet">
-    <link href="https://fonts.cdnfonts.com/css/kg-red-hands" rel="stylesheet">
-    <link href="https://fonts.cdnfonts.com/css/sunny-spells" rel="stylesheet">
+    <!-- Resource Hints: Preconnect to Critical Origins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.cdnfonts.com" crossorigin />
+    <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+
+    <!-- Preload Critical LCP Hero Background Image with Cloudinary Auto-Format -->
+    <link
+      rel="preload"
+      as="image"
+      href="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_1920,c_limit/v1788313989/background-image.png"
+      fetchpriority="high"
+    />
+
+    <!-- Non-Blocking Google Fonts with font-display: swap -->
+    <link
+      rel="preload"
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel+Decorative:wght@700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Poppins:wght@400;500;600;700;800;900&display=swap"
+      as="style"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel+Decorative:wght@700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Poppins:wght@400;500;600;700;800;900&display=swap"
+      />
+    </noscript>
+
+    <!-- Asynchronous Non-Blocking Custom Display Fonts from CDNFonts -->
+    <link rel="preload" href="https://fonts.cdnfonts.com/css/groste" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <link rel="preload" href="https://fonts.cdnfonts.com/css/lemon-tea" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <link rel="preload" href="https://fonts.cdnfonts.com/css/fluctuation" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <link rel="preload" href="https://fonts.cdnfonts.com/css/utendo" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <link rel="preload" href="https://fonts.cdnfonts.com/css/kg-red-hands" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <link rel="preload" href="https://fonts.cdnfonts.com/css/sunny-spells" as="style" onload="this.onload=null;this.rel='stylesheet'" />
   </head>
   <body class="bg-[#1A0E14] text-[#F5EDE4] antialiased selection:bg-[#B93A34] selection:text-white overflow-x-hidden font-sans">
     <div id="root"></div>

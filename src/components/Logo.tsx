@@ -21,6 +21,9 @@ export const Logo: React.FC<LogoProps> = ({ className = '', size = 'md' }) => {
       <img
         src="/logo.png"
         alt="JokerEsen Logo"
+        width={80}
+        height={80}
+        decoding="async"
         className={`${currentSize.imgHeight} w-auto object-contain transition-transform duration-300 hover:scale-105 filter drop-shadow-lg`}
       />
     </div>

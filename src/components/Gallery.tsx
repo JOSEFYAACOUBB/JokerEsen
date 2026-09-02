@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Layers, Calendar } from 'lucide-react';
 import { galleryService } from '../services/galleryService';
+import { optimizeCloudinaryUrl } from '../lib/cloudinary';
 
 export interface AlbumPhoto {
   id: string | number;
@@ -381,8 +382,12 @@ export const Gallery: React.FC = () => {
                 >
                   {/* Photo with zoom effect */}
                   <img
-                    src={album.coverImage}
+                    src={optimizeCloudinaryUrl(album.coverImage, { width: 600, quality: 'auto' }) || album.coverImage}
                     alt={album.title}
+                    width={400}
+                    height={360}
+                    loading="lazy"
+                    decoding="async"
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 brightness-90 group-hover:brightness-100"
                   />
 
@@ -498,8 +503,11 @@ export const Gallery: React.FC = () => {
             <div className="flex-1 min-h-[260px] sm:min-h-[380px] max-h-[50vh] sm:max-h-[56vh] bg-black/90 flex items-center justify-center p-3 sm:p-5 relative overflow-hidden">
               <img
                 key={slideKey}
-                src={activeAlbum.photos[photoIndex]?.url}
+                src={optimizeCloudinaryUrl(activeAlbum.photos[photoIndex]?.url, { width: 1200, quality: 'auto' }) || activeAlbum.photos[photoIndex]?.url}
                 alt={activeAlbum.photos[photoIndex]?.caption || activeAlbum.title}
+                width={800}
+                height={600}
+                decoding="async"
                 className={`max-h-[46vh] sm:max-h-[52vh] w-auto max-w-full object-contain rounded-2xl shadow-2xl ${
                   slideDir === 'left' ? 'anim-photo-left' : slideDir === 'right' ? 'anim-photo-right' : 'anim-modal-in'
                 }`}
@@ -561,8 +569,12 @@ export const Gallery: React.FC = () => {
                         {/* Skeleton placeholder while image loads */}
                         <div className="absolute inset-0 anim-skeleton" />
                         <img
-                          src={p.url}
+                          src={optimizeCloudinaryUrl(p.url, { width: 120, height: 120, quality: 'auto' }) || p.url}
                           alt=""
+                          width={64}
+                          height={64}
+                          loading="lazy"
+                          decoding="async"
                           className="relative w-full h-full object-cover"
                           onLoad={(e) => {
                             const parent = (e.target as HTMLElement).parentElement;

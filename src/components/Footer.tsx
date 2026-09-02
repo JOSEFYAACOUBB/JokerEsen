@@ -58,7 +58,7 @@ export const Footer: React.FC<FooterProps> = () => {
 
           {/* ── Joker ESEN Club Social Media Links (dynamic from Admin) ── */}
           <div className="flex flex-col items-center gap-2.5 pt-1">
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400"
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600"
               style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Retrouvez-nous sur
             </span>
@@ -130,7 +130,7 @@ export const Footer: React.FC<FooterProps> = () => {
 
           {/* Framed LinkedIn Badge — personal developer credit */}
           <div className="flex flex-col items-center gap-2 pt-1">
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400"
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600"
               style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Site développé par
             </span>
