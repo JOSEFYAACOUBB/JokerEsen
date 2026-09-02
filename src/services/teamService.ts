@@ -135,8 +135,8 @@ export async function saveTeamMember(
     suit: normalizeSuit(member.suit),
     suit_color: member.suitColor || '#F3C4A0',
     avatar: member.avatar,
-    instagram: member.socials?.instagram && member.socials.instagram !== '#' ? member.socials.instagram : null,
-    linkedin: member.socials?.linkedin && member.socials.linkedin !== '#' ? member.socials.linkedin : null,
+    instagram: member.socials?.instagram && member.socials.instagram !== '#' ? member.socials.instagram : undefined,
+    linkedin: member.socials?.linkedin && member.socials.linkedin !== '#' ? member.socials.linkedin : undefined,
     order_index: orderIndex,
   };
 
