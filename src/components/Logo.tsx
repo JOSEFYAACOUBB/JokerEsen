@@ -6,12 +6,12 @@ interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
-export const Logo: React.FC<LogoProps> = ({ className = '', showText = true, size = 'md' }) => {
+export const Logo: React.FC<LogoProps> = ({ className = '', size = 'md' }) => {
   const sizeMap = {
-    sm: { imgHeight: 'h-14 sm:h-16', text: 'text-xl', subtext: 'text-xs' },
-    md: { imgHeight: 'h-16 sm:h-20', text: 'text-2xl', subtext: 'text-xs' },
-    lg: { imgHeight: 'h-24', text: 'text-4xl', subtext: 'text-sm' },
-    xl: { imgHeight: 'h-32', text: 'text-6xl', subtext: 'text-base' }
+    sm: { imgHeight: 'h-14 sm:h-16' },
+    md: { imgHeight: 'h-16 sm:h-20' },
+    lg: { imgHeight: 'h-24' },
+    xl: { imgHeight: 'h-32' }
   };
 
   const currentSize = sizeMap[size];
@@ -23,7 +23,6 @@ export const Logo: React.FC<LogoProps> = ({ className = '', showText = true, siz
         alt="JokerEsen Logo"
         className={`${currentSize.imgHeight} w-auto object-contain transition-transform duration-300 hover:scale-105 filter drop-shadow-lg`}
       />
-      
     </div>
   );
 };
