@@ -19,10 +19,10 @@ export const Logo: React.FC<LogoProps> = ({ className = '', size = 'md' }) => {
   return (
     <div className={`inline-flex items-center gap-3 select-none ${className}`}>
       <img
-        src="/logo.png"
+        src="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_240/v1788317705/ltbc0dahw1uwzmcogpvs.png"
         alt="JokerEsen Logo"
-        width={80}
-        height={80}
+        width={96}
+        height={76}
         decoding="async"
         className={`${currentSize.imgHeight} w-auto object-contain transition-transform duration-300 hover:scale-105 filter drop-shadow-lg`}
       />

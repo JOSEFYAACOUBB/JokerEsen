@@ -166,7 +166,7 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
                 >
                   {/* Photo */}
                   <img
-                    src={optimizeCloudinaryUrl(member.avatar, { width: 500, quality: 'auto' }) || member.avatar}
+                    src={optimizeCloudinaryUrl(member.avatar, { width: 380, quality: 'auto' }) || member.avatar}
                     alt={member.name}
                     width={360}
                     height={540}
