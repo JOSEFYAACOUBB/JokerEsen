@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { InstagramIcon, LinkedinIcon } from './SocialIcons';
+import { getCachedClubSocials } from '../services/settingsService';
 
 export interface TeamMember {
   id?: string;
@@ -144,12 +145,13 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
               const isActive = index === activeIndex || members.length === 1;
               const suitSymbol = ['♠', '♥', '♦', '♣'][index % 4];
               const suitColor = member.suitColor || (index % 2 === 0 ? '#B93A34' : '#F3BB99');
+              const clubSocials = getCachedClubSocials();
               const instaUrl = member.socials?.instagram && member.socials.instagram !== '#' && member.socials.instagram.trim() !== ''
                 ? member.socials.instagram
-                : 'https://www.instagram.com/joker_esen/';
+                : (clubSocials.instagram || 'https://www.instagram.com/joker_esen/');
               const linkedinUrl = member.socials?.linkedin && member.socials.linkedin !== '#' && member.socials.linkedin.trim() !== ''
                 ? member.socials.linkedin
-                : 'https://www.linkedin.com/company/jokeresen/';
+                : (clubSocials.linkedin || 'https://www.linkedin.com/company/jokeresen/');
 
               return (
                 <div

@@ -17,6 +17,7 @@ create table if not exists public.club_settings (
   partners jsonb default '[]'::jsonb,
   about_data jsonb default '{}'::jsonb,
   form_config jsonb default '{}'::jsonb,
+  social_links jsonb default '{"instagram": "https://www.instagram.com/joker_esen/", "facebook": "https://www.facebook.com/joker.esen", "tiktok": "https://www.tiktok.com/@joker.esen", "linkedin": "https://www.linkedin.com/company/jokeresen/"}'::jsonb,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -24,6 +25,10 @@ create table if not exists public.club_settings (
 insert into public.club_settings (id, recruitment_open, announcement)
 values ('default', true, 'Bienvenue sur la plateforme officielle du Club Joker ESEN!')
 on conflict (id) do nothing;
+
+-- Add social_links column if table already exists
+alter table public.club_settings add column if not exists social_links jsonb default '{"instagram": "https://www.instagram.com/joker_esen/", "facebook": "https://www.facebook.com/joker.esen", "tiktok": "https://www.tiktok.com/@joker.esen", "linkedin": "https://www.linkedin.com/company/jokeresen/"}'::jsonb;
+
 
 -- ------------------------------------------------------------------------------
 -- 2. PARTNERS (Partenaires & Organisations Officielles)
@@ -90,11 +95,16 @@ create table if not exists public.team_members (
   suit text not null check (suit in ('♠', '♥', '♦', '♣')),
   suit_color text not null default '#F3C4A0',
   avatar text not null,
-  instagram text default '#',
-  linkedin text default '#',
+  instagram text default '',
+  linkedin text default '',
   order_index integer default 0 not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Ensure instagram and linkedin columns exist if table already exists
+alter table public.team_members add column if not exists instagram text default '';
+alter table public.team_members add column if not exists linkedin text default '';
+
 
 -- ------------------------------------------------------------------------------
 -- 5. RECRUITMENT APPLICATIONS (Adhésions / Candidatures)

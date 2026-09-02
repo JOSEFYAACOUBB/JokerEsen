@@ -2,23 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Logo } from './Logo';
 import { ArrowUp } from 'lucide-react';
 
+import { getCachedClubSocials, fetchClubSettings } from '../services/settingsService';
+
 interface FooterProps {
   onOpenAdmin?: () => void;
 }
 
-// Helper to read club social links from localStorage with fallback defaults
-function getClubSocials() {
-  return {
-    instagram: localStorage.getItem('joker_club_instagram') || 'https://www.instagram.com/joker_esen/',
-    facebook: localStorage.getItem('joker_club_facebook') || 'https://www.facebook.com/joker.esen',
-    tiktok: localStorage.getItem('joker_club_tiktok') || 'https://www.tiktok.com/@joker.esen',
-    linkedin: localStorage.getItem('joker_club_linkedin') || 'https://www.linkedin.com/company/jokeresen/',
-  };
-}
-
 export const Footer: React.FC<FooterProps> = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [socials, setSocials] = useState(() => getClubSocials());
+  const [socials, setSocials] = useState(() => getCachedClubSocials());
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,8 +21,12 @@ export const Footer: React.FC<FooterProps> = () => {
       }
     };
 
-    // Refresh socials from localStorage on mount (captures admin updates from same session)
-    setSocials(getClubSocials());
+    // Load from Supabase to ensure fresh data across devices
+    fetchClubSettings().then((settings) => {
+      if (settings?.social_links) {
+        setSocials(getCachedClubSocials());
+      }
+    }).catch(() => {});
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);

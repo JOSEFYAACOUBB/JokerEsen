@@ -51,6 +51,13 @@ export interface FormConfig {
   form_subheading: string;
 }
 
+export interface ClubSocialLinks {
+  instagram?: string;
+  facebook?: string;
+  tiktok?: string;
+  linkedin?: string;
+}
+
 export interface ClubSettings {
   id: string;
   recruitment_open: boolean;
@@ -58,6 +65,7 @@ export interface ClubSettings {
   partners?: Partner[];
   about_data?: AboutData;
   form_config?: FormConfig;
+  social_links?: ClubSocialLinks;
   updated_at?: string;
 }
 

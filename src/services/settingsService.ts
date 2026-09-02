@@ -114,3 +114,46 @@ export async function updateClubSettings(settings: Partial<ClubSettings>): Promi
 
   return true;
 }
+
+export const defaultClubSocials = {
+  instagram: 'https://www.instagram.com/joker_esen/',
+  facebook: 'https://www.facebook.com/joker.esen',
+  tiktok: 'https://www.tiktok.com/@joker.esen',
+  linkedin: 'https://www.linkedin.com/company/jokeresen/',
+};
+
+export function getCachedClubSocials() {
+  const settings = getCachedSettings();
+  if (settings?.social_links) {
+    return {
+      instagram: settings.social_links.instagram ?? defaultClubSocials.instagram,
+      facebook: settings.social_links.facebook ?? defaultClubSocials.facebook,
+      tiktok: settings.social_links.tiktok ?? defaultClubSocials.tiktok,
+      linkedin: settings.social_links.linkedin ?? defaultClubSocials.linkedin,
+    };
+  }
+
+  return {
+    instagram: localStorage.getItem('joker_club_instagram') || defaultClubSocials.instagram,
+    facebook: localStorage.getItem('joker_club_facebook') || defaultClubSocials.facebook,
+    tiktok: localStorage.getItem('joker_club_tiktok') || defaultClubSocials.tiktok,
+    linkedin: localStorage.getItem('joker_club_linkedin') || defaultClubSocials.linkedin,
+  };
+}
+
+export async function saveClubSocials(socials: {
+  instagram?: string;
+  facebook?: string;
+  tiktok?: string;
+  linkedin?: string;
+}): Promise<boolean> {
+  // Update localStorage immediately for fast local retrieval
+  if (socials.instagram !== undefined) localStorage.setItem('joker_club_instagram', socials.instagram);
+  if (socials.facebook !== undefined) localStorage.setItem('joker_club_facebook', socials.facebook);
+  if (socials.tiktok !== undefined) localStorage.setItem('joker_club_tiktok', socials.tiktok);
+  if (socials.linkedin !== undefined) localStorage.setItem('joker_club_linkedin', socials.linkedin);
+
+  // Sync to Supabase club_settings row
+  return updateClubSettings({ social_links: socials });
+}
+

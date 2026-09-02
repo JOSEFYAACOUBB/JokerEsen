@@ -48,7 +48,7 @@ import {
   updateRecruitmentStatus,
   deleteRecruitmentApplication
 } from '../../services/recruitmentService';
-import { updateClubSettings } from '../../services/settingsService';
+import { updateClubSettings, fetchClubSettings, getCachedClubSocials, saveClubSocials } from '../../services/settingsService';
 import {
   fetchAllEvents,
   fetchActiveEvent,
@@ -283,10 +283,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [emailPreviewMode, setEmailPreviewMode] = useState<'form' | 'preview'>('form');
 
   // ── Club Social Links State ──
-  const [clubInstagram, setClubInstagram] = useState(() => localStorage.getItem('joker_club_instagram') || 'https://www.instagram.com/joker_esen/');
-  const [clubFacebook, setClubFacebook] = useState(() => localStorage.getItem('joker_club_facebook') || 'https://www.facebook.com/joker.esen');
-  const [clubTiktok, setClubTiktok] = useState(() => localStorage.getItem('joker_club_tiktok') || 'https://www.tiktok.com/@joker.esen');
-  const [clubLinkedin, setClubLinkedin] = useState(() => localStorage.getItem('joker_club_linkedin') || 'https://www.linkedin.com/company/jokeresen/');
+  const [clubInstagram, setClubInstagram] = useState(() => getCachedClubSocials().instagram);
+  const [clubFacebook, setClubFacebook] = useState(() => getCachedClubSocials().facebook);
+  const [clubTiktok, setClubTiktok] = useState(() => getCachedClubSocials().tiktok);
+  const [clubLinkedin, setClubLinkedin] = useState(() => getCachedClubSocials().linkedin);
   const [clubSocialsSaved, setClubSocialsSaved] = useState(false);
 
   // â”€â”€ 6. Photos & Albums State â”€â”€
@@ -340,6 +340,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     loadFormConfiguration();
     loadPhotos();
     loadTeam();
+    loadClubSettingsData();
+  };
+
+  const loadClubSettingsData = async () => {
+    try {
+      const settings = await fetchClubSettings();
+      if (settings?.social_links) {
+        if (settings.social_links.instagram !== undefined) setClubInstagram(settings.social_links.instagram);
+        if (settings.social_links.facebook !== undefined) setClubFacebook(settings.social_links.facebook);
+        if (settings.social_links.tiktok !== undefined) setClubTiktok(settings.social_links.tiktok);
+        if (settings.social_links.linkedin !== undefined) setClubLinkedin(settings.social_links.linkedin);
+      }
+    } catch (err) {
+      console.warn('Error loading club social settings from Supabase:', err);
+    }
   };
 
   const loadApplications = async () => {
@@ -2595,22 +2610,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="flex items-center gap-3 pt-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      localStorage.setItem('joker_club_instagram', clubInstagram);
-                      localStorage.setItem('joker_club_facebook', clubFacebook);
-                      localStorage.setItem('joker_club_tiktok', clubTiktok);
-                      localStorage.setItem('joker_club_linkedin', clubLinkedin);
+                    onClick={async () => {
+                      await saveClubSocials({
+                        instagram: clubInstagram,
+                        facebook: clubFacebook,
+                        tiktok: clubTiktok,
+                        linkedin: clubLinkedin,
+                      });
                       setClubSocialsSaved(true);
-                      showNotification('Liens des réseaux sociaux du club enregistrés !');
+                      showNotification('Liens des réseaux sociaux enregistrés sur Supabase !');
                       setTimeout(() => setClubSocialsSaved(false), 3000);
                     }}
                     className="px-5 py-2.5 rounded-xl bg-[#E1306C] hover:bg-[#C0185A] text-white text-xs font-bold cursor-pointer transition-colors shadow-md flex items-center gap-2"
                   >
                     {clubSocialsSaved ? <Check className="w-4 h-4" /> : null}
-                    <span>{clubSocialsSaved ? 'Liens enregistrés !' : 'Enregistrer les liens'}</span>
+                    <span>{clubSocialsSaved ? 'Enregistré sur Supabase !' : 'Enregistrer sur Supabase'}</span>
                   </button>
                   <p className="text-[10px] text-[#F3C4A0]/50">
-                    ⚠️ Les liens du Footer se mettent à jour après rechargement de la page.
+                    Synchronisé automatiquement avec la base de données Supabase.
                   </p>
                 </div>
               </div>
