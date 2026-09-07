@@ -182,29 +182,32 @@ export async function subscribeToNewsletter(
       }),
     });
 
-    if (serverlessRes.ok) {
-      const data = await serverlessRes.json();
-      if (data?.success) {
-        if (isSupabaseConfigured) {
-          try {
-            await supabase.from('newsletter_subscribers').upsert(
-              {
-                email: cleanEmail,
-                source: options?.source || 'website_agenda',
-                synced_to_brevo: true,
-                created_at: new Date().toISOString(),
-              },
-              { onConflict: 'email' }
-            );
-          } catch (_) {}
-        }
-        cacheSubscriberLocally(cleanEmail, true);
-        return {
-          success: true,
-          isExisting: data.isExisting,
-          message: data.message || 'Inscription validée et e-mail de confirmation envoyé !',
-        };
+    const data = await serverlessRes.json().catch(() => ({}));
+    if (data?.success) {
+      if (isSupabaseConfigured) {
+        try {
+          await supabase.from('newsletter_subscribers').upsert(
+            {
+              email: cleanEmail,
+              source: options?.source || 'website_agenda',
+              synced_to_brevo: true,
+              created_at: new Date().toISOString(),
+            },
+            { onConflict: 'email' }
+          );
+        } catch (_) {}
       }
+      cacheSubscriberLocally(cleanEmail, true);
+      return {
+        success: true,
+        isExisting: data.isExisting,
+        message: data.message || 'Inscription validée et e-mail de confirmation envoyé !',
+      };
+    } else if (data?.message && !apiKey) {
+      return {
+        success: false,
+        message: data.message,
+      };
     }
   } catch (_) {
     // Fallback to client-side Brevo API fetch if serverless endpoint is not hosted
@@ -431,15 +434,18 @@ export async function sendNewsletterBroadcast(params: {
       }),
     });
 
-    if (apiRes.ok) {
-      const data = await apiRes.json();
-      if (data?.success) {
-        return {
-          success: true,
-          message: data.message || `E-mail envoyé avec succès à ${validRecipients.length} destinataire(s) !`,
-          sentCount: validRecipients.length,
-        };
-      }
+    const data = await apiRes.json().catch(() => ({}));
+    if (data?.success) {
+      return {
+        success: true,
+        message: data.message || `E-mail envoyé avec succès à ${validRecipients.length} destinataire(s) !`,
+        sentCount: validRecipients.length,
+      };
+    } else if (data?.message) {
+      return {
+        success: false,
+        message: data.message,
+      };
     }
   } catch (_) {
     // Fallback to direct client-side Brevo API fetch if serverless endpoint is not hosted

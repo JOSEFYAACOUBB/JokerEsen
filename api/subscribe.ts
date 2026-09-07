@@ -17,14 +17,24 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { email, firstName, lastName, source, listId } = req.body || {};
+  let parsedBody = req.body;
+  if (typeof req.body === 'string') {
+    try {
+      parsedBody = JSON.parse(req.body);
+    } catch (_) {
+      parsedBody = {};
+    }
+  }
+
+  const { email, firstName, lastName, source, listId } = parsedBody || {};
   const cleanEmail = (email || '').trim().toLowerCase();
 
   if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
-    return res.status(400).json({ message: 'Adresse e-mail invalide' });
+    return res.status(400).json({ success: false, message: 'Adresse e-mail invalide' });
   }
 
-  const apiKey = process.env.BREVO_API_KEY || process.env.VITE_BREVO_API_KEY;
+  const headerApiKey = req.headers['api-key'] || req.headers['x-api-key'];
+  const apiKey = (headerApiKey && String(headerApiKey).trim()) || process.env.BREVO_API_KEY || process.env.VITE_BREVO_API_KEY;
   const configuredListId = listId || process.env.BREVO_LIST_ID || process.env.VITE_BREVO_LIST_ID;
 
   if (!apiKey) {

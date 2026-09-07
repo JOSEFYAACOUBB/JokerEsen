@@ -17,21 +17,31 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { subject, htmlContent, senderName, senderEmail, recipients } = req.body || {};
+  let parsedBody = req.body;
+  if (typeof req.body === 'string') {
+    try {
+      parsedBody = JSON.parse(req.body);
+    } catch (_) {
+      parsedBody = {};
+    }
+  }
 
-  const apiKey = req.headers['api-key'] || process.env.BREVO_API_KEY || process.env.VITE_BREVO_API_KEY;
+  const { subject, htmlContent, senderName, senderEmail, recipients } = parsedBody || {};
+
+  const headerApiKey = req.headers['api-key'] || req.headers['x-api-key'];
+  const apiKey = (headerApiKey && String(headerApiKey).trim()) || process.env.BREVO_API_KEY || process.env.VITE_BREVO_API_KEY;
 
   if (!apiKey) {
     return res.status(400).json({
       success: false,
-      message: 'Clé API Brevo non fournie.',
+      message: 'Clé API Brevo non configurée. Veuillez ajouter BREVO_API_KEY dans les variables d\'environnement Vercel.',
     });
   }
 
   if (!subject || !htmlContent || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
     return res.status(400).json({
       success: false,
-      message: 'Paramètres manquants (sujet, contenu ou destinataires).',
+      message: 'Paramètres manquants (sujet, contenu ou destinataires valides).',
     });
   }
 
