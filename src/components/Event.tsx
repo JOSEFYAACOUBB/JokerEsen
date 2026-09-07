@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Calendar,
   MapPin,
@@ -53,6 +53,144 @@ interface EventProps {
   };
   events?: EventRecord[];
 }
+
+// ── Countdown hook: parses any date string and counts down to it ──
+function useCountdown(dateText: string) {
+  const parseEventDate = useCallback((text: string): Date => {
+    // Default fallback date: 26 Octobre 2026 20:00
+    const fallbackDate = new Date('2026-10-26T20:00:00');
+    if (!text || typeof text !== 'string') return fallbackDate;
+
+    try {
+      const lower = text.toLowerCase();
+
+      // Extract time if present e.g. "20h00", "20h", "20:00"
+      let hours = '20';
+      let minutes = '00';
+      const timeMatch = lower.match(/(\d{1,2})[h:](\d{2})?/);
+      if (timeMatch) {
+        hours = timeMatch[1].padStart(2, '0');
+        if (timeMatch[2]) minutes = timeMatch[2];
+      }
+
+      // 1. ISO format YYYY-MM-DD
+      const isoMatch = text.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+      if (isoMatch) {
+        const d = new Date(`${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}T${hours}:${minutes}:00`);
+        if (!isNaN(d.getTime())) return d;
+      }
+
+      // 2. Slash format DD/MM/YYYY
+      const slashMatch = text.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+      if (slashMatch) {
+        const d = new Date(`${slashMatch[3]}-${slashMatch[2].padStart(2, '0')}-${slashMatch[1].padStart(2, '0')}T${hours}:${minutes}:00`);
+        if (!isNaN(d.getTime())) return d;
+      }
+
+      // 3. French months map
+      const frMonths: Record<string, string> = {
+        janvier: '01', janv: '01', jan: '01',
+        février: '02', fevrier: '02', févr: '02', fevr: '02', fev: '02',
+        mars: '03', mar: '03',
+        avril: '04', avr: '04',
+        mai: '05',
+        juin: '06',
+        juillet: '07', juil: '07',
+        août: '08', aout: '08',
+        septembre: '09', sept: '09', sep: '09',
+        octobre: '10', oct: '10',
+        novembre: '11', nov: '11',
+        décembre: '12', decembre: '12', déc: '12', dec: '12',
+      };
+
+      const match = lower.match(/(\d{1,2})\s+([a-zàâäéèêëîïôöûüç]+)(?:\s+(\d{4}))?/);
+      if (match) {
+        const day = match[1].padStart(2, '0');
+        const monthKey = match[2];
+        const month = frMonths[monthKey];
+        const year = match[3] || '2026';
+        if (month) {
+          const d = new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`);
+          if (!isNaN(d.getTime())) return d;
+        }
+      }
+
+      const parsedStandard = new Date(text);
+      if (!isNaN(parsedStandard.getTime())) return parsedStandard;
+    } catch {
+      // ignore
+    }
+
+    return fallbackDate;
+  }, []);
+
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number }>({
+    days: 0, hours: 0, minutes: 0, seconds: 0,
+  });
+
+  useEffect(() => {
+    let target = parseEventDate(dateText);
+
+    // If target has passed relative to now, automatically target Oct 26 2026
+    if (target.getTime() <= Date.now()) {
+      target = new Date('2026-10-26T20:00:00');
+    }
+
+    const tick = () => {
+      const diff = target.getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [dateText, parseEventDate]);
+
+  return { timeLeft };
+}
+
+// ── Countdown Timer Display Component (full-width, matching site design) ──
+const CountdownTimer: React.FC<{ dateText: string }> = ({ dateText }) => {
+  const { timeLeft } = useCountdown(dateText);
+
+  const units = [
+    { label: 'Jours',    value: timeLeft.days },
+    { label: 'Heures',   value: timeLeft.hours },
+    { label: 'Minutes',  value: timeLeft.minutes },
+    { label: 'Secondes', value: timeLeft.seconds },
+  ];
+
+  return (
+    <div className="w-full rounded-2xl bg-[#FFFFFF] border border-[#EDE4DE] p-4 sm:p-5 shadow-sm">
+      <div className="grid grid-cols-4 gap-2.5 sm:gap-4">
+        {units.map(({ label, value }) => (
+          <div
+            key={label}
+            className="flex flex-col items-center justify-center py-3 sm:py-4 rounded-xl bg-[#FAF7F5] border border-[#EDE4DE]"
+          >
+            <span
+              className="text-2xl sm:text-4xl font-black text-[#7D3F4A] leading-none tabular-nums"
+              style={{ fontVariantNumeric: 'tabular-nums', fontFamily: "'Plus Jakarta Sans', monospace" }}
+            >
+              {String(value).padStart(2, '0')}
+            </span>
+            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-[#2A2020]/60 mt-1.5 sm:mt-2">
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export const Event: React.FC<EventProps> = ({ eventData, events }) => {
   // Modal states
@@ -372,6 +510,9 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
               </span>
             )}
           </div>
+
+          {/* ── Countdown Timer — full-width above event card ── */}
+          <CountdownTimer dateText={dateText} />
 
           {/* Light Container for Next Event */}
           <div className="p-6 sm:p-8 rounded-3xl bg-[#FFFFFF] border border-[#EDE4DE] shadow-[0_8px_28px_rgba(43,15,18,0.12)]">
