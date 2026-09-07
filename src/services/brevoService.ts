@@ -403,19 +403,8 @@ export async function sendNewsletterBroadcast(params: {
 }): Promise<{ success: boolean; message: string; sentCount?: number }> {
   const { apiKey, senderName: defaultName, senderEmail: defaultEmail } = getBrevoConfig();
 
-  if (!apiKey) {
-    return { success: false, message: 'Clé API Brevo manquante. Veuillez la configurer dans les paramètres.' };
-  }
-
   const senderName = params.senderName || defaultName || 'Club Joker ESEN';
   const senderEmail = params.senderEmail || defaultEmail;
-
-  if (!senderEmail) {
-    return {
-      success: false,
-      message: 'Veuillez renseigner une adresse e-mail expéditeur (autorisée dans votre compte Brevo).',
-    };
-  }
 
   const validRecipients = params.recipients
     .map(e => e.trim().toLowerCase())
@@ -425,13 +414,13 @@ export async function sendNewsletterBroadcast(params: {
     return { success: false, message: 'Aucun destinataire valide sélectionné.' };
   }
 
-  // 0. Try serverless backend API endpoint first if available
+  // 0. Try serverless backend API endpoint first if available (uses server-side BREVO_API_KEY)
   try {
     const apiRes = await fetch('/api/send-email', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'api-key': apiKey,
+        ...(apiKey ? { 'api-key': apiKey } : {}),
       },
       body: JSON.stringify({
         subject: params.subject,
@@ -454,6 +443,10 @@ export async function sendNewsletterBroadcast(params: {
     }
   } catch (_) {
     // Fallback to direct client-side Brevo API fetch if serverless endpoint is not hosted
+  }
+
+  if (!apiKey) {
+    return { success: false, message: 'Clé API Brevo manquante. Veuillez la configurer dans Vercel (BREVO_API_KEY) ou dans les paramètres.' };
   }
 
   try {

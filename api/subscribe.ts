@@ -28,9 +28,9 @@ export default async function handler(req: any, res: any) {
   const configuredListId = listId || process.env.BREVO_LIST_ID || process.env.VITE_BREVO_LIST_ID;
 
   if (!apiKey) {
-    return res.status(200).json({
-      success: true,
-      message: 'Inscription enregistrée (mode local/Supabase).',
+    return res.status(400).json({
+      success: false,
+      message: 'Clé API Brevo non configurée dans Vercel (BREVO_API_KEY).',
     });
   }
 
