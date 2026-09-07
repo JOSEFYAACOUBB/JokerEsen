@@ -6,6 +6,7 @@ export interface SubmitApplicationData {
   fullName: string;
   email: string;
   phone: string;
+  birthDate?: string;
   major: string;
   department: string;
   motivation?: string;
@@ -31,6 +32,7 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
         full_name: data.fullName,
         email: data.email,
         phone: data.phone,
+        birth_date: data.birthDate || null,
         major: data.major,
         department: data.department,
         motivation: data.motivation || '',
@@ -48,6 +50,7 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
       full_name: data.fullName,
       email: data.email,
       phone: data.phone,
+      birth_date: data.birthDate || null,
       major: data.major,
       department: data.department,
       motivation: data.motivation || '',

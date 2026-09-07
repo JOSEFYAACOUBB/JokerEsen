@@ -35,7 +35,7 @@ export function getBrevoConfig(): BrevoConfig {
   const envKey = (import.meta as any).env?.VITE_BREVO_API_KEY || '';
   const envListId = (import.meta as any).env?.VITE_BREVO_LIST_ID;
   const envSenderName = (import.meta as any).env?.VITE_BREVO_SENDER_NAME || 'Club Joker ESEN';
-  const envSenderEmail = (import.meta as any).env?.VITE_BREVO_SENDER_EMAIL || '';
+  const envSenderEmail = (import.meta as any).env?.VITE_BREVO_SENDER_EMAIL || 'youssef.dj003@gmail.com';
 
   const savedKey = localStorage.getItem(LOCAL_STORAGE_BREVO_KEY) || envKey;
   const savedListId = localStorage.getItem(LOCAL_STORAGE_BREVO_LIST_KEY)
@@ -95,6 +95,36 @@ export function getCachedSubscribers(): NewsletterSubscriber[] {
 }
 
 /**
+ * Fetch all subscribers from Supabase, syncing with local cache
+ */
+export async function fetchSubscribers(): Promise<NewsletterSubscriber[]> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('newsletter_subscribers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const formatted: NewsletterSubscriber[] = data.map((item: any) => ({
+          id: item.id,
+          email: item.email,
+          created_at: item.created_at,
+          source: item.source || 'website_agenda',
+          synced_to_brevo: item.synced_to_brevo ?? true,
+        }));
+        localStorage.setItem(LOCAL_STORAGE_SUBSCRIBERS_KEY, JSON.stringify(formatted));
+        return formatted;
+      }
+    } catch (err) {
+      console.warn('Could not fetch subscribers from Supabase:', err);
+    }
+  }
+
+  return getCachedSubscribers();
+}
+
+/**
  * Save subscriber to local cache
  */
 export function cacheSubscriberLocally(email: string, synced: boolean = false): void {
@@ -135,7 +165,7 @@ export async function subscribeToNewsletter(
   let brevoSuccess = false;
   let isExistingContact = false;
 
-  // 1. Try Brevo API
+  // 1. Try Brevo API (Add to contacts list)
   if (apiKey) {
     try {
       const payload: Record<string, any> = {
@@ -203,6 +233,33 @@ export async function subscribeToNewsletter(
   // 3. Always cache locally
   cacheSubscriberLocally(cleanEmail, brevoSuccess);
 
+  // 4. Send instant confirmation / welcome transactional email to subscriber's inbox
+  if (!isExistingContact) {
+    try {
+      const welcomeHtml = generateJokerEmailTemplate({
+        title: 'Bienvenue au Club Joker ESEN ! 🃏',
+        badge: 'Confirmation d\'inscription',
+        subtitle: 'Ravi de vous compter parmi nos abonnés !',
+        bodyHtml: `
+          <p>Bonjour,</p>
+          <p>Merci d'avoir rejoint la newsletter et le canal d'alertes du <strong>Club Joker ESEN</strong> !</p>
+          <p>Vous recevrez désormais en avant-première nos invitations aux soirées, les ouvertures de billetteries gratuites, nos workshops et toutes les actualités exclusives du club.</p>
+          <p>À très bientôt sur le campus !</p>
+        `,
+        ctaText: 'Voir nos Événements',
+        ctaUrl: 'https://jokeresen.tn/#event',
+      });
+
+      await sendNewsletterBroadcast({
+        subject: '🃏 Bienvenue au Club Joker ESEN !',
+        htmlContent: welcomeHtml,
+        recipients: [cleanEmail],
+      });
+    } catch (welcomeErr) {
+      console.warn('Could not send welcome email via Brevo:', welcomeErr);
+    }
+  }
+
   if (isExistingContact) {
     return {
       success: true,
@@ -213,7 +270,7 @@ export async function subscribeToNewsletter(
 
   return {
     success: true,
-    message: 'Merci ! Votre inscription aux alertes et à la newsletter a bien été confirmée.',
+    message: 'Merci ! Un e-mail de confirmation vous a été envoyé et votre inscription est validée.',
   };
 }
 

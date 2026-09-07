@@ -91,15 +91,15 @@ export const PartnersCarousel: React.FC<PartnersCarouselProps> = ({ partnersList
       : [...partners, ...partners, ...partners];
 
   return (
-    <div className="w-full bg-[#140A10] pt-8 sm:pt-10 pb-10 sm:pb-12 border-t border-b border-[#F3C4A0]/15 overflow-hidden relative">
+    <div className="w-full bg-[#FAF7F5] pt-8 sm:pt-10 pb-10 sm:pb-12 border-t border-b border-[#E5DDD7] overflow-hidden relative">
       {/* Subtle background glow */}
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-20 pointer-events-none blur-3xl opacity-15"
-        style={{ background: 'radial-gradient(ellipse, #B93A34 0%, transparent 70%)' }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-20 pointer-events-none blur-3xl opacity-10"
+        style={{ background: 'radial-gradient(ellipse, #4B5B9E 0%, transparent 70%)' }}
       />
 
       {/* Label */}
-      <p className="text-center text-[10px] sm:text-[11px] font-black uppercase tracking-[0.35em] text-[#F5EDE4]/65 mb-6">
+      <p className="text-center text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.35em] text-[#5C1F2E] mb-6 font-display">
         Partenaires &amp; Organisations Officielles
       </p>
 
@@ -110,6 +110,7 @@ export const PartnersCarousel: React.FC<PartnersCarouselProps> = ({ partnersList
             const keyId = partner.id?.toLowerCase() || partner.name.toLowerCase().replace(/[^a-z0-9]/g, '');
             const BuiltInIcon = builtInIcons[keyId];
             const displayName = partner.name || partner.short_name;
+            const hasIconOrLogo = Boolean(partner.logo_url || BuiltInIcon);
 
             return (
               <div
@@ -126,20 +127,16 @@ export const PartnersCarousel: React.FC<PartnersCarouselProps> = ({ partnersList
                       height={64}
                       loading="lazy"
                       decoding="async"
-                      className="max-w-full max-h-full object-contain filter grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 drop-shadow-md"
+                      className="max-w-full max-h-full object-contain filter grayscale opacity-45 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 drop-shadow-sm"
                     />
                   ) : BuiltInIcon ? (
                     <BuiltInIcon
-                      className="w-10 h-10 sm:w-12 sm:h-12 filter grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
-                      style={{ color: partner.svg_color || '#F3C4A0' }}
+                      className="w-10 h-10 sm:w-12 sm:h-12 filter grayscale opacity-45 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
+                      style={{ color: partner.svg_color || '#4B5B9E' }}
                     />
                   ) : (
                     <span
-                      className="font-black text-xl sm:text-2xl tracking-wider uppercase filter grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
-                      style={{
-                        fontFamily: "'Plus Jakarta Sans', sans-serif",
-                        color: partner.svg_color || '#F3C4A0',
-                      }}
+                      className="font-bold text-lg sm:text-xl tracking-wider uppercase text-[#2A2020] opacity-60 group-hover:opacity-100 group-hover:text-[#4B5B9E] transition-all duration-300 font-display"
                     >
                       {partner.short_name || partner.name}
                     </span>
@@ -147,24 +144,25 @@ export const PartnersCarousel: React.FC<PartnersCarouselProps> = ({ partnersList
 
                   {/* Dynamic Glow on Hover */}
                   <div
-                    className="absolute inset-0 rounded-full blur-xl opacity-0 group-hover:opacity-35 transition-opacity duration-500 pointer-events-none -z-10"
-                    style={{ backgroundColor: partner.svg_color || '#F3C4A0' }}
+                    className="absolute inset-0 rounded-full blur-xl opacity-0 group-hover:opacity-25 transition-opacity duration-500 pointer-events-none -z-10"
+                    style={{ backgroundColor: partner.svg_color || '#4B5B9E' }}
                   />
                 </div>
 
-                {/* ── CLEAN FLOATING NAME ABOVE LOGO (NO CADRE / NO CLIP) ── */}
-                <div className="absolute -top-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 -translate-y-1 group-hover:translate-y-0 transition-all duration-300 pointer-events-none z-30 whitespace-nowrap text-center">
-                  <span
-                    className="text-[11px] font-black uppercase tracking-wider transition-colors"
-                    style={{
-                      fontFamily: "'Plus Jakarta Sans', sans-serif",
-                      color: partner.svg_color || '#F3C4A0',
-                      textShadow: '0 2px 10px rgba(0,0,0,1), 0 0 18px rgba(0,0,0,0.95)',
-                    }}
-                  >
-                    {displayName}
-                  </span>
-                </div>
+                {/* ── CLEAN FLOATING NAME ABOVE LOGO (Only if logo/icon present to avoid ghost text) ── */}
+                {hasIconOrLogo && (
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 -translate-y-1 group-hover:translate-y-0 transition-all duration-300 pointer-events-none z-30 whitespace-nowrap text-center">
+                    <span
+                      className="text-[11px] font-bold uppercase tracking-wider transition-colors text-[#2A2020] px-2 py-0.5 bg-[#FFFFFF]/90 rounded-md shadow-sm border border-[#E5DDD7]"
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        color: partner.svg_color && partner.svg_color !== '#F3C4A0' ? partner.svg_color : '#4B5B9E',
+                      }}
+                    >
+                      {displayName}
+                    </span>
+                  </div>
+                )}
 
               </div>
             );

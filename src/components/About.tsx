@@ -46,34 +46,46 @@ export const About: React.FC<AboutProps> = ({ initialData }) => {
   return (
     <section
       id="about"
-      className="py-16 sm:py-24 bg-[#140B10] relative overflow-hidden border-b border-[#F3C4A0]/15"
+      className="py-16 sm:py-24 bg-[#FAF7F5] text-[#2A2020] relative overflow-hidden border-b border-[#EDE4DE]"
     >
+      {/* Dot-grid texture in upper background zone */}
+      <div className="dot-grid" />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 
-        {/* ── Section Header - Standardized Left Aligned (Global Rules 1 & 2) ── */}
-        <div className="flex flex-col items-start justify-start gap-4 mb-12 sm:mb-16 animate-fade-up">
-          <div className="chapter-badge">
+        {/* ── Section Header (Crimson Red Accent #A73541) ── */}
+        <div className="relative flex flex-col items-start justify-start gap-4 mb-12 sm:mb-16 animate-fade-up">
+          {/* Faded background numeral — Global Rule 4 */}
+          <span className="section-numeral numeral-s1" aria-hidden="true">01</span>
+          {/* Soft red glow behind headline — Global Rule 4 */}
+          <div className="section-glow glow-s1" aria-hidden="true" />
+
+          <div className="chapter-badge chapter-badge-s1 relative z-10">
             <span className="chapter-badge-dot" />
             <span>{data.badge || '01 · QUI SOMMES-NOUS'}</span>
           </div>
 
-          <h2 className="section-headline max-w-3xl">
+          <h2 className="section-headline headline-s1 max-w-3xl relative z-10">
             {data.title_prefix || "Plus Qu'Un Club, "}
-            <span className="text-[#F3C4A0]">
+            <span>
               {data.title_highlight || 'Une Aventure Humaine.'}
             </span>
           </h2>
+
+          <p className="section-subtitle relative z-10">
+            Fondé en 2016 à l'ESEN Manouba, nous faisons vibrer le campus à travers des événements uniques et une vraie synergie d'équipe.
+          </p>
         </div>
 
         {/* ── BENTO GRID ── */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
 
-          {/* CARD 1: Main Story (Global Rule 8 - Flat Dark Surface) */}
+          {/* CARD 1: Main Story (Elevation 2 — featured, shadow only) */}
           <div
-            className="lg:col-span-2 lg:row-span-2 group relative rounded-3xl overflow-hidden p-6 sm:p-8 md:p-10 flex flex-col justify-between transition-all duration-400 hover:border-[#B93A34]/50 bg-[#1A0E15] border border-[#F3C4A0]/20 shadow-xl animate-fade-up stagger-1"
+            className="lg:col-span-2 lg:row-span-2 group relative rounded-3xl overflow-hidden p-6 sm:p-8 md:p-10 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_rgba(43,15,18,0.16)] bg-[#FFFFFF] shadow-[0_8px_28px_rgba(43,15,18,0.12)] animate-fade-up stagger-1"
           >
-            {/* Background image overlay with functional text readability gradient */}
-            <div className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity duration-700 pointer-events-none">
+            {/* Background image overlay with functional light text readability gradient */}
+            <div className="absolute inset-0 opacity-15 group-hover:opacity-25 transition-opacity duration-300 pointer-events-none">
               <img
                 src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=70&w=680"
                 alt="JokerEsen Team"
@@ -83,83 +95,78 @@ export const About: React.FC<AboutProps> = ({ initialData }) => {
                 decoding="async"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#140B10] via-[#140B10]/80 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#FFFFFF] via-[#FFFFFF]/80 to-transparent" />
             </div>
 
             {/* Content Top */}
             <div className="relative z-10 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-[#B93A34]/20 text-[#F3C4A0] border border-[#B93A34]/40">
+                <span className="px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-[#A73541]/10 text-[#A73541] border border-[#A73541]/30 badge-shadow">
                   {data.story_badge || '♠ Notre Histoire'}
                 </span>
 
-                <div className="flex items-center gap-1.5 text-xs text-[#F3C4A0]/70 font-bold uppercase tracking-wider">
-                  <MapPin className="w-3.5 h-3.5 text-[#B93A34]" />
+                <div className="flex items-center gap-1.5 text-xs text-[#2A2020]/70 font-bold uppercase tracking-wider">
+                  <MapPin className="w-3.5 h-3.5 text-[#A73541]" />
                   {data.story_location || 'ESEN Manouba'}
                 </div>
               </div>
 
-              <h3 className="text-xl sm:text-3xl lg:text-4xl font-black text-[#F5EDE4] font-display uppercase leading-tight pt-2">
+              <h3 className="text-xl sm:text-3xl lg:text-4xl font-black text-[#2A2020] font-display uppercase leading-tight pt-2">
                 {data.story_heading || "Éveiller l'énergie créative de chaque étudiant."}
               </h3>
 
-              <p className="text-xs sm:text-sm md:text-base text-[#F5EDE4]/80 leading-relaxed pt-1">
+              <p className="text-xs sm:text-sm md:text-base text-[#2A2020]/80 leading-relaxed pt-1">
                 {data.story_text || (
                   <>
-                    Fondé en <strong className="text-[#F3C4A0] font-bold">{data.founded_year || '2016'}</strong> au sein de l'École Supérieure d'Économie Numérique, <strong className="text-[#B93A34]">JokerEsen</strong> tire son nom du Joker — symbole d'imprévisibilité joyeuse et d'atout gagnant. Notre mission est de faire vibrer le campus à travers des soirées mythiques, des projets ambitieux et une véritable synergie d'équipe.
+                    Fondé en <strong className="text-[#A73541] font-bold">{data.founded_year || '2016'}</strong> au sein de l'École Supérieure d'Économie Numérique, <strong className="text-[#A73541]">JokerEsen</strong> tire son nom du Joker — symbole d'imprévisibilité joyeuse et d'atout gagnant. Notre mission est de faire vibrer le campus à travers des soirées mythiques, des projets ambitieux et une véritable synergie d'équipe.
                   </>
                 )}
               </p>
             </div>
           </div>
 
-          {/* CARD 2: Stats Grid with Visual Hierarchy (Section 01 requirement) */}
+          {/* CARD 2: Stats Grid with Visual Hierarchy (Emphasize 500+ & 50+ / De-emphasize 2016 & 100%) */}
           <div className="lg:col-span-2 grid grid-cols-2 gap-3 sm:gap-4">
             {stats.map((stat, idx) => {
               const IconComp = (stat.icon && iconMap[stat.icon]) || Trophy;
               // Strong headline stats: "500+" and "50+"
-              const isHeadlineStat = stat.number.includes('500') || stat.number.includes('50+');
+              const isHeadlineStat = stat.number.includes('500') || stat.number.includes('50+') || stat.number.includes('99+') || stat.number.includes('70+');
 
               return (
                 <div
                   key={stat.id || `${stat.label}-${idx}`}
-                  className={`group relative rounded-3xl p-4 sm:p-6 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 overflow-hidden bg-[#1A0E15] border border-[#F3C4A0]/18 animate-fade-up stagger-${idx + 2} ${
-                    isHeadlineStat ? 'ring-1 ring-[#B93A34]/30' : 'opacity-85'
+                  className={`group relative rounded-3xl p-4 sm:p-6 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 overflow-hidden bg-[#FFFFFF] border border-[#EDE4DE] shadow-[0_4px_16px_rgba(43,15,18,0.08)] hover:shadow-[0_12px_32px_rgba(43,15,18,0.16)] animate-fade-up stagger-${idx + 2} ${
+                    isHeadlineStat ? 'ring-2 ring-[#A73541]/25' : 'opacity-90'
                   }`}
                 >
                   <div
-                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 transition-transform duration-300 group-hover:scale-110"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 transition-transform duration-200 group-hover:scale-105"
                     style={{
-                      background: `${stat.color}20`,
-                      border: `1px solid ${stat.color}45`,
+                      background: 'rgba(167, 53, 65, 0.08)',
+                      border: '1px solid rgba(167, 53, 65, 0.25)',
                     }}
                   >
-                    <IconComp className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: stat.color }} />
+                    <IconComp className="w-4 h-4 sm:w-5 sm:h-5 text-[#A73541]" />
                   </div>
 
                   <div>
                     <h4
                       className={`font-display uppercase tracking-tight ${
                         isHeadlineStat
-                          ? 'text-3xl sm:text-5xl font-black'
-                          : 'text-2xl sm:text-3xl font-bold opacity-80'
+                          ? 'text-4xl sm:text-5xl font-black text-[#A73541]'
+                          : 'text-2xl sm:text-3xl font-bold text-[#2A2020]/75'
                       }`}
-                      style={{
-                        color: stat.color,
-                        textShadow: isHeadlineStat ? `0 0 24px ${stat.color}40` : 'none',
-                      }}
                     >
                       {stat.number}
                     </h4>
-                    <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#F5EDE4]/70 mt-1">
+                    <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#2A2020]/70 mt-1">
                       {stat.label}
                     </p>
                   </div>
 
-                  {/* Corner Suit Accent watermark */}
+                  {/* Corner Suit Accent watermark in Crimson Red */}
                   <div
-                    className="absolute top-2 right-2 text-2xl select-none pointer-events-none opacity-10 group-hover:opacity-20 transition-opacity"
-                    style={{ color: stat.color }}
+                    className="absolute top-2 right-2 text-2xl select-none pointer-events-none text-[#A73541] opacity-[0.12] group-hover:opacity-[0.25] transition-opacity"
                   >
                     {['♠', '♥', '♦', '♣'][idx % 4]}
                   </div>
@@ -168,33 +175,34 @@ export const About: React.FC<AboutProps> = ({ initialData }) => {
             })}
           </div>
 
-          {/* CARD 3: Pillars & Suits Interactive Showcase (4 Value Cards) */}
+          {/* CARD 3: Pillars & Suits Interactive Showcase (4 Value Cards in Coral Accent) */}
           <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 pt-2">
             {pillars.map((pillar, idx) => {
               const isHovered = activeSuit === pillar.id;
+              // Stagger every other card downward (Global Rule 5)
+              const isEvenCard = idx % 2 === 1;
 
               return (
                 <div
                   key={pillar.id || pillar.name}
                   onMouseEnter={() => setActiveSuit(pillar.id)}
                   onMouseLeave={() => setActiveSuit('all')}
-                  className={`group relative rounded-3xl p-5 sm:p-6 flex flex-col justify-between transition-all duration-300 cursor-pointer overflow-hidden min-h-[190px] sm:min-h-[220px] bg-[#1A0E15] animate-fade-up stagger-${(idx % 4) + 1}`}
+                  className={`group relative rounded-3xl p-5 sm:p-6 flex flex-col justify-between transition-all duration-200 cursor-pointer overflow-hidden min-h-[190px] sm:min-h-[220px] bg-[#FFFFFF] animate-fade-up stagger-${(idx % 4) + 1}${isEvenCard ? ' card-stagger-even' : ''}`}
                   style={{
                     border: isHovered
-                      ? `1.5px solid ${pillar.color}`
-                      : '1px solid rgba(243,196,160,0.18)',
+                      ? '1.5px solid #A73541'
+                      : '1px solid #EDE4DE',
                     boxShadow: isHovered
-                      ? `0 12px 28px ${pillar.color}25`
-                      : '0 4px 16px rgba(0,0,0,0.3)',
-                    transform: isHovered ? 'translateY(-4px)' : 'none',
+                      ? '0 12px 32px rgba(43, 15, 18, 0.16)'
+                      : '0 4px 16px rgba(43, 15, 18, 0.08)',
+                    transform: isHovered ? 'translateY(-4px)' : (isEvenCard ? 'translateY(28px)' : 'none'),
                   }}
                 >
-                  {/* Suit watermark */}
+                  {/* Suit watermark — enlarged for Global Rule 7 */}
                   <div
-                    className="absolute -right-2 -bottom-4 text-7xl font-black select-none pointer-events-none transition-opacity duration-300"
+                    className="absolute -right-3 -bottom-5 text-9xl font-black select-none pointer-events-none transition-opacity duration-200 text-[#A73541]"
                     style={{
-                      color: pillar.color,
-                      opacity: isHovered ? 0.25 : 0.08,
+                      opacity: isHovered ? 0.28 : 0.10,
                     }}
                   >
                     {pillar.suit}
@@ -203,18 +211,13 @@ export const About: React.FC<AboutProps> = ({ initialData }) => {
                   {/* Top Bar */}
                   <div className="flex justify-between items-center mb-4">
                     <span
-                      className="text-2xl font-black"
-                      style={{ color: pillar.color }}
+                      className="text-2xl font-black text-[#A73541]"
                     >
                       {pillar.suit}
                     </span>
 
                     <span
-                      className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider text-[#F5EDE4]"
-                      style={{
-                        background: `${pillar.color}40`,
-                        border: `1px solid ${pillar.color}80`,
-                      }}
+                      className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider text-[#A73541] bg-[#A73541]/08 border border-[#A73541]/25 badge-shadow"
                     >
                       {pillar.name}
                     </span>
@@ -222,19 +225,18 @@ export const About: React.FC<AboutProps> = ({ initialData }) => {
 
                   {/* Text */}
                   <div className="relative z-10 space-y-2">
-                    <h4 className="text-lg sm:text-xl font-black text-[#F5EDE4] font-display uppercase tracking-wide group-hover:text-[#F3C4A0] transition-colors">
+                    <h4 className="text-lg sm:text-xl font-black text-[#2A2020] font-display uppercase tracking-wide group-hover:text-[#A73541] transition-colors">
                       {pillar.title}
                     </h4>
 
-                    <p className="text-xs text-[#F5EDE4]/75 leading-relaxed">
+                    <p className="text-xs text-[#2A2020]/75 leading-relaxed">
                       {pillar.desc}
                     </p>
                   </div>
 
-                  {/* Bottom Indicator line */}
+                  {/* Bottom Indicator line — only visible on hover, never persists (fixes BÉNÉVOLAT stuck state) */}
                   <div
-                    className="h-1 w-0 group-hover:w-full rounded-full transition-all duration-400 mt-4"
-                    style={{ background: pillar.color }}
+                    className="h-0.5 w-0 group-hover:w-full rounded-full transition-all duration-300 mt-4 bg-[#A73541]"
                   />
                 </div>
               );

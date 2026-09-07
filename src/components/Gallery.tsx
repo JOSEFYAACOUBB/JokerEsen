@@ -283,73 +283,120 @@ export const Gallery: React.FC = () => {
   return (
     <section
       id="gallery"
-      className="py-16 sm:py-24 lg:py-28 bg-[#140B10] relative overflow-hidden border-b border-[#F3C4A0]/15"
+      className="pb-16 sm:pb-24 lg:pb-28 bg-[#FAF7F5] text-[#2A2020] relative overflow-hidden border-b border-[#E5DDD7]"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      {/* ── TILED PHOTO COLLAGE MOSAIC HEADER (~40-50vh desktop, ~30vh mobile) ── */}
+      <div className="w-full h-[30vh] sm:h-[45vh] lg:h-[50vh] relative overflow-hidden bg-[#1A1013] mb-8 sm:mb-12">
+        {/* Tightly Tiled 6-Photo Grid */}
+        <div className="grid grid-cols-3 md:grid-cols-6 h-full w-full gap-0 overflow-hidden select-none">
+          <div className="col-span-2 md:col-span-2 h-full overflow-hidden relative">
+            <img
+              src={optimizeCloudinaryUrl(albums[0]?.coverImage || 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&q=80&w=800', { width: 800, quality: 'auto' })}
+              alt="Joker Event 1"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="col-span-1 md:col-span-1 h-full overflow-hidden relative hidden sm:block">
+            <img
+              src={optimizeCloudinaryUrl(albums[1]?.coverImage || 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600', { width: 600, quality: 'auto' })}
+              alt="Joker Event 2"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="col-span-1 md:col-span-1 h-full overflow-hidden relative">
+            <img
+              src={optimizeCloudinaryUrl(albums[2]?.coverImage || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=600', { width: 600, quality: 'auto' })}
+              alt="Joker Event 3"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="col-span-1 md:col-span-1 h-full overflow-hidden relative hidden md:block">
+            <img
+              src={optimizeCloudinaryUrl(albums[3]?.coverImage || 'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=600', { width: 600, quality: 'auto' })}
+              alt="Joker Event 4"
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="col-span-1 md:col-span-1 h-full overflow-hidden relative hidden md:block">
+            <img
+              src={optimizeCloudinaryUrl(albums[4]?.coverImage || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&q=80&w=600', { width: 600, quality: 'auto' })}
+              alt="Joker Event 5"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
 
-        {/* ── Section Header - Standardized Left Aligned (Global Rules 1 & 2) ── */}
-        <div className="flex flex-col items-start justify-start gap-4 mb-10 sm:mb-14 animate-fade-up">
-          
-          {/* Top-Left Badge */}
-          <div className="chapter-badge">
-            <span className="chapter-badge-dot" />
+        {/* Full-bleed dark gradient scrim over entire collage (Global Rule 8 Exception) */}
+        <div
+          className="absolute inset-0 pointer-events-none z-10"
+          style={{
+            background: 'linear-gradient(to top, rgba(26,16,19,0.88) 0%, rgba(26,16,19,0.45) 50%, rgba(26,16,19,0.2) 100%)',
+          }}
+        />
+
+        {/* Top-Left Badge overlaid on photo collage — High contrast pill */}
+        <div className="absolute top-6 left-6 sm:left-12 z-20">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[rgba(26,16,19,0.7)] text-white border border-white/20 backdrop-blur-md shadow-md text-xs font-bold font-mono tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-[#4B5B9E]" />
             <span>04 &middot; ARCHIVES &amp; SOUVENIRS</span>
           </div>
-
-          {/* Left-Aligned Big Heading */}
-          <h2 className="section-headline">
-            Galerie Événements &amp; Souvenirs
-          </h2>
-
-          {/* Left-Aligned Subtitle */}
-          <p className="text-[#F5EDE4]/85 text-xs sm:text-sm md:text-base max-w-xl leading-relaxed">
-            Revivez l'énergie unique de nos soirées, masterclasses et teambuildings à l'ESEN Manouba.
-          </p>
-
-          {/* ── Category Filter (Distinct Outlined Pill Style) ── */}
-          {albums.length > 0 && (
-            <div className="pt-3">
-              <div className="inline-flex items-center flex-wrap gap-2">
-                {categories.map((cat) => {
-                  const isActive = activeCategory === cat;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setActiveCategory(cat)}
-                      className={`px-4 sm:px-5 py-2 text-xs font-bold uppercase rounded-full transition-all duration-200 cursor-pointer ${
-                        isActive
-                          ? 'bg-[#B93A34] text-white border border-[#B93A34] shadow-md scale-105'
-                          : 'bg-transparent text-[#F5EDE4]/70 border border-[#F3C4A0]/25 hover:border-[#F3C4A0]/60 hover:text-white'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
         </div>
+
+        {/* Bottom-Left Overlaid Title */}
+        <div className="absolute bottom-6 sm:bottom-10 left-6 sm:left-12 right-6 max-w-4xl space-y-2 z-20">
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white font-display uppercase tracking-tight leading-tight drop-shadow-lg">
+            GALERIE ÉVÉNEMENTS &amp; SOUVENIRS
+          </h2>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 space-y-8">
+
+        {/* ── Category Filter Bar immediately below Full-Bleed Banner (no separate subtitle block) ── */}
+        {albums.length > 0 && (
+          <div className="flex items-center justify-between flex-wrap gap-4 border-b border-[#EDE4DE] pb-4">
+            <div className="inline-flex items-center flex-wrap gap-2">
+              {categories.map((cat) => {
+                const isActive = activeCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-4 sm:px-5 py-2 text-xs font-bold uppercase rounded-full transition-all duration-200 cursor-pointer ${
+                      isActive
+                        ? 'bg-[#4B5B9E] text-white border border-[#4B5B9E] shadow-sm scale-105'
+                        : 'bg-white text-[#2A2020]/75 border border-[#EDE4DE] hover:border-[#4B5B9E] hover:text-[#4B5B9E]'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-[#5C1F2E] font-semibold">
+              {filteredAlbums.length} album{filteredAlbums.length > 1 ? 's' : ''} d'archives
+            </p>
+          </div>
+        )}
 
         {/* ── Responsive Grid of Albums ── */}
         {loading ? (
-          <div className="py-20 text-center text-[#F3C4A0]/60 space-y-3">
-            <div className="w-8 h-8 border-2 border-[#B93A34] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="py-20 text-center text-[#4B5B9E] space-y-3">
+            <div className="w-8 h-8 border-2 border-[#4B5B9E] border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-xs font-bold uppercase tracking-wider">
               Chargement des souvenirs...
             </p>
           </div>
         ) : filteredAlbums.length === 0 ? (
           /* Empty State Fallback (Global Rule 4) */
-          <div className="py-16 sm:py-20 text-center rounded-3xl bg-[#1A0E15] border border-[#F3C4A0]/20 max-w-lg mx-auto p-8 space-y-4 shadow-xl animate-fade-up">
-            <div className="text-4xl select-none text-[#F3C4A0]/60 mx-auto">
-              ♣️
+          <div className="py-16 sm:py-20 text-center rounded-3xl bg-[#FFFFFF] border border-[#EDE4DE] shadow-[0_4px_16px_rgba(43,15,18,0.08)] max-w-lg mx-auto p-8 space-y-4 animate-fade-up">
+            <div className="text-4xl select-none text-[#4B5B9E] mx-auto">
+              &#9827;&#65039;
             </div>
-            <h3 className="text-lg sm:text-xl font-black uppercase text-[#F5EDE4] font-display">
+            <h3 className="text-lg sm:text-xl font-black uppercase text-[#2A2020] font-display">
               {albums.length === 0 ? 'Aucun album photo pour le moment' : 'Aucune photo dans cette catégorie'}
             </h3>
-            <p className="text-xs sm:text-sm text-[#F5EDE4]/70 max-w-sm mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#5C1F2E] max-w-sm mx-auto leading-relaxed">
               {albums.length === 0
                 ? 'Les albums photos officiels des événements et teambuildings seront bientôt publiés par le club Joker ESEN !'
                 : 'Sélectionnez "Tous" pour afficher l\'ensemble de nos albums disponibles.'}
@@ -357,7 +404,7 @@ export const Gallery: React.FC = () => {
             {activeCategory !== 'Tous' && (
               <button
                 onClick={() => setActiveCategory('Tous')}
-                className="mt-2 px-5 py-2 rounded-full bg-[#B93A34] hover:bg-[#E05A52] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                className="mt-2 px-5 py-2 rounded-full bg-[#4B5B9E] hover:bg-[#3A4A8D] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Voir tous les albums
               </button>
@@ -369,16 +416,16 @@ export const Gallery: React.FC = () => {
               const suitSymbol = ['♠', '♥', '♦', '♣'][idx % 4];
               const tagColor =
                 album.category === 'Soirées'
-                  ? '#B93A34'
+                  ? '#A73541'
                   : album.category === 'Workshops'
-                  ? '#E05A52'
-                  : '#E87A5D';
+                  ? '#4B5B9E'
+                  : '#7D3F4A';
 
               return (
                 <div
                   key={album.id}
                   onClick={() => openAlbum(album)}
-                  className="gallery-card group relative rounded-3xl overflow-hidden cursor-pointer shadow-xl min-h-[320px] sm:min-h-[360px] flex flex-col justify-between p-6 bg-[#1A0E15] border border-[#F3C4A0]/18 hover:border-[#B93A34]/50 animate-fade-up"
+                  className="gallery-card group relative rounded-3xl overflow-hidden cursor-pointer shadow-[0_4px_16px_rgba(43,15,18,0.08)] hover:shadow-[0_12px_32px_rgba(43,15,18,0.16)] min-h-[320px] sm:min-h-[360px] flex flex-col justify-between p-6 bg-[#FFFFFF] border border-[#EDE4DE] hover:border-[#4B5B9E]/60 animate-fade-up hover:-translate-y-1 transition-all duration-200"
                 >
                   {/* Photo with zoom effect */}
                   <img
@@ -388,26 +435,26 @@ export const Gallery: React.FC = () => {
                     height={360}
                     loading="lazy"
                     decoding="async"
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 brightness-90 group-hover:brightness-100"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
 
-                  {/* Dark gradient for text readability (Global Rule 8 functional gradient) */}
+                  {/* Functional readability gradient overlay on photo */}
                   <div
                     className="absolute inset-0"
                     style={{
-                      background: 'linear-gradient(to top, rgba(14,8,12,0.96) 0%, rgba(14,8,12,0.45) 50%, rgba(14,8,12,0.7) 100%)',
+                      background: 'linear-gradient(to top, rgba(42,32,32,0.92) 0%, rgba(42,32,32,0.4) 50%, rgba(42,32,32,0.65) 100%)',
                     }}
                   />
 
-                  {/* Card-Suit Watermark on Hover (Global Rule 5) */}
-                  <div className="absolute top-1/2 right-4 -translate-y-1/2 text-7xl font-black select-none pointer-events-none opacity-0 group-hover:opacity-15 transition-opacity duration-400 text-[#F3C4A0]">
+                  {/* Card-Suit Watermark in Royal Blue (Section 04 Elevation 2) */}
+                  <div className="absolute top-1/2 right-4 -translate-y-1/2 text-7xl font-black select-none pointer-events-none opacity-0 group-hover:opacity-20 transition-opacity duration-300 text-[#4B5B9E]">
                     {suitSymbol}
                   </div>
 
                   {/* Top row: Category pill + Photo count badge */}
                   <div className="relative z-10 flex items-center justify-between">
                     <span
-                      className="px-3.5 py-1.5 text-[11px] font-black uppercase rounded-full text-white shadow-md"
+                      className="px-3.5 py-1.5 text-[11px] font-black uppercase rounded-full text-white shadow-sm"
                       style={{
                         background: tagColor,
                         letterSpacing: '0.06em',
@@ -416,24 +463,24 @@ export const Gallery: React.FC = () => {
                       {album.category}
                     </span>
 
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold text-white bg-black/60 backdrop-blur-md border border-white/10 shadow-sm">
-                      <Layers className="w-3.5 h-3.5 text-[#F3C4A0]" />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold text-white bg-black/50 backdrop-blur-md border border-white/10 shadow-sm">
+                      <Layers className="w-3.5 h-3.5 text-white" />
                       <span>{album.photos.length} photos</span>
                     </div>
                   </div>
 
                   {/* Bottom info: Album Title, Date & Action CTA */}
                   <div className="relative z-10 space-y-2 pt-16">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#F3C4A0] uppercase tracking-wider">
-                      <Calendar className="w-3.5 h-3.5 text-[#B93A34]" />
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#FAF7F5] uppercase tracking-wider">
+                      <Calendar className="w-3.5 h-3.5 text-[#4B5B9E]" />
                       <span>{album.date}</span>
                     </div>
 
-                    <h3 className="text-xl sm:text-2xl font-black text-[#F5EDE4] uppercase leading-tight group-hover:text-[#F3C4A0] transition-colors">
+                    <h3 className="text-xl sm:text-2xl font-black text-[#FFFFFF] uppercase leading-tight group-hover:text-[#FAF7F5] transition-colors">
                       {album.title}
                     </h3>
 
-                    <div className="flex items-center gap-2 text-xs font-bold text-[#F3C4A0] pt-1 group-hover:underline">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#FAF7F5] pt-1 group-hover:underline">
                       <span>Explorer l'album</span>
                       <span className="group-hover:translate-x-1.5 transition-transform font-bold">&rarr;</span>
                     </div>
@@ -454,15 +501,15 @@ export const Gallery: React.FC = () => {
           onClick={closeAlbum}
         >
           <div
-            className={`relative w-full max-w-5xl my-auto rounded-3xl bg-[#14080F] border border-[#F3C4A0]/30 flex flex-col shadow-[0_30px_90px_rgba(0,0,0,0.95)] overflow-hidden ${closeAnimating ? 'anim-modal-out' : 'anim-modal-in'}`}
+            className={`relative w-full max-w-5xl my-auto rounded-3xl bg-[#FFFFFF] border border-[#EDE4DE] flex flex-col shadow-[0_30px_90px_rgba(43,15,18,0.25)] overflow-hidden ${closeAnimating ? 'anim-modal-out' : 'anim-modal-in'}`}
             style={{ maxHeight: '92vh' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header (Fixed at Top) */}
-            <div className="shrink-0 flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#F3C4A0]/15 bg-[#1B0B15]">
+            <div className="shrink-0 flex items-center justify-between px-5 sm:px-6 py-4 border-b border-[#EDE4DE] bg-[#FFFFFF]">
               <div className="min-w-0 pr-4">
                 <div
-                  className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-[#F3C4A0]"
+                  className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-[#4B5B9E]"
                   style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                 >
                   <span>{activeAlbum.category}</span>
@@ -470,7 +517,7 @@ export const Gallery: React.FC = () => {
                   <span>{activeAlbum.date}</span>
                 </div>
                 <h3
-                  className="text-lg sm:text-xl font-black text-[#F5EDE4] uppercase truncate mt-0.5"
+                  className="text-lg sm:text-xl font-black text-[#2A2020] uppercase truncate mt-0.5"
                   style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '-0.01em' }}
                 >
                   {activeAlbum.title}
@@ -479,7 +526,7 @@ export const Gallery: React.FC = () => {
 
               <div className="flex items-center gap-3 shrink-0">
                 <span
-                  className="px-3.5 py-1 rounded-full bg-white/10 text-xs font-black text-[#F3C4A0] tabular-nums"
+                  className="px-3.5 py-1 rounded-full bg-[#4B5B9E]/10 text-xs font-black text-[#4B5B9E] tabular-nums border border-[#4B5B9E]/25"
                   style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                 >
                   {photoIndex + 1} / {activeAlbum.photos.length}
@@ -491,7 +538,7 @@ export const Gallery: React.FC = () => {
                     animatedClose();
                   }}
                   id="gallery-close-btn"
-                  className="w-9 h-9 rounded-full bg-white/10 text-white hover:bg-[#B93A34] flex items-center justify-center transition-colors cursor-pointer shadow-md"
+                  className="w-9 h-9 rounded-full bg-[#FAF7F5] text-[#2A2020] hover:bg-[#4B5B9E] hover:text-white flex items-center justify-center transition-colors cursor-pointer shadow-md border border-[#EDE4DE]"
                   title="Fermer (Échap)"
                 >
                   <X className="w-5 h-5" />
@@ -513,12 +560,17 @@ export const Gallery: React.FC = () => {
                 }`}
               />
 
+              {/* Single Discrete Corner Watermark Mark — Global Rule */}
+              <div className="absolute bottom-4 right-4 pointer-events-none opacity-50 backdrop-blur-sm bg-black/40 px-2.5 py-1 rounded-full border border-white/15 flex items-center gap-1.5">
+                <span className="text-[10px] font-mono font-bold text-white uppercase tracking-widest">Joker ESEN</span>
+              </div>
+
               {/* Prev / Next navigation arrows */}
               {activeAlbum.photos.length > 1 && (
                 <>
                   <button
                     onClick={prevPhoto}
-                    className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#1F0E18]/85 text-[#F5EDE4] hover:bg-[#B93A34] hover:text-white border border-[#F3C4A0]/20 flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-xl hover:scale-105"
+                    className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/90 text-[#2A2020] hover:bg-[#4B5B9E] hover:text-white border border-[#EDE4DE] flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-xl hover:scale-105"
                     title="Photo précédente (Flèche gauche)"
                   >
                     <ChevronLeft className="w-6 h-6" />
@@ -526,7 +578,7 @@ export const Gallery: React.FC = () => {
 
                   <button
                     onClick={nextPhoto}
-                    className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#1F0E18]/85 text-[#F5EDE4] hover:bg-[#B93A34] hover:text-white border border-[#F3C4A0]/20 flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-xl hover:scale-105"
+                    className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/90 text-[#2A2020] hover:bg-[#4B5B9E] hover:text-white border border-[#EDE4DE] flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-xl hover:scale-105"
                     title="Photo suivante (Flèche droite)"
                   >
                     <ChevronRight className="w-6 h-6" />
@@ -536,10 +588,10 @@ export const Gallery: React.FC = () => {
             </div>
 
             {/* Bottom Strip: Caption + Clean, 100% visible Thumbnails (No cut-off) */}
-            <div className="shrink-0 p-4 sm:p-5 bg-[#180A13] border-t border-[#F3C4A0]/15 space-y-3">
+            <div className="shrink-0 p-4 sm:p-5 bg-[#FAF7F5] border-t border-[#EDE4DE] space-y-3">
               {activeAlbum.photos[photoIndex]?.caption && (
                 <p
-                  className="text-xs sm:text-sm text-[#F5EDE4] text-center font-semibold truncate max-w-md mx-auto"
+                  className="text-xs sm:text-sm text-[#2A2020] text-center font-semibold truncate max-w-md mx-auto"
                   style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                 >
                   {activeAlbum.photos[photoIndex]?.caption}
@@ -562,8 +614,8 @@ export const Gallery: React.FC = () => {
                         }}
                         className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden shrink-0 border-2 transition-all duration-200 cursor-pointer ${
                           isActive
-                            ? 'border-[#B93A34] scale-110 opacity-100'
-                            : 'border-white/20 opacity-40 hover:opacity-90 hover:border-white/50'
+                            ? 'border-[#4B5B9E] scale-110 opacity-100'
+                            : 'border-[#EDE4DE] opacity-50 hover:opacity-90 hover:border-[#4B5B9E]/50'
                         } ${isActive ? 'anim-thumb-ring' : ''}`}
                       >
                         {/* Skeleton placeholder while image loads */}

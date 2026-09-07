@@ -10,13 +10,28 @@ export const MembershipForm: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [birthDay, setBirthDay] = useState('');
+  const [birthMonth, setBirthMonth] = useState('');
+  const [birthYear, setBirthYear] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
+    birthDate: '',
     major: defaultFormConfig.majors[0] || 'L1 Business Computing',
     department: defaultFormConfig.departments[0] || 'Événementiel & Animation',
   });
+
+  const handleDateChange = (day: string, month: string, year: string) => {
+    setBirthDay(day);
+    setBirthMonth(month);
+    setBirthYear(year);
+    if (day && month && year) {
+      setFormData((prev) => ({ ...prev, birthDate: `${day}/${month}/${year}` }));
+    } else {
+      setFormData((prev) => ({ ...prev, birthDate: '' }));
+    }
+  };
 
   useEffect(() => {
     async function loadConfig() {
@@ -48,6 +63,7 @@ export const MembershipForm: React.FC = () => {
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
+        birthDate: formData.birthDate,
         major: formData.major,
         department: formData.department,
       });
@@ -59,7 +75,7 @@ export const MembershipForm: React.FC = () => {
           particleCount: 140,
           spread: 90,
           origin: { y: 0.6 },
-          colors: ['#2563EB', '#3B82F6', '#60A5FA', '#1D4ED8', '#FFFFFF'],
+          colors: ['#A73541', '#4B5B9E', '#7D3F4A', '#E8B9A8', '#2A2020'],
         });
         setSubmitted(true);
       }
@@ -71,65 +87,68 @@ export const MembershipForm: React.FC = () => {
   };
 
   return (
-    <section id="join" className="py-16 sm:py-24 bg-[#090D16] relative overflow-hidden border-b border-[#3B82F6]/20">
-      {/* Background Decorative Floating Orbs */}
-      <div className="absolute top-10 left-10 w-48 h-48 bg-[#2563EB]/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-72 h-72 bg-[#1D4ED8]/25 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 right-1/4 w-36 h-36 bg-[#60A5FA]/15 rounded-full blur-2xl pointer-events-none" />
+    <section id="join" className="py-16 sm:py-24 bg-[#FAF7F5] relative overflow-hidden border-b border-[#EDE4DE]">
+      {/* Background Decorative Floating Orbs — Light Brand Palette */}
+      <div className="absolute top-10 left-10 w-48 h-48 bg-[#A73541]/8 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-72 h-72 bg-[#4B5B9E]/8 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 right-1/4 w-36 h-36 bg-[#E8B9A8]/15 rounded-full blur-2xl pointer-events-none" />
+
+      {/* Dot-grid texture background */}
+      <div className="dot-grid opacity-20 pointer-events-none" aria-hidden="true" />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
-        {/* Main Split Card Layout */}
-        <div className="rounded-[28px] sm:rounded-[36px] bg-[#0F172A] p-2.5 sm:p-5 border border-[#1E293B] shadow-[0_30px_90px_rgba(0,0,0,0.6)] grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
+        {/* Main Split Card Layout — Light Theme */}
+        <div className="rounded-[28px] sm:rounded-[36px] bg-[#FFFFFF] p-2.5 sm:p-5 border border-[#E5DDD7] shadow-[0_8px_32px_rgba(43,15,18,0.06)] grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
           
-          {/* ── LEFT COLUMN: Blue Glass Welcome Panel ── */}
-          <div className="lg:col-span-5 rounded-[22px] sm:rounded-[28px] bg-gradient-to-b from-[#1E3A8A] via-[#1E293B] to-[#0F172A] p-6 sm:p-8 lg:p-10 flex flex-col justify-between relative overflow-hidden border border-[#3B82F6]/30 min-h-[200px] sm:min-h-[280px] lg:min-h-[480px]">
+          {/* ── LEFT COLUMN: Warm Light Welcome Panel ── */}
+          <div className="lg:col-span-5 rounded-[22px] sm:rounded-[28px] bg-gradient-to-b from-[#FAF7F5] via-[#F0EBE7] to-[#FAF7F5] p-6 sm:p-8 lg:p-10 flex flex-col justify-between relative overflow-hidden border border-[#E5DDD7] min-h-[200px] sm:min-h-[280px] lg:min-h-[480px]">
             
             {/* Background pattern lines */}
-            <div className="absolute -right-12 top-1/3 w-44 h-44 opacity-20 pointer-events-none">
-              <div className="w-full h-full border-4 border-dashed border-[#60A5FA] rounded-full animate-spin-slow" />
+            <div className="absolute -right-12 top-1/3 w-44 h-44 opacity-15 pointer-events-none">
+              <div className="w-full h-full border-4 border-dashed border-[#A73541] rounded-full animate-spin-slow" />
             </div>
 
             {/* Top Navigation Arrow */}
             <div className="flex items-center justify-between relative z-10">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#1E293B]/80 backdrop-blur-md border border-[#3B82F6]/40 flex items-center justify-center text-[#60A5FA] shadow-md hover:scale-105 transition-transform cursor-pointer">
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-[#60A5FA]" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#FFFFFF] border border-[#E5DDD7] flex items-center justify-center text-[#A73541] shadow-sm hover:scale-105 transition-transform cursor-pointer">
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-[#A73541]" />
               </div>
             </div>
 
             {/* Middle Welcome Text */}
             <div className="relative z-10 space-y-2 sm:space-y-3 my-auto py-4 sm:py-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#3B82F6]/20 border border-[#60A5FA]/30 text-[#93C5FD] text-[10px] font-bold tracking-widest uppercase">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#60A5FA] animate-pulse" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#A73541]/10 border border-[#A73541]/25 text-[#A73541] text-[10px] font-bold tracking-widest uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#A73541] animate-pulse" />
                 <span>{formConfig.welcome_badge || '05 · RECRUTEMENT 2026'}</span>
               </div>
-              <p className="text-[10px] sm:text-xs font-bold text-[#93C5FD] tracking-wider uppercase">
+              <p className="text-[10px] sm:text-xs font-bold text-[#5C1F2E] tracking-wider uppercase">
                 {formConfig.welcome_subtitle || 'Salut & Bienvenue !'}
               </p>
-              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#FFFFFF] font-display uppercase tracking-tight leading-tight sm:leading-none">
+              <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-[#A73541] font-display uppercase tracking-tight leading-tight sm:leading-none">
                 {formConfig.welcome_title || "Rejoins L'Aventure"}
               </h2>
             </div>
 
           </div>
 
-          {/* ── RIGHT COLUMN: Clean White Form Panel ── */}
-          <div className="lg:col-span-7 rounded-[22px] sm:rounded-[28px] bg-[#FFFFFF] p-6 sm:p-8 lg:p-12 flex flex-col justify-between relative shadow-lg">
+          {/* ── RIGHT COLUMN: Clean Light Form Panel ── */}
+          <div className="lg:col-span-7 rounded-[22px] sm:rounded-[28px] bg-[#FFFFFF] p-6 sm:p-8 lg:p-12 flex flex-col justify-between relative border border-[#EDE4DE] shadow-sm">
             
             {submitted ? (
               <div className="my-auto py-12 text-center space-y-6">
-                <div className="w-20 h-20 bg-[#EFF6FF] rounded-full flex items-center justify-center mx-auto shadow-inner border border-[#3B82F6]/30">
-                  <CheckCircle2 className="w-10 h-10 text-[#2563EB]" />
+                <div className="w-20 h-20 bg-[#FAF7F5] rounded-full flex items-center justify-center mx-auto shadow-inner border border-[#A73541]/30">
+                  <CheckCircle2 className="w-10 h-10 text-[#A73541]" />
                 </div>
-                <h3 className="text-3xl font-black text-[#0F172A] font-display uppercase tracking-tight">
+                <h3 className="text-3xl font-black text-[#2A2020] font-display uppercase tracking-tight">
                   Demande Envoyée ! 🎉
                 </h3>
-                <p className="text-sm text-[#475569] max-w-md mx-auto leading-relaxed">
-                  Merci <strong className="text-[#2563EB]">{formData.fullName}</strong> ! Ta candidature a bien été reçue. Notre équipe te contactera sous peu.
+                <p className="text-sm text-[#2A2020]/80 max-w-md mx-auto leading-relaxed">
+                  Merci <strong className="text-[#A73541]">{formData.fullName}</strong> ! Ta candidature a bien été reçue. Notre équipe te contactera sous peu.
                 </p>
                 <button
                   onClick={() => setSubmitted(false)}
-                  className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E40AF] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-blue-500/30 transition-all"
+                  className="px-8 py-3.5 rounded-full bg-[#A73541] hover:bg-[#8C2B35] text-white font-black text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
                 >
                   Soumettre une autre demande
                 </button>
@@ -140,14 +159,12 @@ export const MembershipForm: React.FC = () => {
                 {/* Form Heading */}
                 <div>
                   <h3
-                    className="text-2xl sm:text-3xl font-black text-[#0F172A] tracking-tight"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    className="text-2xl sm:text-3xl font-black text-[#2A2020] tracking-tight font-display"
                   >
                     {formConfig.form_heading || 'Inscris-toi'}
                   </h3>
                   <p
-                    className="text-xs text-[#64748B] font-medium mt-1"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    className="text-xs text-[#5C1F2E] font-medium mt-1"
                   >
                     {formConfig.form_subheading || 'Complète tes informations pour rejoindre le club JokerEsen.'}
                   </p>
@@ -156,8 +173,7 @@ export const MembershipForm: React.FC = () => {
                 {/* Field 1: Full Name */}
                 <div className="space-y-1.5">
                   <label
-                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider"
                   >
                     Nom &amp; Prénom
                   </label>
@@ -165,14 +181,13 @@ export const MembershipForm: React.FC = () => {
                     <input
                       type="text"
                       required
-                      placeholder="Mehdi Jlassi"
+                      placeholder="Votre nom et prénom"
                       value={formData.fullName}
                       onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-sm outline-none transition-all placeholder:text-[#94A3B8] placeholder:font-normal"
+                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-sm outline-none transition-all placeholder-[#9C8F89]"
                     />
                     {formData.fullName.trim().length > 2 && (
-                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3.5" />
+                      <CheckCircle2 className="w-5 h-5 text-[#A73541] absolute right-4 top-3.5" />
                     )}
                   </div>
                 </div>
@@ -180,8 +195,7 @@ export const MembershipForm: React.FC = () => {
                 {/* Field 2: Email */}
                 <div className="space-y-1.5">
                   <label
-                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider"
                   >
                     Adresse E-mail
                   </label>
@@ -189,14 +203,13 @@ export const MembershipForm: React.FC = () => {
                     <input
                       type="email"
                       required
-                      placeholder="mehdi.jlassi@esen.tn"
+                      placeholder="nom.prenom@esen.tn"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-sm outline-none transition-all placeholder:text-[#94A3B8] placeholder:font-normal"
+                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-sm outline-none transition-all placeholder-[#9C8F89]"
                     />
                     {formData.email.includes('@') && (
-                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3.5" />
+                      <CheckCircle2 className="w-5 h-5 text-[#A73541] absolute right-4 top-3.5" />
                     )}
                   </div>
                 </div>
@@ -204,8 +217,7 @@ export const MembershipForm: React.FC = () => {
                 {/* Field 3: Phone */}
                 <div className="space-y-1.5">
                   <label
-                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider"
                   >
                     Téléphone / WhatsApp
                   </label>
@@ -213,15 +225,85 @@ export const MembershipForm: React.FC = () => {
                     <input
                       type="tel"
                       required
-                      placeholder="+216 22 345 678"
+                      placeholder="+216 XX XXX XXX"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-sm outline-none transition-all placeholder:text-[#94A3B8] placeholder:font-normal"
+                      className="w-full pl-5 pr-12 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-sm outline-none transition-all placeholder-[#9C8F89]"
                     />
                     {formData.phone.trim().length > 7 && (
-                      <CheckCircle2 className="w-5 h-5 text-[#2563EB] absolute right-4 top-3.5" />
+                      <CheckCircle2 className="w-5 h-5 text-[#A73541] absolute right-4 top-3.5" />
                     )}
+                  </div>
+                </div>
+
+                {/* Field 4: Date de Naissance */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider">
+                      Date de Naissance
+                    </label>
+                    {formData.birthDate && (
+                      <span className="text-[10px] font-bold text-[#A73541] bg-[#A73541]/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-[#A73541]" />
+                        {formData.birthDate}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* Jour */}
+                    <select
+                      aria-label="Jour de naissance"
+                      value={birthDay}
+                      onChange={(e) => handleDateChange(e.target.value, birthMonth, birthYear)}
+                      className="w-full px-3 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none cursor-pointer text-center"
+                    >
+                      <option value="">Jour</option>
+                      {Array.from({ length: 31 }, (_, i) => {
+                        const val = String(i + 1).padStart(2, '0');
+                        return <option key={val} value={val}>{val}</option>;
+                      })}
+                    </select>
+
+                    {/* Mois */}
+                    <select
+                      aria-label="Mois de naissance"
+                      value={birthMonth}
+                      onChange={(e) => handleDateChange(birthDay, e.target.value, birthYear)}
+                      className="w-full px-3 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none cursor-pointer text-center"
+                    >
+                      <option value="">Mois</option>
+                      {[
+                        { num: '01', name: 'Jan' },
+                        { num: '02', name: 'Fév' },
+                        { num: '03', name: 'Mar' },
+                        { num: '04', name: 'Avr' },
+                        { num: '05', name: 'Mai' },
+                        { num: '06', name: 'Juin' },
+                        { num: '07', name: 'Juil' },
+                        { num: '08', name: 'Août' },
+                        { num: '09', name: 'Sep' },
+                        { num: '10', name: 'Oct' },
+                        { num: '11', name: 'Nov' },
+                        { num: '12', name: 'Déc' },
+                      ].map((m) => (
+                        <option key={m.num} value={m.num}>{m.name}</option>
+                      ))}
+                    </select>
+
+                    {/* Année */}
+                    <select
+                      aria-label="Année de naissance"
+                      value={birthYear}
+                      onChange={(e) => handleDateChange(birthDay, birthMonth, e.target.value)}
+                      className="w-full px-3 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none cursor-pointer text-center"
+                    >
+                      <option value="">Année</option>
+                      {Array.from({ length: 36 }, (_, i) => {
+                        const val = String(2010 - i);
+                        return <option key={val} value={val}>{val}</option>;
+                      })}
+                    </select>
                   </div>
                 </div>
 
@@ -229,8 +311,7 @@ export const MembershipForm: React.FC = () => {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="select-major"
-                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider"
                   >
                     Filière ESEN
                   </label>
@@ -239,8 +320,7 @@ export const MembershipForm: React.FC = () => {
                     aria-label="Filière ESEN"
                     value={formData.major}
                     onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                    className="w-full px-5 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-xs outline-none cursor-pointer"
+                    className="w-full px-5 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none cursor-pointer"
                   >
                     {formConfig.majors.map((m) => (
                       <option key={m} value={m}>{m}</option>
@@ -252,8 +332,7 @@ export const MembershipForm: React.FC = () => {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="select-department"
-                    className="block text-[11px] font-bold text-[#64748B] uppercase tracking-wider"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider"
                   >
                     Pôle / Département Souhaité
                   </label>
@@ -262,8 +341,7 @@ export const MembershipForm: React.FC = () => {
                     aria-label="Pôle / Département Souhaité"
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                    className="w-full px-5 py-3 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:bg-white text-[#0F172A] font-semibold text-xs outline-none cursor-pointer"
+                    className="w-full px-5 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none cursor-pointer"
                   >
                     {formConfig.departments.map((d) => (
                       <option key={d} value={d}>{d}</option>
@@ -275,7 +353,6 @@ export const MembershipForm: React.FC = () => {
                 {errorMessage && (
                   <div
                     className="p-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                   >
                     {errorMessage}
                   </div>
@@ -285,11 +362,11 @@ export const MembershipForm: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3 pl-8 pr-3 rounded-full bg-[#3B66FF] text-white font-bold text-sm uppercase shadow-xl shadow-[#3B66FF]/35 hover:bg-[#2552E0] hover:scale-[1.01] transition-all flex items-center justify-between disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer mt-2"
+                  className="w-full py-3 pl-8 pr-3 rounded-full bg-[#A73541] text-white font-bold text-sm uppercase shadow-md shadow-[#A73541]/25 hover:bg-[#8C2B35] hover:scale-[1.01] transition-all flex items-center justify-between disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer mt-2"
                 >
                   <span>{loading ? 'Envoi en cours...' : 'Rejoindre le Club'}</span>
-                  <span className="w-9 h-9 rounded-full bg-white text-[#3B66FF] flex items-center justify-center font-black text-base shadow-md shrink-0">
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin text-[#3B66FF]" /> : '→'}
+                  <span className="w-9 h-9 rounded-full bg-white text-[#A73541] flex items-center justify-center font-black text-base shadow-md shrink-0">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin text-[#A73541]" /> : '→'}
                   </span>
                 </button>
 

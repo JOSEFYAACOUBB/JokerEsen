@@ -113,6 +113,7 @@ export interface RecruitmentApplication {
   full_name: string;
   email: string;
   phone: string;
+  birth_date?: string | null;
   major: string;
   department: string;
   motivation?: string;

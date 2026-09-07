@@ -94,21 +94,30 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
   return (
     <section
       id="team"
-      className="py-16 sm:py-24 bg-[#190D15] relative overflow-hidden border-b border-[#F3C4A0]/15"
+      className="py-16 sm:py-24 bg-[#FAF7F5] text-[#2A2020] relative overflow-hidden border-b border-[#E5DDD7]"
     >
-      {/* ── Section Header - Standardized Left Aligned (Global Rules 1 & 2) ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10 sm:mb-12 animate-fade-up">
-        <div className="flex flex-col items-start justify-start gap-4">
-          <div className="chapter-badge">
-            <span className="chapter-badge-dot" />
-            <span>02 &middot; LEADERSHIP &amp; TALENTS</span>
+      {/* Dot-grid texture background — Global Rule 5 */}
+      <div className="dot-grid opacity-20 pointer-events-none" aria-hidden="true" />
+
+      {/* ── Section Header - Standardized Left Aligned (Royal Blue Accent #4B5B9E) ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10 sm:mb-12 relative animate-fade-up">
+        {/* Faded section numeral — Global Rule 4 */}
+        <div className="section-numeral numeral-s2" aria-hidden="true">02</div>
+        {/* Soft blue glow behind headline — Global Rule 4 */}
+        <div className="section-glow glow-s2" aria-hidden="true" />
+
+        <div className="flex flex-col items-start justify-start gap-3 relative z-10">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <div className="chapter-badge chapter-badge-s2 shrink-0">
+              <span className="chapter-badge-dot" />
+              <span>02 &middot; LEADERSHIP &amp; TALENTS</span>
+            </div>
+            <h2 className="section-headline headline-s2">
+              LE BUREAU EXÉCUTIF
+            </h2>
           </div>
 
-          <h2 className="section-headline">
-            Le Bureau Exécutif
-          </h2>
-
-          <p className="text-[#F5EDE4]/85 text-xs sm:text-sm md:text-base max-w-lg leading-relaxed">
+          <p className="section-subtitle">
             Les visages, stratèges et créatifs qui font battre le cœur du Joker ESEN.
           </p>
         </div>
@@ -117,14 +126,14 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
       {/* ── Photos Carousel Track ── */}
       <div className="max-w-7xl mx-auto">
         {members.length === 0 ? (
-          /* Empty State (Global Rule 4) */
-          <div className="flex flex-col items-center justify-center py-16 text-center px-4 bg-[#140B10] border border-[#F3C4A0]/18 rounded-3xl max-w-xl mx-auto animate-fade-up">
-            <div className="text-4xl sm:text-5xl mb-3 select-none text-[#F3C4A0]/50">♠️</div>
-            <p className="text-[#F5EDE4] text-sm sm:text-base font-bold uppercase tracking-wider font-display">
+          /* Empty State Fallback (Global Rule 4) */
+          <div className="flex flex-col items-center justify-center py-16 text-center px-4 bg-[#FFFFFF] border border-[#EDE4DE] shadow-[0_4px_16px_rgba(43,15,18,0.08)] rounded-3xl max-w-xl mx-auto animate-fade-up">
+            <div className="text-4xl sm:text-5xl mb-3 select-none text-[#4B5B9E]">&#9824;&#65039;</div>
+            <p className="text-[#2A2020] text-sm sm:text-base font-bold uppercase tracking-wider font-display">
               Bureau Exécutif à configurer
             </p>
-            <p className="text-[#F5EDE4]/65 text-xs mt-2 max-w-sm leading-relaxed">
-              Connectez-vous au panneau d'administration pour ajouter les membres de l’équipe.
+            <p className="section-subtitle text-[#5C1F2E] text-xs mt-2 max-w-sm leading-relaxed">
+              Connectez-vous au panneau d&apos;administration pour ajouter les membres de l&apos;équipe.
             </p>
           </div>
         ) : (
@@ -145,7 +154,7 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
             {members.map((member, index) => {
               const isActive = index === activeIndex || members.length === 1;
               const suitSymbol = ['♠', '♥', '♦', '♣'][index % 4];
-              const suitColor = member.suitColor || (index % 2 === 0 ? '#B93A34' : '#F3BB99');
+              const suitColor = '#4B5B9E'; // Royal Blue per member card (Section 02 rule)
               const clubSocials = getCachedClubSocials();
               const instaUrl = member.socials?.instagram && member.socials.instagram !== '#' && member.socials.instagram.trim() !== ''
                 ? member.socials.instagram
@@ -157,10 +166,10 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
               return (
                 <div
                   key={member.name}
-                  className={`team-card shrink-0 w-[270px] xs:w-[310px] sm:w-[350px] md:w-[360px] rounded-3xl overflow-hidden relative cursor-pointer group transition-all duration-400 border border-[#F3C4A0]/18 shadow-xl bg-[#140B10] animate-fade-up stagger-${(index % 4) + 1} ${
+                  className={`team-card shrink-0 w-[270px] xs:w-[310px] sm:w-[350px] md:w-[360px] rounded-3xl overflow-hidden relative cursor-pointer group transition-all duration-200 bg-[#FFFFFF] animate-fade-up stagger-${(index % 4) + 1} ${
                     isActive
-                      ? 'h-[460px] sm:h-[520px] md:h-[540px] opacity-100 translate-y-0 grayscale-0 border-[#B93A34]/50'
-                      : 'h-[400px] sm:h-[450px] md:h-[460px] opacity-60 translate-y-3 sm:translate-y-5 grayscale-[80%]'
+                      ? 'h-[460px] sm:h-[520px] md:h-[540px] opacity-100 translate-y-0 grayscale-0 shadow-[0_12px_32px_rgba(43,15,18,0.18)] border-2 border-[#4B5B9E]'
+                      : 'h-[400px] sm:h-[450px] md:h-[460px] opacity-70 translate-y-3 sm:translate-y-4 grayscale-[40%] shadow-[0_4px_16px_rgba(43,15,18,0.08)] border border-[#EDE4DE]'
                   }`}
                   onClick={() => scrollTo(index)}
                 >
@@ -172,31 +181,30 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
                     height={540}
                     loading="lazy"
                     decoding="async"
-                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                    className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
                     draggable={false}
                   />
 
-                  {/* Suit badge top left (Global Rule 5) */}
+                  {/* Royal Blue Card-Suit Badge top left (Section 02) */}
                   <div
-                    className="absolute top-4 left-4 w-9 h-9 rounded-xl flex items-center justify-center text-lg font-black shadow-lg"
-                    style={{ background: 'rgba(20,11,16,0.9)', color: suitColor, border: `1.5px solid ${suitColor}60` }}
+                    className="absolute top-4 left-4 w-9 h-9 rounded-xl flex items-center justify-center text-lg font-black shadow-md bg-white border border-[#4B5B9E]/40 badge-shadow"
+                    style={{ color: suitColor }}
                   >
                     {suitSymbol}
                   </div>
 
-                  {/* Bottom info strip with readability overlay */}
+                  {/* Bottom info strip with 65% opacity overlay (Section 02 overlay tuning) */}
                   <div
                     className="absolute bottom-0 left-0 right-0 px-5 sm:px-6 pb-5 sm:pb-6 pt-14 sm:pt-16"
                     style={{
-                      background: 'linear-gradient(to top, rgba(20,11,16,0.98) 60%, transparent)',
+                      background: 'linear-gradient(to top, rgba(43,15,18,0.92) 50%, rgba(43,15,18,0.65) 80%, transparent)',
                     }}
                   >
-                    <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5"
-                       style={{ color: suitColor }}>
+                    <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest mb-1 flex items-center gap-1.5 text-[#C8D4F0]">
                       <span>{suitSymbol}</span>
                       <span>{member.role}</span>
                     </p>
-                    <h3 className="text-lg sm:text-2xl font-black text-[#F5EDE4] font-display uppercase leading-tight">
+                    <h3 className="text-lg sm:text-2xl font-black text-[#FFFFFF] font-display uppercase leading-tight">
                       {member.name}
                     </h3>
 
@@ -207,7 +215,7 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
                           href={instaUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-2.5 rounded-full bg-white/10 text-[#F5EDE4] hover:bg-[#B93A34] hover:text-white transition-colors border border-white/15 cursor-pointer"
+                          className="p-2.5 rounded-full bg-white/20 text-white hover:bg-[#4B5B9E] hover:text-white transition-colors border border-white/30 cursor-pointer"
                           title={`Instagram - ${member.name}`}
                           onClick={e => e.stopPropagation()}
                         >
@@ -217,7 +225,7 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
                           href={linkedinUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-2.5 rounded-full bg-white/10 text-[#F5EDE4] hover:bg-[#B93A34] hover:text-white transition-colors border border-white/15 cursor-pointer"
+                          className="p-2.5 rounded-full bg-white/20 text-white hover:bg-[#4B5B9E] hover:text-white transition-colors border border-white/30 cursor-pointer"
                           title={`LinkedIn - ${member.name}`}
                           onClick={e => e.stopPropagation()}
                         >
@@ -233,15 +241,15 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
         )}
       </div>
 
-      {/* ── Navigation Controls (Prev / Next & Dots) — only when > 1 member (Global Rule 4) ── */}
+      {/* ── Navigation Controls (High contrast arrows & Amber dots) — only when > 1 member (Global Rule 4) ── */}
       {members.length > 1 && (
         <div className="flex items-center justify-center gap-4 mt-6">
           <button
             onClick={handlePrev}
-            className="w-11 h-11 rounded-full bg-[#B93A34] text-white hover:bg-[#F3BB99] hover:text-[#14080F] transition-all duration-300 shadow-md flex items-center justify-center cursor-pointer active:scale-95"
+            className="w-11 h-11 rounded-full bg-[#4B5B9E] text-white hover:bg-[#3A4A8D] hover:scale-105 transition-all duration-200 shadow-[0_4px_16px_rgba(43,15,18,0.12)] flex items-center justify-center cursor-pointer active:scale-95"
             title="Précédent"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5 text-white" />
           </button>
 
           <div className="flex items-center gap-1">
@@ -253,11 +261,11 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
                 className="p-3 flex items-center justify-center cursor-pointer -m-1"
               >
                 <span
-                  className="transition-all duration-300 rounded-full block"
+                  className="transition-all duration-200 rounded-full block"
                   style={{
                     width: index === activeIndex ? '28px' : '8px',
                     height: '8px',
-                    background: index === activeIndex ? '#B93A34' : 'rgba(243,196,160,0.35)',
+                    background: index === activeIndex ? '#4B5B9E' : 'rgba(75, 91, 158, 0.3)',
                   }}
                 />
               </button>
@@ -266,10 +274,10 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
 
           <button
             onClick={handleNext}
-            className="w-11 h-11 rounded-full bg-[#B93A34] text-white hover:bg-[#F3BB99] hover:text-[#14080F] transition-all duration-300 shadow-md flex items-center justify-center cursor-pointer active:scale-95"
+            className="w-11 h-11 rounded-full bg-[#4B5B9E] text-white hover:bg-[#3A4A8D] hover:scale-105 transition-all duration-200 shadow-[0_4px_16px_rgba(43,15,18,0.12)] flex items-center justify-center cursor-pointer active:scale-95"
             title="Suivant"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-5 h-5 text-white" />
           </button>
         </div>
       )}

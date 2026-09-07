@@ -77,13 +77,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-[#25121B] rounded-3xl p-6 sm:p-8 border-2 border-[#F3C4A0]/40 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md anim-backdrop-in" style={{ background: 'rgba(42,32,32,0.6)' }}>
+      <div className="relative w-full max-w-md bg-[#FFFFFF] rounded-3xl p-6 sm:p-8 border border-[#EDE4DE] shadow-[0_8px_28px_rgba(43,15,18,0.12)] overflow-y-auto max-h-[90vh] anim-modal-in">
         
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-[#F3C4A0] hover:text-[#B93A34] hover:bg-[#1A0E14] rounded-full transition-colors"
+          className="absolute top-4 right-4 p-2 text-[#2A2020] hover:text-[#A73541] hover:bg-[#FAF7F5] rounded-full transition-all duration-200 hover:scale-110 hover:rotate-90 cursor-pointer"
+          aria-label="Fermer la modal"
         >
           <X className="w-5 h-5" />
         </button>
@@ -93,23 +94,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
           <div className="flex justify-center">
             <Logo size="sm" showText={false} />
           </div>
-          <h3 className="text-2xl sm:text-3xl font-black text-[#F5EDE4] font-display uppercase tracking-wider">
+          <h3 className="text-2xl sm:text-3xl font-black text-[#A73541] font-display uppercase tracking-wider">
             Espace JokerEsen
           </h3>
-          <p className="text-xs text-[#F5EDE4]/70 font-medium">
+          <p className="text-xs text-[#5C1F2E] font-medium">
             Connectez-vous pour accéder au panneau d'administration et de gestion.
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex p-1.5 rounded-full bg-[#1A0E14] border border-[#F3C4A0]/20 mb-6">
+        <div className="flex p-1.5 rounded-full bg-[#F0EBE7] border border-[#E5DDD7] mb-6">
           <button
             type="button"
             onClick={() => { setActiveTab('admin'); setErrorMessage(''); }}
-            className={`flex-1 py-2 sm:py-2.5 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`flex-1 py-2 sm:py-2.5 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'admin'
-                ? 'bg-[#B93A34] text-white shadow-md shadow-[#B93A34]/40'
-                : 'text-[#F3C4A0]/70 hover:text-white'
+                ? 'bg-[#A73541] text-white shadow-sm'
+                : 'bg-transparent text-[#2A2020] hover:text-[#A73541]'
             }`}
           >
             Bureau Exécutif (Admin)
@@ -117,10 +118,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
           <button
             type="button"
             onClick={() => { setActiveTab('member'); setErrorMessage(''); }}
-            className={`flex-1 py-2 sm:py-2.5 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all ${
+            className={`flex-1 py-2 sm:py-2.5 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
               activeTab === 'member'
-                ? 'bg-[#4E4F9E] text-white shadow-md'
-                : 'text-[#F3C4A0]/70 hover:text-white'
+                ? 'bg-[#A73541] text-white shadow-sm'
+                : 'bg-transparent text-[#2A2020] hover:text-[#A73541]'
             }`}
           >
             Membre Club
@@ -129,52 +130,51 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
 
         {isLogged ? (
           <div className="text-center py-8 space-y-3">
-            <ShieldCheck className="w-14 h-14 text-[#22C55E] mx-auto animate-bounce" />
-            <h4 className="text-2xl font-black text-[#F5EDE4] font-display uppercase">Connexion réussie !</h4>
-            <p className="text-xs text-[#F3C4A0]/80">Redirection vers l'espace {activeTab === 'admin' ? 'Administration' : 'Membre'}...</p>
+            <ShieldCheck className="w-14 h-14 text-emerald-600 mx-auto animate-bounce" />
+            <h4 className="text-2xl font-black text-[#2A2020] font-display uppercase">Connexion réussie !</h4>
+            <p className="text-xs text-[#5C1F2E]">Redirection vers l'espace {activeTab === 'admin' ? 'Administration' : 'Membre'}...</p>
           </div>
         ) : (
           <form onSubmit={handleLogin} className="space-y-4">
             {errorMessage && (
-              <div className="p-3.5 rounded-2xl bg-[#B93A34]/20 border border-[#B93A34]/50 flex items-start gap-2.5 text-xs text-[#F5EDE4] animate-in fade-in">
-                <AlertCircle className="w-4 h-4 text-[#B93A34] shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in font-medium">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-bold text-[#F3C4A0]/80 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider mb-1.5 font-display">
                 Identifiant / E-mail
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-[#F3C4A0]/60 absolute left-3.5 top-3.5" />
+                <Mail className="w-4 h-4 text-[#A73541] absolute left-3.5 top-3.5 pointer-events-none" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@jokeresen.tn"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#1A0E14] border border-[#F3C4A0]/30 focus:border-[#B93A34] text-[#F5EDE4] placeholder-[#F5EDE4]/30 outline-none text-sm font-medium transition-colors"
+                  placeholder="nom.prenom@email.com"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#FFFFFF] border border-[#EDE4DE] focus:border-[#A73541] text-[#2A2020] placeholder-[#9C8F89] outline-none text-sm font-medium transition-all duration-200"
                 />
               </div>
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs font-bold text-[#F3C4A0]/80 uppercase tracking-wider">
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider font-display">
                   Mot de passe
                 </label>
-                <span className="text-[10px] text-[#F3C4A0]/50">Défaut: joker2026</span>
               </div>
               <div className="relative">
-                <Lock className="w-4 h-4 text-[#F3C4A0]/60 absolute left-3.5 top-3.5" />
+                <Lock className="w-4 h-4 text-[#A73541] absolute left-3.5 top-3.5 pointer-events-none" />
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#1A0E14] border border-[#F3C4A0]/30 focus:border-[#B93A34] text-[#F5EDE4] placeholder-[#F5EDE4]/30 outline-none text-sm font-medium transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#FFFFFF] border border-[#EDE4DE] focus:border-[#A73541] text-[#2A2020] placeholder-[#9C8F89] outline-none text-sm font-medium transition-all duration-200"
                 />
               </div>
             </div>
@@ -182,13 +182,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-6 rounded-full bg-gradient-to-r from-[#B93A34] to-[#7A1F3D] text-white font-bold text-sm uppercase shadow-xl shadow-[#B93A34]/30 hover:opacity-90 transition-all flex items-center justify-between mt-2 disabled:opacity-50"
+              className="w-full py-3.5 px-6 rounded-full bg-[#A73541] hover:bg-[#8C2B35] text-white font-black text-xs uppercase tracking-wider shadow-md hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 flex items-center justify-between mt-2 disabled:opacity-75 cursor-pointer"
             >
-              <span>{loading ? 'Vérification...' : 'Se Connecter'}</span>
+              <span>{loading ? 'Vérification en cours...' : 'Se Connecter'}</span>
               {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin text-white" />
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
               ) : (
-                <span className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center font-black text-base shadow-md shrink-0">
+                <span className="w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center font-black text-sm shadow-sm shrink-0">
                   →
                 </span>
               )}

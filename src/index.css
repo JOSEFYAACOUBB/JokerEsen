@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
 /* ── Optimized Non-blocking Font Declarations with font-display: swap ── */
 @font-face {
@@ -28,18 +29,35 @@
 
 @layer base {
   :root {
-    /* ── Old warm tokens (kept for public site compatibility) ── */
-    --bg-dark: #140B10;
-    --bg-dark-secondary: #1C0F17;
-    --surface-dark: #1A0E15;
-    --surface-card: #20101B;
-    --text-light: #F5EDE4;
-    --rouge-vif: #B93A34;
-    --rouge-coral: #E05A52;
-    --bordeaux: #7A1F3D;
-    --ambre: #F3BB99;
-    --peche: #F3C4A0;
-    --border-warm: rgba(243, 196, 160, 0.18);
+    /* ── Global Light Base System Tokens (Warm Off-White & Warm Charcoal) ── */
+    --bg-warm-light: #FAF7F5;
+    --text-warm-charcoal: #2A2020;
+    --card-surface-white: #FFFFFF;
+    --card-surface-soft: #F0EBE7;
+    --card-border-warm: #E5DDD7;
+    --card-shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.06);
+
+    /* ── Joker Logo Palette Section Accent Colors ── */
+    --accent-s1: #A73541; /* Crimson Red  – Qui sommes-nous */
+    --accent-s2: #4B5B9E; /* Royal Blue   – Leadership & Talents */
+    --accent-s3: #7D3F4A; /* Deep Plum    – Agenda & Billetterie */
+    --accent-s4: #4B5B9E; /* Royal Blue   – Archives & Souvenirs */
+    --text-subtitle: #5C1F2E; /* Dark Maroon – subtitles under section headlines */
+    --dec-slate: #5B6B9E;  /* Slate Blue  – decoration/icons only */
+    --dec-salmon: #E8B9A8; /* Peachy Salmon – decoration/icons only */
+
+    /* ── Legacy compatibility tokens (mapped to light theme) ── */
+    --bg-dark: #FAF7F5;
+    --bg-dark-secondary: #F0EBE7;
+    --surface-dark: #FFFFFF;
+    --surface-card: #FFFFFF;
+    --text-light: #2A2020;
+    --rouge-vif: #A73541;
+    --rouge-coral: #A73541;
+    --bordeaux: #5C1F2E;
+    --ambre: #4B5B9E;
+    --peche: #E8B9A8;
+    --border-warm: #EDE4DE;
 
     /* ── Admin Blue/White Design System Tokens ── */
     --color-brand: #0B2545;          /* Dark navy — sidebar, headers */
@@ -55,16 +73,30 @@
   }
 
   body {
-    background-color: var(--bg-dark);
-    color: var(--text-light);
+    background-color: var(--bg-warm-light);
+    color: var(--text-warm-charcoal);
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
 
-  /* Admin panel overrides — force blue/white system inside [data-admin-panel] */
-  [data-admin-panel] {
-    background-color: var(--color-primary-pale);
-    color: var(--color-text);
-    font-family: 'Inter', 'Plus Jakarta Sans', system-ui, sans-serif;
+  /* Admin panel overrides — force Inter font across all admin UI elements */
+  [data-admin-panel],
+  [data-admin-panel] *,
+  [data-admin-panel] input,
+  [data-admin-panel] select,
+  [data-admin-panel] textarea,
+  [data-admin-panel] button,
+  [data-admin-panel] label,
+  [data-admin-panel] option,
+  [data-admin-panel] h1,
+  [data-admin-panel] h2,
+  [data-admin-panel] h3,
+  [data-admin-panel] h4,
+  [data-admin-panel] p,
+  [data-admin-panel] span,
+  [data-admin-panel] td,
+  [data-admin-panel] th,
+  [data-admin-panel] ::placeholder {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
   }
 
   h1, h2, h3, .font-display, .font-normal-text {
@@ -73,7 +105,8 @@
   }
 
   p, .font-description, .font-desc, .font-fluctuation, .font-kgredhands {
-    font-family: 'Fluctuation', 'KG Red Hands', 'Chalkboard SE', 'Comic Sans MS', cursive, sans-serif;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 400;
   }
 
   /* Form controls, inputs, placeholders & labels consistent with website typography */
@@ -87,31 +120,67 @@
     font-weight: 600 !important;
     letter-spacing: 0.01em !important;
     line-height: 1.2 !important;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 }
 
-/* ── STANDARDIZED CHAPTER BADGE (GLOBAL RULE 1) ── */
+/* ── STANDARDIZED CHAPTER BADGE (GLOBAL RULE 2) ── */
 .chapter-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.625rem;
   padding: 0.375rem 0.875rem;
   border-radius: 9999px;
-  background-color: rgba(185, 58, 52, 0.12);
-  border: 1px solid rgba(185, 58, 52, 0.35);
-  color: #F3C4A0;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
+.chapter-badge-s1 {
+  background-color: rgba(167, 53, 65, 0.08);
+  border: 1px solid #A73541;
+  color: #A73541;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.chapter-badge-s1 .chapter-badge-dot {
+  background-color: #A73541;
+}
+
+.chapter-badge-s2 {
+  background-color: rgba(75, 91, 158, 0.08);
+  border: 1px solid #4B5B9E;
+  color: #4B5B9E;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.chapter-badge-s2 .chapter-badge-dot {
+  background-color: #4B5B9E;
+}
+
+.chapter-badge-s3 {
+  background-color: rgba(125, 63, 74, 0.08);
+  border: 1px solid #7D3F4A;
+  color: #7D3F4A;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.chapter-badge-s3 .chapter-badge-dot {
+  background-color: #7D3F4A;
+}
+
+.chapter-badge-s4 {
+  background-color: rgba(75, 91, 158, 0.08);
+  border: 1px solid #4B5B9E;
+  color: #4B5B9E;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+.chapter-badge-s4 .chapter-badge-dot {
+  background-color: #4B5B9E;
+}
+
 .chapter-badge-dot {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 9999px;
-  background-color: #B93A34;
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -123,23 +192,78 @@
   text-transform: uppercase;
   line-height: 1.05;
   letter-spacing: -0.02em;
-  color: #F5EDE4;
   text-align: left;
 }
 
-/* ── CLEAN DARK CARD SURFACE (GLOBAL RULE 8 - REDUCE GRADIENTS) ── */
-.card-flat-dark {
-  background-color: #1A0E15;
-  border: 1px solid rgba(243, 196, 160, 0.18);
-  border-radius: 1.5rem;
-  transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+.headline-s1 { color: #A73541; } /* Crimson Red */
+.headline-s2 { color: #4B5B9E; } /* Royal Blue */
+.headline-s3 { color: #7D3F4A; } /* Deep Plum */
+.headline-s4 { color: #4B5B9E; } /* Royal Blue */
+
+/* ── SECTION SUBTITLE (Dark Maroon, directly under section headlines) ── */
+.section-subtitle {
+  color: #5C1F2E;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.6;
+  max-width: 38rem;
 }
 
-.card-flat-dark:hover {
-  border-color: rgba(185, 58, 52, 0.45);
-  transform: translateY(-4px);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+/* ── ELEVATION DEPTH SYSTEM (3 levels, warm dark base shadow) ── */
+
+/* Elevation 1 — Standard cards: border + subtle shadow */
+.elevation-1 {
+  background-color: #FFFFFF;
+  border: 1px solid #EDE4DE;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 16px rgba(43, 15, 18, 0.08);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 200ms ease;
 }
+
+/* Elevation 2 — Featured/team cards: shadow only, no border */
+.elevation-2 {
+  background-color: #FFFFFF;
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 28px rgba(43, 15, 18, 0.12);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Elevation 3 — Hover state (apply via JS/group-hover) */
+.elevation-3-hover:hover,
+.elevation-1:hover,
+.elevation-2:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(43, 15, 18, 0.16);
+}
+
+/* Badge floating shadow */
+.badge-shadow {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* Legacy aliases — keep for backward compatibility with inline styles */
+.card-light-surface {
+  background-color: #FFFFFF;
+  border: 1px solid #EDE4DE;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 16px rgba(43, 15, 18, 0.08);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 200ms ease;
+}
+.card-light-surface:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(43,15,18,0.16); }
+
+.card-flat-dark {
+  background-color: #FFFFFF;
+  border: 1px solid #EDE4DE;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 16px rgba(43, 15, 18, 0.08);
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+.card-flat-dark:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(43,15,18,0.16); }
 
 /* ── SCROLL-REVEAL & STAGGER ANIMATIONS (GLOBAL RULE 3) ── */
 @keyframes slideFadeUp {
@@ -214,20 +338,20 @@
   animation-play-state: paused;
 }
 
-/* Custom Sleek Scrollbar (Subtle Dark Warm Aesthetics) */
+/* Custom Sleek Scrollbar (Light Warm Aesthetics) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0D0708;
+  background: #F0EBE7;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(243, 196, 160, 0.2);
+  background: rgba(92, 31, 46, 0.25);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(185, 58, 52, 0.6);
+  background: rgba(167, 53, 65, 0.55);
 }
 
 /* =====================================================================
@@ -379,16 +503,89 @@
   box-shadow: 0 0 0 3px rgba(224, 90, 82, 0.2) !important;
 }
 
-/* Gallery card hover — consistent with global 200ms */
+/* Gallery card hover — light theme elevation */
 .gallery-card {
   transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
               border-color 200ms ease;
 }
 .gallery-card:hover {
-  transform: scale(1.02) translateY(-4px);
-  box-shadow: 0 20px 48px rgba(0,0,0,0.55);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(43, 15, 18, 0.16);
 }
+
+/* ── SECTION FADED BACKGROUND NUMERAL (Global Rule 4) ── */
+/* Large background number behind section headlines — fills canvas whitespace */
+.section-numeral {
+  position: absolute;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(8rem, 18vw, 16rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  pointer-events: none;
+  user-select: none;
+  top: -1rem;
+  left: -0.5rem;
+  opacity: 0.045;
+  z-index: 0;
+}
+.numeral-s1 { color: #A73541; }
+.numeral-s2 { color: #4B5B9E; }
+.numeral-s3 { color: #7D3F4A; }
+.numeral-s4 { color: #4B5B9E; }
+
+/* ── SECTION GLOW SHAPE (Global Rule 4) ── */
+/* Soft blurred radial color blob behind section headline — fills dead space */
+.section-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+  width: 420px;
+  height: 240px;
+  top: -40px;
+  left: -60px;
+  opacity: 0.055;
+}
+.glow-s1 { background: #A73541; }
+.glow-s2 { background: #4B5B9E; }
+.glow-s3 { background: #7D3F4A; }
+.glow-s4 { background: #4B5B9E; }
+
+/* ── DOT GRID TEXTURE (Global Rule 4) ── */
+/* Subtle dot-grid overlay for large empty zones */
+.dot-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(#2A2020 1px, transparent 1px);
+  background-size: 22px 22px;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── VERTICAL STAGGER — even cards offset downward (Global Rule 5) ── */
+.card-stagger-even {
+  margin-top: 28px;
+}
+@media (max-width: 639px) {
+  /* On mobile, disable stagger so cards stack cleanly */
+  .card-stagger-even { margin-top: 0; }
+}
+
+/* ── SCROLL-REVEAL LATERAL VARIANT (Global Rule 5) ── */
+@keyframes slideFadeLeft {
+  0%  { opacity: 0; transform: translateX(-20px); }
+  100%{ opacity: 1; transform: translateX(0); }
+}
+@keyframes slideFadeRight {
+  0%  { opacity: 0; transform: translateX(20px); }
+  100%{ opacity: 1; transform: translateX(0); }
+}
+.animate-fade-left  { animation: slideFadeLeft  400ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-right { animation: slideFadeRight 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
 /* prefers-reduced-motion: disable everything */
 @media (prefers-reduced-motion: reduce) {
@@ -406,60 +603,23 @@
 }
 
 /* =====================================================================
-   ADMIN PANEL — Clean Poppins + Blue/White Theme (Fully Scoped)
+   ADMIN PANEL — Clean Inter + Blue/White Theme (High Contrast & Visible)
 ===================================================================== */
 
 [data-admin-panel] {
-  font-family: 'Poppins', sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   background-color: #EFF6FF !important;
   color: #1E293B !important;
 }
 
 [data-admin-panel] * {
-  font-family: 'Poppins', sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
 /* ── SIDEBAR STYLING ── */
 [data-admin-panel] aside {
-  background: linear-gradient(180deg, #1E3A8A 0%, #1D4ED8 100%) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
-}
-
-[data-admin-panel] aside nav button {
-  font-family: 'Poppins', sans-serif !important;
-  transition: all 0.2s ease-in-out !important;
-}
-
-/* Inactive nav button */
-[data-admin-panel] aside nav button:not(.active-nav) {
-  background-color: transparent !important;
-  color: #DBEAFE !important;
-}
-
-[data-admin-panel] aside nav button:not(.active-nav):hover {
-  background-color: rgba(255, 255, 255, 0.12) !important;
-  color: #ffffff !important;
-}
-
-/* Active nav button */
-[data-admin-panel] aside nav button.active-nav {
-  background: #ffffff !important;
-  color: #1E3A8A !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-}
-
-[data-admin-panel] aside nav button.active-nav svg {
-  color: #1E3A8A !important;
-}
-
-/* Sidebar footer buttons */
-[data-admin-panel] aside .sidebar-footer-btn {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-  color: #E0E7FF !important;
-}
-[data-admin-panel] aside .sidebar-footer-btn:hover {
-  background-color: rgba(255, 255, 255, 0.18) !important;
-  color: #ffffff !important;
+  background-color: #ffffff !important;
+  border-right: 1px solid #E2E8F0 !important;
 }
 
 /* ── HEADER / TOP NAVBAR ── */
@@ -478,7 +638,7 @@
   background-color: #EFF6FF !important;
 }
 
-/* All dark-styled boxes inside main become clean white cards */
+/* All dark-styled legacy boxes inside main become clean white cards */
 [data-admin-panel] main .bg-\[\#1F0E18\],
 [data-admin-panel] main .bg-\[\#25121B\],
 [data-admin-panel] main .bg-\[\#160B12\],
@@ -490,7 +650,7 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
-/* Text color fixes in main */
+/* Text hierarchy & visibility rules */
 [data-admin-panel] main h1,
 [data-admin-panel] main h2,
 [data-admin-panel] main h3,
@@ -498,14 +658,55 @@
   color: #1E3A8A !important;
 }
 
-[data-admin-panel] main p,
-[data-admin-panel] main span {
+[data-admin-panel] main p {
   color: #475569;
 }
 
-[data-admin-panel] main .text-white {
-  color: #0F172A !important;
+/* Force pure white text on elements with text-white or inside dark background buttons */
+[data-admin-panel] .text-white,
+[data-admin-panel] .text-white *,
+[data-admin-panel] button.text-white,
+[data-admin-panel] button.text-white * {
+  color: #FFFFFF !important;
 }
+
+[data-admin-panel] .bg-slate-900,
+[data-admin-panel] .bg-slate-900 *,
+[data-admin-panel] .bg-slate-950,
+[data-admin-panel] .bg-slate-950 *,
+[data-admin-panel] .bg-slate-800,
+[data-admin-panel] .bg-slate-800 *,
+[data-admin-panel] .bg-blue-600,
+[data-admin-panel] .bg-blue-600 *,
+[data-admin-panel] .bg-blue-700,
+[data-admin-panel] .bg-blue-700 *,
+[data-admin-panel] .bg-blue-800,
+[data-admin-panel] .bg-blue-800 *,
+[data-admin-panel] .bg-blue-900,
+[data-admin-panel] .bg-blue-900 *,
+[data-admin-panel] .bg-emerald-600,
+[data-admin-panel] .bg-emerald-600 *,
+[data-admin-panel] .bg-emerald-700,
+[data-admin-panel] .bg-emerald-700 *,
+[data-admin-panel] .bg-rose-600,
+[data-admin-panel] .bg-rose-600 *,
+[data-admin-panel] .bg-indigo-600,
+[data-admin-panel] .bg-indigo-600 * {
+  color: #FFFFFF !important;
+}
+
+/* Specific text color utilities */
+[data-admin-panel] .text-slate-900 { color: #0F172A !important; }
+[data-admin-panel] .text-slate-800 { color: #1E293B !important; }
+[data-admin-panel] .text-slate-700 { color: #334155 !important; }
+[data-admin-panel] .text-slate-600 { color: #475569 !important; }
+[data-admin-panel] .text-slate-500 { color: #64748B !important; }
+
+[data-admin-panel] .text-rose-600,
+[data-admin-panel] .text-rose-700 { color: #E11D48 !important; }
+
+[data-admin-panel] .text-blue-600,
+[data-admin-panel] .text-blue-700 { color: #2563EB !important; }
 
 [data-admin-panel] main .text-\[\#F3C4A0\],
 [data-admin-panel] main .text-\[\#F5EDE4\],
@@ -549,4 +750,12 @@
   color: #ffffff !important;
   border: none !important;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* ── GLOBAL FORM PLACEHOLDER RULE ── */
+::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: #9C8F89 !important;
+  opacity: 1 !important;
 }

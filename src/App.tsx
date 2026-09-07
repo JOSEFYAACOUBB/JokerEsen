@@ -6,21 +6,33 @@ import { Event } from './components/Event';
 import { Gallery } from './components/Gallery';
 import { MembershipForm } from './components/MembershipForm';
 import { LoginModal } from './components/LoginModal';
+import { MemberLoginModal } from './components/MemberLoginModal';
+import { MemberDashboard } from './components/member/MemberDashboard';
 import { Footer } from './components/Footer';
 import { fetchAllEvents, getCachedEvent, getCachedAllEvents, cacheAllEvents } from './services/eventService';
 import type { EventRecord } from './types/database';
 import { fetchTeamMembers, getCachedTeam, cacheTeam } from './services/teamService';
 import { fetchClubSettings, getCachedSettings, cacheSettings } from './services/settingsService';
+import { getCurrentMemberSession } from './services/memberService';
+import type { ClubMember } from './types/member';
 
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 
 export function App() {
-  // Admin View State with persistent caching across refresh & hash navigation
-  const [currentView, setCurrentView] = useState<'public' | 'admin'>(() => {
+  const [currentMember, setCurrentMember] = useState<ClubMember | null>(() => getCurrentMemberSession());
+  const [isMemberLoginOpen, setIsMemberLoginOpen] = useState(false);
+
+  // App View State with persistent caching across refresh & hash navigation
+  const [currentView, setCurrentView] = useState<'public' | 'admin' | 'member'>(() => {
     const isAuth = localStorage.getItem('joker_admin_auth') === 'true';
     const savedView = localStorage.getItem('joker_view');
+    const memberSession = getCurrentMemberSession();
+
     if (isAuth && (window.location.hash === '#admin' || savedView === 'admin')) {
       return 'admin';
+    }
+    if (memberSession && savedView === 'member') {
+      return 'member';
     }
     return 'public';
   });
@@ -34,10 +46,10 @@ export function App() {
     return true;
   });
 
-  // Dynamic All Events State (Includes active, upcoming, and past archive editions)
+  // Dynamic All Events State
   const [allEvents, setAllEvents] = useState<EventRecord[]>(() => getCachedAllEvents());
 
-  // Dynamic Event Data: Initialized immediately from Supabase active event
+  // Dynamic Event Data
   const [eventData, setEventData] = useState<{
     id?: string;
     title: string;
@@ -73,7 +85,7 @@ export function App() {
     };
   });
 
-  // Dynamic Executive Team Members: Initialized immediately with local cache
+  // Dynamic Executive Team Members
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
     const FAKE_DEFAULT_NAMES = ['Yasmine Ben Salem', 'Youssef Trabelsi', 'Sarra Chaabane', 'Amine Karray', 'Nour El Hoda Gharbi', 'Kahlil Ferjani'];
     const cached = getCachedTeam();
@@ -85,7 +97,7 @@ export function App() {
     return cached;
   });
 
-  const handleSetView = (view: 'public' | 'admin') => {
+  const handleSetView = (view: 'public' | 'admin' | 'member') => {
     setCurrentView(view);
     localStorage.setItem('joker_view', view);
     if (view === 'admin') {
@@ -97,33 +109,29 @@ export function App() {
     }
   };
 
-  // Sync hash changes (e.g. browser back/forward buttons or direct links)
+  // Sync hash changes
   useEffect(() => {
     const onHashChange = () => {
       const isAuth = localStorage.getItem('joker_admin_auth') === 'true';
       if (window.location.hash === '#admin' && isAuth) {
         setCurrentView('admin');
         localStorage.setItem('joker_view', 'admin');
-      } else if (window.location.hash !== '#admin' && localStorage.getItem('joker_view') === 'public') {
-        setCurrentView('public');
       }
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  // Load live data from Supabase upon initial mounting
+  // Load live data from Supabase
   useEffect(() => {
     async function loadInitialData() {
       try {
-        // 1. Settings (Recruitment Status)
         const settings = await fetchClubSettings();
         if (settings && typeof settings.recruitment_open === 'boolean') {
           setRecruitmentOpen(settings.recruitment_open);
           cacheSettings({ recruitment_open: settings.recruitment_open });
         }
 
-        // 2. All Events & Active Event
         const events = await fetchAllEvents();
         if (events && events.length > 0) {
           setAllEvents(events);
@@ -152,7 +160,6 @@ export function App() {
           }
         }
 
-        // 3. Team Members
         const dbTeam = await fetchTeamMembers();
         if (dbTeam !== null) {
           setTeamMembers(dbTeam);
@@ -196,6 +203,22 @@ export function App() {
     cacheSettings({ recruitment_open: isOpen });
   };
 
+  // MEMBER VIEW ROUTE
+  if (currentView === 'member' && currentMember) {
+    return (
+      <MemberDashboard
+        member={currentMember}
+        allEvents={allEvents}
+        onLogout={() => {
+          setCurrentMember(null);
+          handleSetView('public');
+        }}
+        onGoToPublic={() => handleSetView('public')}
+      />
+    );
+  }
+
+  // ADMIN VIEW ROUTE
   if (currentView === 'admin') {
     return (
       <Suspense
@@ -223,10 +246,11 @@ export function App() {
     );
   }
 
+  // PUBLIC LANDING VIEW
   return (
-    <div className="min-h-screen bg-[#1A0E14] text-[#F5EDE4] selection:bg-[#B93A34] selection:text-white">
+    <div className="min-h-screen bg-[#FAF7F5] text-[#2A2020] selection:bg-[#B93A34] selection:text-white font-sans">
 
-      {/* Hero owns the full-screen background AND the navbar */}
+      {/* Hero owns full-screen background AND top navbar */}
       <Hero onOpenLogin={() => setIsLoginOpen(true)} />
 
       <main>
@@ -258,6 +282,7 @@ export function App() {
         }
       }} />
 
+      {/* Admin Login Modal */}
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
@@ -266,6 +291,17 @@ export function App() {
             handleSetView('admin');
           }
         }}
+      />
+
+      {/* Member Login Modal */}
+      <MemberLoginModal
+        isOpen={isMemberLoginOpen}
+        onClose={() => setIsMemberLoginOpen(false)}
+        onLoginSuccess={(loggedInMember) => {
+          setCurrentMember(loggedInMember);
+          handleSetView('member');
+        }}
+        onOpenAdminLogin={() => setIsLoginOpen(true)}
       />
     </div>
   );
