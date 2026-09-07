@@ -165,6 +165,51 @@ export async function subscribeToNewsletter(
   let brevoSuccess = false;
   let isExistingContact = false;
 
+  // 0. Try serverless backend route first if available
+  try {
+    const serverlessRes = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(apiKey ? { 'api-key': apiKey } : {}),
+      },
+      body: JSON.stringify({
+        email: cleanEmail,
+        firstName: options?.firstName,
+        lastName: options?.lastName,
+        source: options?.source || 'website_agenda',
+        listId,
+      }),
+    });
+
+    if (serverlessRes.ok) {
+      const data = await serverlessRes.json();
+      if (data?.success) {
+        if (isSupabaseConfigured) {
+          try {
+            await supabase.from('newsletter_subscribers').upsert(
+              {
+                email: cleanEmail,
+                source: options?.source || 'website_agenda',
+                synced_to_brevo: true,
+                created_at: new Date().toISOString(),
+              },
+              { onConflict: 'email' }
+            );
+          } catch (_) {}
+        }
+        cacheSubscriberLocally(cleanEmail, true);
+        return {
+          success: true,
+          isExisting: data.isExisting,
+          message: data.message || 'Inscription validée et e-mail de confirmation envoyé !',
+        };
+      }
+    }
+  } catch (_) {
+    // Fallback to client-side Brevo API fetch if serverless endpoint is not hosted
+  }
+
   // 1. Try Brevo API (Add to contacts list)
   if (apiKey) {
     try {
@@ -208,7 +253,7 @@ export async function subscribeToNewsletter(
           console.warn('Brevo API response:', errorData);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Brevo subscription network request failed (fallback to Supabase/local):', err);
     }
   }
@@ -234,33 +279,38 @@ export async function subscribeToNewsletter(
   cacheSubscriberLocally(cleanEmail, brevoSuccess);
 
   // 4. Send instant confirmation / welcome transactional email to subscriber's inbox
-  if (!isExistingContact) {
-    try {
-      const welcomeHtml = generateJokerEmailTemplate({
-        title: 'Bienvenue au Club Joker ESEN ! 🃏',
-        badge: 'Confirmation d\'inscription',
-        subtitle: 'Ravi de vous compter parmi nos abonnés !',
-        bodyHtml: `
-          <p>Bonjour,</p>
-          <p>Merci d'avoir rejoint la newsletter et le canal d'alertes du <strong>Club Joker ESEN</strong> !</p>
-          <p>Vous recevrez désormais en avant-première nos invitations aux soirées, les ouvertures de billetteries gratuites, nos workshops et toutes les actualités exclusives du club.</p>
-          <p>À très bientôt sur le campus !</p>
-        `,
-        ctaText: 'Voir nos Événements',
-        ctaUrl: 'https://jokeresen.tn/#event',
-      });
+  let emailSentSuccessfully = false;
+  try {
+    const welcomeHtml = generateJokerEmailTemplate({
+      title: 'Bienvenue au Club Joker ESEN ! 🃏',
+      badge: 'Confirmation d\'inscription',
+      subtitle: 'Ravi de vous compter parmi nos abonnés !',
+      bodyHtml: `
+        <p>Bonjour,</p>
+        <p>Merci d'avoir rejoint la newsletter et le canal d'alertes du <strong>Club Joker ESEN</strong> !</p>
+        <p>Vous recevrez désormais en avant-première nos invitations aux soirées, les ouvertures de billetteries gratuites, nos workshops et toutes les actualités exclusives du club.</p>
+        <p>À très bientôt sur le campus !</p>
+      `,
+      ctaText: 'Voir nos Événements',
+      ctaUrl: 'https://jokeresen.tn/#event',
+    });
 
-      await sendNewsletterBroadcast({
-        subject: '🃏 Bienvenue au Club Joker ESEN !',
-        htmlContent: welcomeHtml,
-        recipients: [cleanEmail],
-      });
-    } catch (welcomeErr) {
-      console.warn('Could not send welcome email via Brevo:', welcomeErr);
+    const sendRes = await sendNewsletterBroadcast({
+      subject: '🃏 Bienvenue au Club Joker ESEN !',
+      htmlContent: welcomeHtml,
+      recipients: [cleanEmail],
+    });
+
+    if (sendRes.success) {
+      emailSentSuccessfully = true;
+    } else {
+      console.warn('Welcome email delivery result:', sendRes.message);
     }
+  } catch (welcomeErr) {
+    console.warn('Could not send welcome email via Brevo:', welcomeErr);
   }
 
-  if (isExistingContact) {
+  if (isExistingContact && !emailSentSuccessfully) {
     return {
       success: true,
       message: 'Vous êtes déjà inscrit aux alertes et actualités du Club Joker !',
@@ -270,7 +320,9 @@ export async function subscribeToNewsletter(
 
   return {
     success: true,
-    message: 'Merci ! Un e-mail de confirmation vous a été envoyé et votre inscription est validée.',
+    message: emailSentSuccessfully
+      ? 'Merci ! Votre inscription est validée et un e-mail de confirmation vous a été envoyé.'
+      : 'Merci ! Votre inscription est enregistrée.',
   };
 }
 
@@ -373,6 +425,37 @@ export async function sendNewsletterBroadcast(params: {
     return { success: false, message: 'Aucun destinataire valide sélectionné.' };
   }
 
+  // 0. Try serverless backend API endpoint first if available
+  try {
+    const apiRes = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'api-key': apiKey,
+      },
+      body: JSON.stringify({
+        subject: params.subject,
+        htmlContent: params.htmlContent,
+        senderName,
+        senderEmail,
+        recipients: validRecipients,
+      }),
+    });
+
+    if (apiRes.ok) {
+      const data = await apiRes.json();
+      if (data?.success) {
+        return {
+          success: true,
+          message: data.message || `E-mail envoyé avec succès à ${validRecipients.length} destinataire(s) !`,
+          sentCount: validRecipients.length,
+        };
+      }
+    }
+  } catch (_) {
+    // Fallback to direct client-side Brevo API fetch if serverless endpoint is not hosted
+  }
+
   try {
     // Send in batches to avoid payload limits
     const BATCH_SIZE = 50;
@@ -392,15 +475,22 @@ export async function sendNewsletterBroadcast(params: {
         htmlContent: params.htmlContent,
       };
 
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'content-type': 'application/json',
-          'api-key': apiKey,
-        },
-        body: JSON.stringify(payload),
-      });
+      let response: Response;
+      try {
+        response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'content-type': 'application/json',
+            'api-key': apiKey,
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (fetchErr: any) {
+        throw new Error(
+          'La requête vers l\'API Brevo a été bloquée par le navigateur ou une extension (AdBlock/uBlock). Veuillez désactiver les bloqueurs ou passer par un déploiement Vercel/Netlify avec fonctions API.'
+        );
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -432,7 +522,7 @@ export async function sendNewsletterBroadcast(params: {
   } catch (err: any) {
     return {
       success: false,
-      message: err.message || 'Une erreur est survenue lors de l’envoi de la newsletter.',
+      message: err?.message || 'Une erreur est survenue lors de l’envoi de la newsletter.',
     };
   }
 }
