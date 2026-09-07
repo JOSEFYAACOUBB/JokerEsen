@@ -15,6 +15,7 @@ import { fetchTeamMembers, getCachedTeam, cacheTeam } from './services/teamServi
 import { fetchClubSettings, getCachedSettings, cacheSettings } from './services/settingsService';
 import { getCurrentMemberSession } from './services/memberService';
 import type { ClubMember } from './types/member';
+import { AdminLoader, NotFoundPage } from './components/LoadingScreens';
 
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 
@@ -221,16 +222,7 @@ export function App() {
   // ADMIN VIEW ROUTE
   if (currentView === 'admin') {
     return (
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-[#1A0E14] flex flex-col items-center justify-center gap-4 text-white">
-            <div className="w-10 h-10 border-4 border-[#B93A34] border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs font-mono uppercase tracking-widest text-[#F3C4A0]">
-              Chargement de l'administration Joker...
-            </p>
-          </div>
-        }
-      >
+      <Suspense fallback={<AdminLoader />}>
         <AdminDashboard
           onBackToPublic={() => handleSetView('public')}
           recruitmentOpen={recruitmentOpen}
@@ -244,6 +236,11 @@ export function App() {
         />
       </Suspense>
     );
+  }
+
+  // MEMBER session expired / not found
+  if (currentView === 'member' && !currentMember) {
+    return <NotFoundPage onGoHome={() => handleSetView('public')} />;
   }
 
   // PUBLIC LANDING VIEW

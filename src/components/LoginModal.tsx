@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, ShieldCheck, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { Logo } from './Logo';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -129,10 +129,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
         </div>
 
         {isLogged ? (
-          <div className="text-center py-8 space-y-3">
-            <ShieldCheck className="w-14 h-14 text-emerald-600 mx-auto animate-bounce" />
-            <h4 className="text-2xl font-black text-[#2A2020] font-display uppercase">Connexion réussie !</h4>
-            <p className="text-xs text-[#5C1F2E]">Redirection vers l'espace {activeTab === 'admin' ? 'Administration' : 'Membre'}...</p>
+          <div style={{
+            textAlign: 'center', padding: '32px 16px',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', gap: '16px',
+          }}>
+            <div style={{ position: 'relative', width: '56px', height: '56px' }}>
+              <div style={{
+                position: 'absolute', inset: 0, borderRadius: '50%',
+                border: '3px solid #DBEAFE',
+                borderTopColor: '#1A56DB',
+                animation: 'spin 0.9s linear infinite',
+              }} />
+              <div style={{
+                position: 'absolute', inset: '10px', borderRadius: '50%',
+                background: '#1A56DB',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '18px', color: '#fff', fontWeight: 900,
+              }}>✓</div>
+            </div>
+            <div>
+              <h4 style={{ fontSize: '15px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: '#111827', margin: '0 0 4px', fontFamily: 'inherit' }}>
+                Connexion réussie !
+              </h4>
+              <p style={{ fontSize: '11px', color: '#6B7280', margin: 0 }}>
+                Redirection vers l'espace {activeTab === 'admin' ? 'Administration' : 'Membre'}…
+              </p>
+            </div>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
         ) : (
           <form onSubmit={handleLogin} className="space-y-4">

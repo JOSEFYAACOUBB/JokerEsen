@@ -132,10 +132,21 @@ export const MemberLoginModal: React.FC<MemberLoginModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl text-white font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+              style={{
+                background: loading ? '#E8F0FE' : '#1A56DB',
+                color: loading ? '#1A56DB' : '#fff',
+                border: loading ? '1px solid #BFDBFE' : 'none',
+              }}
             >
               {loading ? (
-                <span>Connexion en cours...</span>
+                <>
+                  <span style={{ position: 'relative', display: 'inline-block', width: '14px', height: '14px', flexShrink: 0 }}>
+                    <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid #BFDBFE', borderTopColor: '#1A56DB', animation: 'spinM 0.8s linear infinite', display: 'block' }} />
+                  </span>
+                  <span style={{ letterSpacing: '2px' }}>Vérification…</span>
+                  <style>{`@keyframes spinM{to{transform:rotate(360deg)}}`}</style>
+                </>
               ) : (
                 <>
                   <UserCheck className="w-4 h-4 text-white" />
@@ -143,6 +154,8 @@ export const MemberLoginModal: React.FC<MemberLoginModalProps> = ({
                 </>
               )}
             </button>
+
+
           </form>
 
           {/* Quick Demo Login Presets */}
