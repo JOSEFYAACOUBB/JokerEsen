@@ -87,6 +87,11 @@ export interface EventRecord {
   access_info?: string;
   entry_info?: string;
   ambiance_info?: string;
+  event_type?: 'formation' | 'reunion' | 'evenement';
+  max_seats?: number;
+  meeting_url?: string;
+  show_in_member_agenda?: boolean;
+  show_on_public_website?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -116,6 +121,7 @@ export interface RecruitmentApplication {
   birth_date?: string | null;
   major: string;
   department: string;
+  faculty?: string;
   motivation?: string;
   status?: 'pending' | 'accepted' | 'rejected' | 'contacted';
   created_at?: string;

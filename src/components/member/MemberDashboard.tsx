@@ -12,31 +12,24 @@ import {
   CheckCircle2,
   X,
   Star,
-  Download,
   Flame,
   ThumbsUp,
   Plus,
   ExternalLink,
   Shield,
-  FileText,
-  Code,
   Zap,
 } from 'lucide-react';
 import type { EventRecord } from '../../types/database';
 import type {
   ClubMember,
-  MemberCertificate,
   ForumIdea,
-  MemberResource,
   MemberEventRegistration,
 } from '../../types/member';
 import {
   logoutMemberSession,
-  getMemberCertificates,
   getForumIdeas,
   addForumIdea,
   voteForumIdea,
-  getMemberResources,
   getMemberEventRegistrations,
   toggleEventRegistration,
   getStoredMembers,
@@ -56,18 +49,15 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   onGoToPublic,
 }) => {
   const [currentMember, setCurrentMember] = useState<ClubMember>(initialMember);
-  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'certificates' | 'community' | 'resources' | 'leaderboard'>('overview');
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'community' | 'leaderboard'>('overview');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
 
   // Data states
-  const [certificates, setCertificates] = useState<MemberCertificate[]>([]);
   const [forumIdeas, setForumIdeas] = useState<ForumIdea[]>([]);
-  const [resources, setResources] = useState<MemberResource[]>([]);
   const [registrations, setRegistrations] = useState<MemberEventRegistration[]>([]);
   const [allMembers, setAllMembers] = useState<ClubMember[]>([]);
 
   // Modals & Active Selections
-  const [selectedCertificate, setSelectedCertificate] = useState<MemberCertificate | null>(null);
   const [isNewIdeaModalOpen, setIsNewIdeaModalOpen] = useState(false);
   const [newIdeaTitle, setNewIdeaTitle] = useState('');
   const [newIdeaCategory, setNewIdeaCategory] = useState<ForumIdea['category']>('evenement');
@@ -75,14 +65,12 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   const [selectedPassEvent, setSelectedPassEvent] = useState<EventRecord | null>(null);
 
   useEffect(() => {
-    setCertificates(getMemberCertificates(currentMember.id));
     setForumIdeas(getForumIdeas());
-    setResources(getMemberResources());
     setRegistrations(getMemberEventRegistrations(currentMember.id));
     setAllMembers(getStoredMembers());
   }, [currentMember.id]);
 
-  const showToast = (message: string, type: 'success' | 'info' = 'success') => {
+  const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   };
@@ -102,11 +90,16 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   );
 
   const handleToggleRegistration = (event: EventRecord) => {
-    const { registrations: updatedRegs, isRegistered } = toggleEventRegistration(
+    const { registrations: updatedRegs, isRegistered, error } = toggleEventRegistration(
       currentMember,
-      event.id || 'evt-demo',
-      event.title
+      event
     );
+
+    if (error) {
+      showToast(error, 'error');
+      return;
+    }
+
     setRegistrations(updatedRegs);
     setAllMembers(getStoredMembers());
     const latestSelf = getStoredMembers().find((m) => m.id === currentMember.id);
@@ -115,7 +108,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     if (isRegistered) {
       showToast(`Inscription réussie à "${event.title}" (+10 pts ajoutés !)`, 'success');
     } else {
-      showToast(`Inscription annulée pour "${event.title}".`, 'info');
+      showToast(`Inscription annulée pour "${event.title}". Log enregistré.`, 'info');
     }
   };
 
@@ -196,10 +189,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
             <nav className="space-y-1">
               {[
                 { id: 'overview', label: 'Tableau de Bord', icon: LayoutDashboard },
-                { id: 'events', label: 'Événements & Workshops', icon: Calendar, badge: allEvents.length },
-                { id: 'certificates', label: 'Mes Certificats', icon: Award, badge: certificates.length },
+                { id: 'events', label: 'Agenda Formations & Réunions', icon: Calendar, badge: allEvents.length },
                 { id: 'community', label: 'Communauté & Forum', icon: Users, badge: forumIdeas.length },
-                { id: 'resources', label: 'Ressources & Cours', icon: BookOpen, badge: resources.length },
                 { id: 'leaderboard', label: 'Classement & Badges', icon: Trophy },
               ].map((tab) => {
                 const Icon = tab.icon;
@@ -257,7 +248,52 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
 
         {/* Content Area */}
         <main className="flex-1 p-6 sm:p-8 overflow-y-auto">
-          
+
+          {/* Absence Red Warning Alert Card (Always Visible if any unexcused absence) */}
+          {registrations.some(
+            (r) =>
+              (r.member_id === currentMember.id || r.member_email?.toLowerCase() === currentMember.email.toLowerCase()) &&
+              (r.attendance_status === 'absent' || Boolean(r.absence_remark))
+          ) && (
+            <div className="mb-6 p-5 sm:p-6 rounded-3xl bg-rose-600 text-white shadow-xl border-2 border-rose-400 animate-in fade-in space-y-3">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white text-rose-600 flex items-center justify-center shrink-0 font-black text-xl shadow-md">
+                  ⚠️
+                </div>
+                <div className="flex-1">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 border border-white/30 text-white text-[10px] font-black uppercase tracking-wider mb-1">
+                    Signalement Officiel d'Absence
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-white font-sans tracking-tight">
+                    Remarque d'absence non justifiée envoyée par l'administration
+                  </h3>
+                  <p className="text-xs text-rose-100 mt-1">
+                    Vous avez été marqué(e) absent(e) lors de la vérification manuelle d'une formation ou réunion après votre inscription.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2 pt-2 border-t border-rose-500/50">
+                {registrations
+                  .filter(
+                    (r) =>
+                      (r.member_id === currentMember.id || r.member_email?.toLowerCase() === currentMember.email.toLowerCase()) &&
+                      (r.attendance_status === 'absent' || Boolean(r.absence_remark))
+                  )
+                  .map((r) => (
+                    <div key={r.id} className="p-3.5 rounded-2xl bg-slate-900/90 text-white border border-rose-400/40 text-xs space-y-1">
+                      <div className="flex items-center justify-between font-bold text-rose-300">
+                        <span>{r.event_title}</span>
+                        <span className="text-[10px] font-mono text-rose-400 font-bold uppercase">ABSENCE DÉCLARÉE</span>
+                      </div>
+                      <p className="text-rose-100 text-xs leading-relaxed font-medium">
+                        💬 Remarque Admin : "{r.absence_remark || 'Absent(e) non justifié(e) à la formation / réunion.'}"
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6 animate-in fade-in">
@@ -367,8 +403,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                     <Award className="w-6 h-6" />
                   </div>
                   <div>
-                    <span className="text-[11px] font-bold text-slate-500 uppercase">Certificats Validés</span>
-                    <h4 className="text-2xl font-black text-slate-900 font-sans">{certificates.length}</h4>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase">Formations & Inscriptions</span>
+                    <h4 className="text-2xl font-black text-slate-900 font-sans">{registrations.length}</h4>
                   </div>
                 </div>
 
@@ -422,123 +458,193 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                     );
                   })}
                 </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs text-slate-600 font-medium">Badges accumulés</span>
+                  <div className="flex items-center gap-1">
+                    {currentMember.badges.map((badge) => (
+                      <span key={badge} className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                        🏆 {badge}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
 
             </div>
           )}
 
-          {/* TAB 2: EVENTS & WORKSHOPS */}
+          {/* TAB 2: AGENDA FORMATIONS & RÉUNIONS */}
           {activeTab === 'events' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="flex items-center justify-between p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
                 <div>
                   <h2 className="text-xl font-black text-slate-900 font-sans tracking-tight">
-                    Agenda des Formations &amp; Événements ({allEvents.length})
+                    Agenda des Formations, Réunions &amp; Événements ({allEvents.length})
                   </h2>
-                  <p className="text-xs text-slate-500">Inscrivez-vous en 1 clic pour garantir votre place et obtenir vos points.</p>
+                  <p className="text-xs text-slate-500">Inscrivez-vous aux sessions pour obtenir vos accès visio et accumuler vos points.</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {allEvents.map((evt) => {
-                  const isReg = registrations.some((r) => r.event_id === evt.id);
-                  return (
-                    <div
-                      key={evt.id || evt.title}
-                      className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4 hover:border-blue-300 transition-all"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-[10px] font-extrabold uppercase">
-                            {evt.edition || 'Joker Event'}
-                          </span>
-                          <span className="text-xs text-slate-500 font-bold">{evt.date}</span>
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-900 font-sans">{evt.title}</h3>
-                        <p className="text-xs text-slate-600 line-clamp-2">{evt.program}</p>
-                        <p className="text-[11px] text-slate-500 font-medium">📍 {evt.location}</p>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
-                        <button
-                          onClick={() => setSelectedPassEvent(evt)}
-                          className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <QrCode className="w-3.5 h-3.5 text-slate-600" />
-                          <span>Voir Pass QR</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleToggleRegistration(evt)}
-                          className={`px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                            isReg
-                              ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-                              : 'bg-slate-900 text-white hover:bg-slate-800 shadow-xs'
-                          }`}
-                        >
-                          <span className={isReg ? 'text-rose-700' : 'text-white'}>
-                            {isReg ? 'Annuler Inscription' : 'M\'inscrire (+10 pts)'}
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: CERTIFICATES */}
-          {activeTab === 'certificates' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
-                <h2 className="text-xl font-black text-slate-900 font-sans tracking-tight">
-                  Mes Certificats &amp; Accomplissements ({certificates.length})
-                </h2>
-                <p className="text-xs text-slate-500">Certificats officiels téléchargeables et vérifiables par les recruteurs.</p>
-              </div>
-
-              {certificates.length === 0 ? (
+              {allEvents.filter((e) => e.show_in_member_agenda !== false).length === 0 ? (
                 <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
-                  <Award className="w-12 h-12 text-slate-300 mx-auto" />
-                  <h3 className="font-bold text-slate-800 text-sm">Aucun certificat pour le moment</h3>
+                  <Calendar className="w-12 h-12 text-slate-300 mx-auto" />
+                  <h3 className="font-bold text-slate-800 text-sm">Aucune formation ou réunion programmée</h3>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    Participez à nos ateliers et formations à venir pour débloquer vos premiers certificats certifiés.
+                    Le bureau exécutif publiera bientôt les prochaines dates de formations et réunions.
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {certificates.map((cert) => (
-                    <div
-                      key={cert.id}
-                      className="p-6 rounded-3xl bg-gradient-to-br from-white to-blue-50/30 border border-blue-200/80 shadow-xs space-y-4 flex flex-col justify-between"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase">
-                            Certifié Joker ESEN
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">{cert.certificate_code}</span>
-                        </div>
-                        <h3 className="text-base font-bold text-slate-900 font-sans">{cert.title}</h3>
-                        <p className="text-xs text-slate-500">Événement: {cert.event_title}</p>
-                        
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {cert.skills.map((skill) => (
-                            <span key={skill} className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 text-[10px] font-bold">
-                              {skill}
+                  {allEvents.filter((e) => e.show_in_member_agenda !== false).map((evt) => {
+                    const isReg = registrations.some((r) => r.event_id === evt.id);
+                    const userReg = registrations.find((r) => r.event_id === evt.id);
+                    const maxSeats = evt.max_seats ?? 50;
+                    const eventType = evt.event_type || 'evenement';
+
+                    return (
+                      <div
+                        key={evt.id || evt.title}
+                        className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4 hover:border-blue-300 transition-all"
+                      >
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                              eventType === 'formation'
+                                ? 'bg-indigo-100 text-indigo-800'
+                                : eventType === 'reunion'
+                                ? 'bg-amber-100 text-amber-900'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {eventType.toUpperCase()} · {evt.edition || 'Joker'}
                             </span>
-                          ))}
+                            <span className="text-xs text-slate-500 font-bold">{evt.date}</span>
+                          </div>
+
+                          <h3 className="text-lg font-bold text-slate-900 font-sans">{evt.title}</h3>
+                          <p className="text-xs text-slate-600 line-clamp-2">{evt.program}</p>
+
+                          <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                            <span>📍 {evt.location}</span>
+                            <span className="font-mono text-[11px] font-bold text-slate-700">
+                              Capacité: {maxSeats} places
+                            </span>
+                          </div>
+
+                          {/* Meeting Link for registered users */}
+                          {isReg && evt.meeting_url && (
+                            <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-between gap-2">
+                              <span className="text-xs font-bold text-blue-900">Lien Visio / Réunion disponible</span>
+                              <a
+                                href={evt.meeting_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all cursor-pointer"
+                              >
+                                Rejoindre &rarr;
+                              </a>
+                            </div>
+                          )}
+
+                          {/* User Attendance status remark */}
+                          {userReg?.attendance_status === 'absent' && (
+                            <div className="p-2.5 rounded-xl bg-rose-100 text-rose-800 text-xs font-bold border border-rose-300">
+                              ⚠️ Indiqué Absent par l'administration
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
+                          <button
+                            onClick={() => setSelectedPassEvent(evt)}
+                            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <QrCode className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Pass QR</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleToggleRegistration(evt)}
+                            className={`px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              isReg
+                                ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                                : 'bg-slate-900 text-white hover:bg-slate-800 shadow-xs'
+                            }`}
+                          >
+                            <span className={isReg ? 'text-rose-700' : 'text-white'}>
+                              {isReg ? 'Se désinscrire' : 'S\'inscrire (+10 pts)'}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: COMMUNAUTÉ & FORUM */}
+          {activeTab === 'community' && (
+            <div className="space-y-6 animate-in fade-in">
+              <div className="flex items-center justify-between p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 font-sans tracking-tight">
+                    Communauté &amp; Forum d'Idées ({forumIdeas.length})
+                  </h2>
+                  <p className="text-xs text-slate-500">Partagez vos idées et votez pour les meilleures propositions.</p>
+                </div>
+                <button
+                  onClick={() => setIsNewIdeaModalOpen(true)}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 cursor-pointer transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Proposer une Idée</span>
+                </button>
+              </div>
+
+              {forumIdeas.length === 0 ? (
+                <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
+                  <BookOpen className="w-12 h-12 text-slate-300 mx-auto" />
+                  <h3 className="font-bold text-slate-800 text-sm">Aucune idée proposée pour le moment</h3>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    Soyez le premier à proposer une idée innovante pour le club !
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {forumIdeas.map((idea) => (
+                    <div
+                      key={idea.id}
+                      className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-blue-300 transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold uppercase">
+                              {idea.category}
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              par <strong>{idea.author_name}</strong>
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-slate-900 text-sm mb-1">{idea.title}</h4>
+                          <p className="text-xs text-slate-600 mb-2">{idea.description}</p>
                         </div>
                       </div>
 
-                      <div className="pt-3 border-t border-blue-100 flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-medium">Délivré le {cert.issue_date}</span>
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                        <span className="text-[10px] text-slate-400">{idea.created_at}</span>
                         <button
-                          onClick={() => setSelectedCertificate(cert)}
-                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
+                          onClick={() => handleVoteIdea(idea.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                            idea.voted_by.includes(currentMember.id)
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
                         >
-                          <span className="text-white font-bold">Afficher / Imprimer</span>
+                          <ThumbsUp className="w-3.5 h-3.5" />
+                          <span>{idea.votes} votes</span>
                         </button>
                       </div>
                     </div>
@@ -548,253 +654,56 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
             </div>
           )}
 
-          {/* TAB 4: COMMUNITY & FORUM */}
-          {activeTab === 'community' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900 font-sans tracking-tight">
-                    Communauté &amp; Forum d'Idées Joker
-                  </h2>
-                  <p className="text-xs text-slate-500">Proposez des projets, votez pour vos idées préférées et connectez-vous avec les membres.</p>
-                </div>
-                <button
-                  onClick={() => setIsNewIdeaModalOpen(true)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 text-white shrink-0" />
-                  <span className="text-white font-bold">Proposer une Idée (+20 pts)</span>
-                </button>
-              </div>
-
-              {/* Forum List */}
-              <div className="space-y-4">
-                {forumIdeas.map((idea) => {
-                  const hasVoted = idea.voted_by.includes(currentMember.id);
-                  return (
-                    <div key={idea.id} className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={idea.author_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'}
-                            alt={idea.author_name}
-                            className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                          />
-                          <div>
-                            <h3 className="font-bold text-slate-900 text-sm font-sans">{idea.title}</h3>
-                            <p className="text-[11px] text-slate-500">Par {idea.author_name} · le {idea.created_at}</p>
-                          </div>
-                        </div>
-                        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-[10px] font-extrabold uppercase">
-                          {idea.category}
-                        </span>
-                      </div>
-
-                      <p className="text-xs text-slate-600">{idea.description}</p>
-
-                      <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
-                        <button
-                          onClick={() => handleVoteIdea(idea.id)}
-                          className={`px-3.5 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                            hasVoted
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700'
-                          }`}
-                        >
-                          <ThumbsUp className={`w-3.5 h-3.5 ${hasVoted ? 'text-white' : 'text-slate-600'}`} />
-                          <span className={hasVoted ? 'text-white' : 'text-slate-700'}>
-                            {idea.votes} Votes {hasVoted && '✓'}
-                          </span>
-                        </button>
-
-                        <span className="text-slate-400 font-medium">💬 {idea.comments_count} Commentaires</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: RESOURCES */}
-          {activeTab === 'resources' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
-                <h2 className="text-xl font-black text-slate-900 font-sans tracking-tight">
-                  Bibliothèque Pédagogique &amp; Supports ({resources.length})
-                </h2>
-                <p className="text-xs text-slate-500">Téléchargez les slides, guides et ressources des formations passées.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {resources.map((res) => (
-                  <div key={res.id} className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-3 flex flex-col justify-between">
-                    <div className="space-y-2">
-                      <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                        {res.category === 'slides' && <FileText className="w-5 h-5" />}
-                        {res.category === 'code' && <Code className="w-5 h-5" />}
-                        {res.category === 'pdf' && <BookOpen className="w-5 h-5" />}
-                      </div>
-                      <h3 className="font-bold text-slate-900 text-sm font-sans">{res.title}</h3>
-                      <p className="text-xs text-slate-500 line-clamp-2">{res.description}</p>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-mono">{res.file_type} · {res.file_size}</span>
-                      <a
-                        href={res.file_url}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          showToast(`Téléchargement de "${res.title}"...`, 'info');
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5 text-white" />
-                        <span className="text-white font-bold">Télécharger</span>
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 6: LEADERBOARD */}
+          {/* TAB 4: CLASSEMENT & BADGES */}
           {activeTab === 'leaderboard' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
-                <h2 className="text-xl font-black text-slate-900 font-sans tracking-tight">
-                  Classement Multi-Niveaux &amp; Badges (Top Members)
+                <h2 className="text-xl font-black text-slate-900 font-sans tracking-tight mb-2">
+                  Classement des Membres 🏆
                 </h2>
-                <p className="text-xs text-slate-500">Consultez le leaderboard général des membres les plus engagés.</p>
+                <p className="text-xs text-slate-500">Top 10 des membres les plus actifs du club.</p>
               </div>
 
-              <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
-                <div className="space-y-3">
-                  {allMembers
-                    .sort((a, b) => b.points - a.points)
-                    .map((m, idx) => (
-                      <div
-                        key={m.id}
-                        className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-all ${
-                          m.id === currentMember.id
-                            ? 'bg-blue-50/80 border-blue-300 ring-2 ring-blue-400/20'
-                            : 'bg-white border-slate-200/70'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${
-                              idx === 0
-                                ? 'bg-amber-400 text-amber-950'
-                                : idx === 1
-                                ? 'bg-slate-300 text-slate-900'
-                                : idx === 2
-                                ? 'bg-amber-700 text-amber-100'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            #{idx + 1}
-                          </span>
-
-                          <img
-                            src={m.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'}
-                            alt={m.full_name}
-                            className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
-                          />
-
-                          <div>
-                            <h3 className="font-bold text-slate-900 text-xs font-sans flex items-center gap-2">
-                              <span>{m.full_name}</span>
-                              {m.id === currentMember.id && (
-                                <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[9px] font-extrabold">Vous</span>
-                              )}
-                            </h3>
-                            <p className="text-[11px] text-slate-500">{m.department} · {m.major}</p>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <span className="block font-black text-slate-900 text-sm font-sans">{m.points} PTS</span>
-                          <span className="inline-block px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold uppercase">
-                            {m.level}
-                          </span>
+              <div className="space-y-2">
+                {allMembers
+                  .sort((a, b) => b.points - a.points)
+                  .slice(0, 10)
+                  .map((member, idx) => (
+                    <div
+                      key={member.id}
+                      className={`p-4 rounded-2xl border shadow-xs flex items-center justify-between ${
+                        member.id === currentMember.id
+                          ? 'bg-blue-50 border-blue-200'
+                          : 'bg-white border-slate-200/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-700 text-sm">
+                          {idx + 1}
+                        </span>
+                        <img
+                          src={member.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80'}
+                          alt={member.full_name}
+                          className="w-9 h-9 rounded-full object-cover"
+                        />
+                        <div>
+                          <div className="font-bold text-sm text-slate-900">{member.full_name}</div>
+                          <div className="text-xs text-slate-500">{member.department}</div>
                         </div>
                       </div>
-                    ))}
-                </div>
+                      <div className="text-right">
+                        <div className="font-black text-lg text-slate-900">{member.points}</div>
+                        <div className="text-xs text-slate-500">points</div>
+                      </div>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
 
         </main>
+
       </div>
-
-      {/* Modal: View Printable Certificate */}
-      {selectedCertificate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
-          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border-4 border-amber-400 p-8 text-center space-y-6">
-            <button
-              onClick={() => setSelectedCertificate(null)}
-              className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="space-y-2">
-              <div className="text-amber-600 font-black tracking-widest text-xs uppercase font-sans">
-                CLUB JOKER ESEN — CERTIFICAT OFFICIEL
-              </div>
-              <h2 className="text-2xl font-black text-slate-900 font-sans tracking-tight">
-                {selectedCertificate.title}
-              </h2>
-            </div>
-
-            <p className="text-sm text-slate-600 italic">
-              Le bureau exécutif du club Joker ESEN certifie que
-            </p>
-
-            <h3 className="text-3xl font-black text-blue-900 font-sans underline decoration-amber-400 decoration-4">
-              {selectedCertificate.member_name}
-            </h3>
-
-            <p className="text-xs text-slate-600 max-w-lg mx-auto">
-              a accompli avec succès l'atelier <strong className="text-slate-900">{selectedCertificate.event_title}</strong> et s'est distingué(e) par la maîtrise des compétences suivantes:
-            </p>
-
-            <div className="flex justify-center gap-2 flex-wrap">
-              {selectedCertificate.skills.map((s) => (
-                <span key={s} className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
-                  ✓ {s}
-                </span>
-              ))}
-            </div>
-
-            <div className="pt-6 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-              <div>
-                <span className="block font-bold text-slate-900">{selectedCertificate.instructor}</span>
-                <span>Formateur / Bureau Tech</span>
-              </div>
-              <div className="text-right">
-                <span className="block font-mono text-[11px] text-slate-400">{selectedCertificate.certificate_code}</span>
-                <span>Date: {selectedCertificate.issue_date}</span>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-center">
-              <button
-                onClick={() => {
-                  window.print();
-                }}
-                className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-md"
-              >
-                <Download className="w-4 h-4 text-white" />
-                <span className="text-white font-bold">Imprimer / Imprimer au Format PDF</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal: Post New Idea */}
       {isNewIdeaModalOpen && (

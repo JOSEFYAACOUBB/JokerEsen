@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Lock, Mail, ShieldAlert, UserCheck, Sparkles, AlertCircle } from 'lucide-react';
-import { loginMember, getStoredMembers } from '../services/memberService';
+import { loginMemberAsync, getStoredMembers } from '../services/memberService';
 import type { ClubMember } from '../types/member';
 
 interface MemberLoginModalProps {
@@ -23,38 +23,43 @@ export const MemberLoginModal: React.FC<MemberLoginModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    setTimeout(() => {
-      const { member, error: err } = loginMember(identifier, password);
-      setLoading(false);
-
+    try {
+      const { member, error: err } = await loginMemberAsync(identifier, password);
       if (err || !member) {
-        setError(err || 'Échec de la connexion');
+        setError(err || 'Échec de la connexion. Vérifiez vos identifiants.');
       } else {
         onLoginSuccess(member);
         onClose();
       }
-    }, 400);
+    } catch (err: any) {
+      setError(err?.message || 'Erreur de connexion.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDemoLogin = (demoEmail: string) => {
+  const handleDemoLogin = async (demoEmail: string) => {
     setIdentifier(demoEmail);
     setPassword('password123');
     setError(null);
     setLoading(true);
 
-    setTimeout(() => {
-      const { member } = loginMember(demoEmail, 'password123');
-      setLoading(false);
+    try {
+      const { member } = await loginMemberAsync(demoEmail, 'password123');
       if (member) {
         onLoginSuccess(member);
         onClose();
       }
-    }, 300);
+    } catch (err: any) {
+      setError('Erreur de connexion démo.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const demoMembers = getStoredMembers().slice(0, 3);
@@ -159,27 +164,29 @@ export const MemberLoginModal: React.FC<MemberLoginModalProps> = ({
           </form>
 
           {/* Quick Demo Login Presets */}
-          <div className="pt-4 border-t border-slate-100 space-y-2">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-bold text-slate-500 uppercase tracking-wider">Connexion Rapide Démo</span>
-              <span className="text-slate-400">Cliquez pour tester</span>
+          {demoMembers.length > 0 && (
+            <div className="pt-4 border-t border-slate-100 space-y-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-bold text-slate-500 uppercase tracking-wider">Comptes Membres Enregistrés</span>
+                <span className="text-slate-400">Sélectionner un compte</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {demoMembers.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleDemoLogin(m.email)}
+                    className="p-2 rounded-xl bg-slate-50 border border-slate-200/80 hover:bg-blue-50 hover:border-blue-200 text-left transition-all cursor-pointer group"
+                  >
+                    <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700 truncate">
+                      {m.full_name}
+                    </div>
+                    <div className="text-[10px] text-slate-500 truncate">{m.role.toUpperCase()} · {m.level}</div>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {demoMembers.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => handleDemoLogin(m.email)}
-                  className="p-2 rounded-xl bg-slate-50 border border-slate-200/80 hover:bg-blue-50 hover:border-blue-200 text-left transition-all cursor-pointer group"
-                >
-                  <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700 truncate">
-                    {m.full_name}
-                  </div>
-                  <div className="text-[10px] text-slate-500 truncate">{m.role.toUpperCase()} · {m.level}</div>
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Footer note & Admin link */}
           <div className="bg-amber-50/70 border border-amber-200/60 p-3 rounded-2xl flex items-start gap-2 text-[11px] text-amber-800">

@@ -9,6 +9,7 @@ export interface SubmitApplicationData {
   birthDate?: string;
   major: string;
   department: string;
+  faculty?: string;
   motivation?: string;
 }
 
@@ -24,8 +25,33 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
     return { success: true };
   }
 
+  const facultyVal = data.faculty || data.department;
+
+  // 1. Try SDK insert with both faculty & department in case the column exists in Supabase
   try {
-    // 1. Try official SDK insert (without .select() to avoid requiring SELECT permissions on anon insert)
+    const { error: sdkErrorWithFaculty } = await supabase
+      .from('recruitment_applications')
+      .insert({
+        full_name: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        birth_date: data.birthDate || null,
+        major: data.major,
+        department: facultyVal,
+        faculty: facultyVal,
+        motivation: data.motivation || '',
+        status: 'pending',
+      });
+
+    if (!sdkErrorWithFaculty) {
+      return { success: true };
+    }
+  } catch {
+    // continue to fallback
+  }
+
+  try {
+    // 2. Fallback: SDK insert with standard columns (department holds faculty)
     const { error: sdkError } = await supabase
       .from('recruitment_applications')
       .insert({
@@ -34,7 +60,7 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
         phone: data.phone,
         birth_date: data.birthDate || null,
         major: data.major,
-        department: data.department,
+        department: facultyVal,
         motivation: data.motivation || '',
         status: 'pending',
       });
@@ -45,14 +71,14 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
 
     console.warn('SDK insert failed, trying REST fallback:', sdkError);
 
-    // 2. Fallback to native REST with minimal return header
+    // 3. Fallback to native REST with minimal return header
     const { error: restError } = await supabaseDb.recruitment.submit({
       full_name: data.fullName,
       email: data.email,
       phone: data.phone,
       birth_date: data.birthDate || null,
       major: data.major,
-      department: data.department,
+      department: facultyVal,
       motivation: data.motivation || '',
     });
 
@@ -79,7 +105,10 @@ export async function fetchRecruitmentApplications(): Promise<RecruitmentApplica
       .order('created_at', { ascending: false });
 
     if (!sdkError && sdkData) {
-      return sdkData;
+      return sdkData.map((item: any) => ({
+        ...item,
+        faculty: item.faculty || item.department || 'ESEN Manouba',
+      }));
     }
   } catch (err) {
     console.warn('SDK fetch applications failed, using REST fallback:', err);
@@ -91,7 +120,10 @@ export async function fetchRecruitmentApplications(): Promise<RecruitmentApplica
     return [];
   }
 
-  return data;
+  return (data || []).map((item: any) => ({
+    ...item,
+    faculty: item.faculty || item.department || 'ESEN Manouba',
+  }));
 }
 
 export async function updateRecruitmentStatus(

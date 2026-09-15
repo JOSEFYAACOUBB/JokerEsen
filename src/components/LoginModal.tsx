@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { X, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { Logo } from './Logo';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { loginMemberAsync } from '../services/memberService';
+import type { ClubMember } from '../types/member';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess?: (tab: 'member' | 'admin') => void;
+  onLoginSuccess?: (tab: 'member' | 'admin', member?: ClubMember) => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
@@ -25,22 +27,45 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
     setLoading(true);
 
     try {
+      if (activeTab === 'member') {
+        // Member authentication via club_members database / local storage
+        const { member, error: memberErr } = await loginMemberAsync(email, password);
+
+        if (member && !memberErr) {
+          setIsLogged(true);
+          setTimeout(() => {
+            setIsLogged(false);
+            onClose();
+            if (onLoginSuccess) {
+              onLoginSuccess('member', member);
+            }
+          }, 800);
+        } else {
+          setErrorMessage(memberErr || 'Identifiant ou mot de passe membre incorrect.');
+        }
+        return;
+      }
+
+      // Bureau Exécutif / Admin authentication
       let authenticated = false;
 
-      // 1. Check if Supabase Auth is enabled & valid
+      // 1. Check Supabase Auth (if configured)
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password,
-        });
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: password,
+          });
 
-        if (!error && data?.user) {
-          authenticated = true;
+          if (!error && data?.user) {
+            authenticated = true;
+          }
+        } catch (authErr) {
+          console.warn('Supabase auth attempt skipped:', authErr);
         }
       }
 
-      // 2. Master passkey / Club Admin fallback
-      // Allows immediate access for the club executive board
+      // 2. Master passkey / Executive Board fallback
       if (
         !authenticated &&
         ((email.trim().toLowerCase() === 'admin@jokeresen.tn' && password === 'joker2026') ||
@@ -59,14 +84,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
           setIsLogged(false);
           onClose();
           if (onLoginSuccess) {
-            onLoginSuccess(activeTab);
+            onLoginSuccess('admin');
           }
         }, 1000);
       } else {
         setErrorMessage(
-          isSupabaseConfigured
-            ? 'Email ou mot de passe incorrect. (Conseil: vous pouvez aussi utiliser le mot de passe maître joker2026)'
-            : 'Identifiants invalides. Utilisez le mot de passe maître: joker2026'
+          'Email ou mot de passe incorrect. (Conseil: vous pouvez aussi utiliser le mot de passe maître joker2026)'
         );
       }
     } catch (err: any) {
@@ -94,12 +117,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
           <div className="flex justify-center">
             <Logo size="sm" showText={false} />
           </div>
-          <h3 className="text-2xl sm:text-3xl font-black text-[#A73541] font-display uppercase tracking-wider">
-            Espace JokerEsen
-          </h3>
-          <p className="text-xs text-[#5C1F2E] font-medium">
-            Connectez-vous pour accéder au panneau d'administration et de gestion.
-          </p>
+          
+          
         </div>
 
         {/* Tab Switcher */}
@@ -113,7 +132,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
                 : 'bg-transparent text-[#2A2020] hover:text-[#A73541]'
             }`}
           >
-            Bureau Exécutif (Admin)
+            Bureau Exécutif
           </button>
           <button
             type="button"
@@ -124,7 +143,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
                 : 'bg-transparent text-[#2A2020] hover:text-[#A73541]'
             }`}
           >
-            Membre Club
+            Membre
           </button>
         </div>
 

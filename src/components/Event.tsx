@@ -54,99 +54,131 @@ interface EventProps {
   events?: EventRecord[];
 }
 
-// ── Countdown hook: parses any date string and counts down to it ──
+// ── Countdown hook: accurately parses any event date & time string and counts down to it ──
 function useCountdown(dateText: string) {
-  const parseEventDate = useCallback((text: string): Date => {
-    // Default fallback date: 26 Octobre 2026 20:00
-    const fallbackDate = new Date('2026-10-26T20:00:00');
-    if (!text || typeof text !== 'string') return fallbackDate;
+  const parseEventDate = useCallback((text: string): Date | null => {
+    if (!text || typeof text !== 'string') return null;
+    const clean = text.trim();
+    if (!clean) return null;
 
     try {
-      const lower = text.toLowerCase();
-
-      // Extract time if present e.g. "20h00", "20h", "20:00"
-      let hours = '20';
-      let minutes = '00';
-      const timeMatch = lower.match(/(\d{1,2})[h:](\d{2})?/);
-      if (timeMatch) {
-        hours = timeMatch[1].padStart(2, '0');
-        if (timeMatch[2]) minutes = timeMatch[2];
-      }
-
-      // 1. ISO format YYYY-MM-DD
-      const isoMatch = text.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
-      if (isoMatch) {
-        const d = new Date(`${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}T${hours}:${minutes}:00`);
-        if (!isNaN(d.getTime())) return d;
-      }
-
-      // 2. Slash format DD/MM/YYYY
-      const slashMatch = text.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
-      if (slashMatch) {
-        const d = new Date(`${slashMatch[3]}-${slashMatch[2].padStart(2, '0')}-${slashMatch[1].padStart(2, '0')}T${hours}:${minutes}:00`);
-        if (!isNaN(d.getTime())) return d;
-      }
-
-      // 3. French months map
-      const frMonths: Record<string, string> = {
-        janvier: '01', janv: '01', jan: '01',
-        février: '02', fevrier: '02', févr: '02', fevr: '02', fev: '02',
-        mars: '03', mar: '03',
-        avril: '04', avr: '04',
-        mai: '05',
-        juin: '06',
-        juillet: '07', juil: '07',
-        août: '08', aout: '08',
-        septembre: '09', sept: '09', sep: '09',
-        octobre: '10', oct: '10',
-        novembre: '11', nov: '11',
-        décembre: '12', decembre: '12', déc: '12', dec: '12',
-      };
-
-      const match = lower.match(/(\d{1,2})\s+([a-zàâäéèêëîïôöûüç]+)(?:\s+(\d{4}))?/);
-      if (match) {
-        const day = match[1].padStart(2, '0');
-        const monthKey = match[2];
-        const month = frMonths[monthKey];
-        const year = match[3] || '2026';
-        if (month) {
-          const d = new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`);
-          if (!isNaN(d.getTime())) return d;
+      // 1. Direct standard Date parsing (e.g. ISO 8601 "2026-09-15T10:00:00" or "2026-09-15 10:00")
+      if (/^\d{4}-\d{2}-\d{2}/.test(clean)) {
+        const isoNorm = clean.replace(' ', 'T');
+        const direct = new Date(isoNorm);
+        if (!isNaN(direct.getTime())) {
+          return direct;
         }
       }
 
-      const parsedStandard = new Date(text);
+      // 2. Extract explicit time: e.g. "20h00", "20h", "10:30", "14h30", "10:00:00"
+      let hours = 20;
+      let minutes = 0;
+
+      // Extract time after separator (·, at, à, space, T) or bounded HH:mm / HHhMM
+      const timeMatch = clean.match(/(?:·|\bat\b|\bà\b|\s|T)\s*([01]?\d|2[0-3])[:h]([0-5]\d)(?::[0-5]\d)?/i)
+        || clean.match(/\b([01]?\d|2[0-3])[:h]([0-5]\d)(?::[0-5]\d)?\b/i);
+
+      if (timeMatch) {
+        hours = parseInt(timeMatch[1], 10);
+        minutes = parseInt(timeMatch[2], 10);
+      } else {
+        const simpleHourMatch = clean.match(/(?:·|\bat\b|\bà\b|\s)\s*([01]?\d|2[0-3])h\b/i);
+        if (simpleHourMatch) {
+          hours = parseInt(simpleHourMatch[1], 10);
+          minutes = 0;
+        }
+      }
+
+      // 3. Match ISO format YYYY-MM-DD or YYYY/MM/DD
+      const isoMatch = clean.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+      if (isoMatch) {
+        const y = parseInt(isoMatch[1], 10);
+        const m = parseInt(isoMatch[2], 10) - 1;
+        const d = parseInt(isoMatch[3], 10);
+        return new Date(y, m, d, hours, minutes, 0);
+      }
+
+      // 4. Match Slash/Dash format DD/MM/YYYY or DD-MM-YYYY
+      const slashMatch = clean.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+      if (slashMatch) {
+        const d = parseInt(slashMatch[1], 10);
+        const m = parseInt(slashMatch[2], 10) - 1;
+        const y = parseInt(slashMatch[3], 10);
+        return new Date(y, m, d, hours, minutes, 0);
+      }
+
+      // 5. Match French textual date e.g. "Samedi 26 Octobre 2026 · 20h00"
+      const frMonths: Record<string, number> = {
+        janvier: 0, janv: 0, jan: 0,
+        février: 1, fevrier: 1, févr: 1, fevr: 1, fev: 1,
+        mars: 2, mar: 2,
+        avril: 3, avr: 3,
+        mai: 4,
+        juin: 5,
+        juillet: 6, juil: 6,
+        août: 7, aout: 7,
+        septembre: 8, sept: 8, sep: 8,
+        octobre: 9, oct: 9,
+        novembre: 10, nov: 10,
+        décembre: 11, decembre: 11, déc: 11, dec: 11,
+      };
+
+      const lower = clean.toLowerCase();
+      const frenchMatch = lower.match(/(\d{1,2})\s+([a-zàâäéèêëîïôöûüç]+)(?:\s+(\d{4}))?/);
+      if (frenchMatch) {
+        const day = parseInt(frenchMatch[1], 10);
+        const monthKey = frenchMatch[2];
+        const monthIndex = frMonths[monthKey];
+        const year = frenchMatch[3] ? parseInt(frenchMatch[3], 10) : new Date().getFullYear();
+        if (monthIndex !== undefined) {
+          return new Date(year, monthIndex, day, hours, minutes, 0);
+        }
+      }
+
+      const parsedStandard = new Date(clean);
       if (!isNaN(parsedStandard.getTime())) return parsedStandard;
     } catch {
       // ignore
     }
 
-    return fallbackDate;
+    return null;
   }, []);
 
-  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number }>({
-    days: 0, hours: 0, minutes: 0, seconds: 0,
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number; isPassed: boolean }>({
+    days: 0, hours: 0, minutes: 0, seconds: 0, isPassed: false,
   });
 
   useEffect(() => {
-    let target = parseEventDate(dateText);
-
-    // If target has passed relative to now, automatically target Oct 26 2026
-    if (target.getTime() <= Date.now()) {
-      target = new Date('2026-10-26T20:00:00');
+    const target = parseEventDate(dateText);
+    if (!target) {
+      // Fallback default: Oct 26 2026 20:00
+      const fallback = new Date('2026-10-26T20:00:00');
+      const diff = fallback.getTime() - Date.now();
+      if (diff > 0) {
+        setTimeLeft({
+          days: Math.floor(diff / 86400000),
+          hours: Math.floor((diff % 86400000) / 3600000),
+          minutes: Math.floor((diff % 3600000) / 60000),
+          seconds: Math.floor((diff % 60000) / 1000),
+          isPassed: false,
+        });
+      }
+      return;
     }
 
     const tick = () => {
-      const diff = target.getTime() - Date.now();
+      const now = Date.now();
+      const diff = target.getTime() - now;
       if (diff <= 0) {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isPassed: true });
         return;
       }
       const days = Math.floor(diff / 86400000);
       const hours = Math.floor((diff % 86400000) / 3600000);
       const minutes = Math.floor((diff % 3600000) / 60000);
       const seconds = Math.floor((diff % 60000) / 1000);
-      setTimeLeft({ days, hours, minutes, seconds });
+      setTimeLeft({ days, hours, minutes, seconds, isPassed: false });
     };
 
     tick();
@@ -232,22 +264,24 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
   const entryInfoText = eventData?.entry_info || '100% Gratuite avec réservation préalable en ligne.';
   const ambianceInfoText = eventData?.ambiance_info || 'Musique live, animations, buffet & tombola du club Joker ESEN.';
 
-  // Dynamic previous and upcoming events list from Supabase / Props
+  // Dynamic previous and upcoming events list from Supabase / Props (filtered for public site)
   const sourceEvents: EventRecord[] = events && events.length > 0 ? events : getCachedAllEvents();
-  const eventList: EventItem[] = sourceEvents.map((evt, idx) => ({
-    id: evt.id || `evt-${idx}`,
-    title: evt.title,
-    category: evt.category || (evt.is_active ? 'upcoming' : 'previous'),
-    date: evt.date,
-    location: evt.location,
-    description: evt.program,
-    image: evt.banner_url || '/images/event_banner.jpg',
-    ticketAvailable: evt.ticket_available ?? (evt.category === 'upcoming' || evt.is_active),
-    edition: evt.edition,
-    access_info: evt.access_info,
-    entry_info: evt.entry_info,
-    ambiance_info: evt.ambiance_info,
-  }));
+  const eventList: EventItem[] = sourceEvents
+    .filter((evt) => evt.show_on_public_website !== false && (evt.event_type === 'evenement' || evt.show_on_public_website === true))
+    .map((evt, idx) => ({
+      id: evt.id || `evt-${idx}`,
+      title: evt.title,
+      category: evt.category || (evt.is_active ? 'upcoming' : 'previous'),
+      date: evt.date,
+      location: evt.location,
+      description: evt.program,
+      image: evt.banner_url || '/images/event_banner.jpg',
+      ticketAvailable: evt.ticket_available ?? (evt.category === 'upcoming' || evt.is_active),
+      edition: evt.edition,
+      access_info: evt.access_info,
+      entry_info: evt.entry_info,
+      ambiance_info: evt.ambiance_info,
+    }));
 
   const filteredEvents = activeTab === 'all'
     ? eventList

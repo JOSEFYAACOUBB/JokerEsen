@@ -13,13 +13,16 @@ export const MembershipForm: React.FC = () => {
   const [birthDay, setBirthDay] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthYear, setBirthYear] = useState('');
+  const [studyLevel, setStudyLevel] = useState('M1');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('Business Computing');
+  const [customSpecialty, setCustomSpecialty] = useState('');
+  const [institutionType, setInstitutionType] = useState<'esen' | 'other'>('esen');
+  const [otherFaculty, setOtherFaculty] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
     birthDate: '',
-    major: defaultFormConfig.majors[0] || 'L1 Business Computing',
-    department: defaultFormConfig.departments[0] || 'Événementiel & Animation',
   });
 
   const handleDateChange = (day: string, month: string, year: string) => {
@@ -39,11 +42,6 @@ export const MembershipForm: React.FC = () => {
         const config = await fetchFormConfig();
         if (config) {
           setFormConfig(config);
-          setFormData((prev) => ({
-            ...prev,
-            major: config.majors[0] || prev.major,
-            department: config.departments[0] || prev.department,
-          }));
         }
       } catch (err) {
         console.warn('Error loading form config from Supabase:', err);
@@ -58,14 +56,28 @@ export const MembershipForm: React.FC = () => {
     setLoading(true);
     setErrorMessage('');
 
+    if (institutionType === 'other' && !otherFaculty.trim()) {
+      setErrorMessage('Veuillez préciser le nom de votre faculté / établissement.');
+      setLoading(false);
+      return;
+    }
+
+    const finalSpecialty = selectedSpecialty === 'Autre' || customSpecialty.trim()
+      ? customSpecialty.trim() || 'Général'
+      : selectedSpecialty;
+
+    const finalMajor = `${studyLevel} - ${finalSpecialty}`;
+    const selectedFaculty = institutionType === 'esen' ? 'ESEN Manouba' : otherFaculty.trim();
+
     try {
       const result = await submitRecruitmentApplication({
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
         birthDate: formData.birthDate,
-        major: formData.major,
-        department: formData.department,
+        major: finalMajor,
+        department: selectedFaculty,
+        faculty: selectedFaculty,
       });
 
       if (!result.success && result.error) {
@@ -307,46 +319,128 @@ export const MembershipForm: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Field 4: Major / Filière ESEN */}
-                <div className="space-y-1.5">
+                {/* Field 4: Établissement / Faculté */}
+                <div className="space-y-2">
                   <label
-                    htmlFor="select-major"
                     className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider"
                   >
-                    Filière ESEN
+                    Établissement / Faculté
                   </label>
-                  <select
-                    id="select-major"
-                    aria-label="Filière ESEN"
-                    value={formData.major}
-                    onChange={(e) => setFormData({ ...formData, major: e.target.value })}
-                    className="w-full px-5 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none cursor-pointer"
-                  >
-                    {formConfig.majors.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInstitutionType('esen');
+                        if (studyLevel === 'Ingénieur' || studyLevel === 'Doctorat' || studyLevel === 'Autre') {
+                          setStudyLevel('L1');
+                        }
+                        setSelectedSpecialty('Business Computing');
+                      }}
+                      className={`py-2.5 px-3 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                        institutionType === 'esen'
+                          ? 'bg-[#A73541] text-white border-[#A73541] shadow-xs'
+                          : 'bg-[#FAF7F5] text-[#2A2020] border-[#E5DDD7] hover:bg-[#F0EBE7]'
+                      }`}
+                    >
+                      ESEN Manouba
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInstitutionType('other');
+                      }}
+                      className={`py-2.5 px-3 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                        institutionType === 'other'
+                          ? 'bg-[#A73541] text-white border-[#A73541] shadow-xs'
+                          : 'bg-[#FAF7F5] text-[#2A2020] border-[#E5DDD7] hover:bg-[#F0EBE7]'
+                      }`}
+                    >
+                      Autre Faculté
+                    </button>
+                  </div>
+
+                  {institutionType === 'other' && (
+                    <div className="pt-1 animate-in fade-in duration-200">
+                      <input
+                        type="text"
+                        required={institutionType === 'other'}
+                        placeholder="Nom de votre faculté / université (ex: FST, ISG, TBS, ENSI...)"
+                        value={otherFaculty}
+                        onChange={(e) => setOtherFaculty(e.target.value)}
+                        className="w-full px-5 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none transition-all placeholder-[#9C8F89]"
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {/* Field 5: Department / Pôle */}
-                <div className="space-y-1.5">
+                {/* Field 5: Niveau d'études & Spécialité */}
+                <div className="space-y-2">
                   <label
-                    htmlFor="select-department"
                     className="block text-[11px] font-bold text-[#5C1F2E] uppercase tracking-wider"
                   >
-                    Pôle / Département Souhaité
+                    Niveau d'études &amp; Spécialité
                   </label>
-                  <select
-                    id="select-department"
-                    aria-label="Pôle / Département Souhaité"
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-5 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none cursor-pointer"
-                  >
-                    {formConfig.departments.map((d) => (
-                      <option key={d} value={d}>{d}</option>
+                  
+                  {/* Study Level Pills: ESEN (L1, L2, L3, M1, M2) vs Other (includes Ingénieur, Doctorat, Autre) */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {(institutionType === 'esen'
+                      ? ['L1', 'L2', 'L3', 'M1', 'M2']
+                      : ['L1', 'L2', 'L3', 'M1', 'M2', 'Ingénieur', 'Doctorat', 'Autre']
+                    ).map((lvl) => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setStudyLevel(lvl)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                          studyLevel === lvl
+                            ? 'bg-[#A73541] text-white border-[#A73541] shadow-xs scale-105'
+                            : 'bg-[#FAF7F5] text-[#2A2020] border-[#E5DDD7] hover:bg-[#F0EBE7]'
+                        }`}
+                      >
+                        {lvl}
+                      </button>
                     ))}
-                  </select>
+                  </div>
+
+                  {/* Specialty Selector & Custom Write-in */}
+                  <div className="space-y-1.5 pt-1">
+                    {institutionType === 'esen' ? (
+                      <div className="w-full px-5 py-3 rounded-full bg-[#A73541]/8 border border-[#A73541]/25 text-[#A73541] font-bold text-xs flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        Business Computing
+                      </div>
+                    ) : (
+                      <>
+                        <select
+                          aria-label="Spécialité / Filière"
+                          value={selectedSpecialty}
+                          onChange={(e) => setSelectedSpecialty(e.target.value)}
+                          className="w-full px-5 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none cursor-pointer"
+                        >
+                          <option value="Business Computing / Informatique">Business Computing / Informatique</option>
+                          <option value="Business Analytics / Data Science & BI">Business Analytics / Data Science &amp; BI</option>
+                          <option value="E-Commerce & Marketing Digital">E-Commerce &amp; Marketing Digital</option>
+                          <option value="Informatique & Intelligence Artificielle">Informatique &amp; Intelligence Artificielle</option>
+                          <option value="Génie Logiciel & Systèmes">Génie Logiciel &amp; Systèmes</option>
+                          <option value="Management, Finance & Économie">Management, Finance &amp; Économie</option>
+                          <option value="Autre">Autre spécialité (saisie libre)...</option>
+                        </select>
+
+                        {selectedSpecialty === 'Autre' && (
+                          <div className="pt-1">
+                            <input
+                              type="text"
+                              required={selectedSpecialty === 'Autre'}
+                              placeholder="Précisez votre spécialité / filière (ex: Génie Logiciel, Big Data...)"
+                              value={customSpecialty}
+                              onChange={(e) => setCustomSpecialty(e.target.value)}
+                              className="w-full px-5 py-3 rounded-full bg-[#FAF7F5] border border-[#E5DDD7] focus:border-[#A73541] focus:bg-white text-[#2A2020] font-semibold text-xs outline-none transition-all placeholder-[#9C8F89]"
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Error Banner if any */}

@@ -240,4 +240,32 @@ export const supabaseDb = {
       });
     },
   },
+
+  // 7. Club Members Database Integration
+  members: {
+    async getAll() {
+      return supabaseFetch<any[]>('club_members?order=created_at.desc');
+    },
+
+    async upsert(member: any) {
+      return supabaseFetch<any[]>('club_members', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify(member),
+      });
+    },
+
+    async update(id: string, updates: any) {
+      return supabaseFetch<any[]>(`club_members?id=eq.${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+    },
+
+    async delete(id: string) {
+      return supabaseFetch(`club_members?id=eq.${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
 };

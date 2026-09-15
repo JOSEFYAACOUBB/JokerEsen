@@ -32,6 +32,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Info,
+  ClipboardList,
+  UserX,
 } from 'lucide-react';
 
 import type { TeamMember } from '../Team';
@@ -81,7 +83,14 @@ import {
   type NewsletterSubscriber,
 } from '../../services/brevoService';
 import { AdminMembersTab } from './tabs/AdminMembersTab';
-import { createMemberByAdmin } from '../../services/memberService';
+import {
+  createMemberByAdmin,
+  getStoredMembers,
+  getAllEventRegistrations,
+  getCancellationLogs,
+  updateAttendanceStatus,
+} from '../../services/memberService';
+import type { MemberEventRegistration, CancellationLog } from '../../types/member';
 
 interface AdminDashboardProps {
   onBackToPublic: () => void;
@@ -153,12 +162,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Navigation state with persistent active tab caching
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'members' | 'applications' | 'partners' | 'about' | 'event' | 'team' | 'gallery' | 'settings' | 'newsletter'
+    'dashboard' | 'members' | 'applications' | 'partners' | 'about' | 'event' | 'agenda' | 'team' | 'gallery' | 'settings' | 'newsletter'
   >(() => {
     const saved = localStorage.getItem('joker_admin_active_tab');
     if (
       saved &&
-      ['dashboard', 'members', 'applications', 'partners', 'about', 'event', 'team', 'gallery', 'settings', 'newsletter'].includes(saved)
+      ['dashboard', 'members', 'applications', 'partners', 'about', 'event', 'agenda', 'team', 'gallery', 'settings', 'newsletter'].includes(saved)
     ) {
       return saved as any;
     }
@@ -166,7 +175,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   });
 
   const handleTabSelect = (
-    tab: 'dashboard' | 'applications' | 'partners' | 'about' | 'event' | 'team' | 'gallery' | 'settings' | 'newsletter'
+    tab: 'dashboard' | 'members' | 'applications' | 'partners' | 'about' | 'event' | 'agenda' | 'team' | 'gallery' | 'settings' | 'newsletter'
   ) => {
     setActiveTab(tab);
     localStorage.setItem('joker_admin_active_tab', tab);
@@ -265,6 +274,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     program: string;
     banner_url: string;
     category: 'upcoming' | 'previous';
+    event_type: 'formation' | 'reunion' | 'evenement';
+    max_seats: number;
+    meeting_url: string;
+    show_in_member_agenda: boolean;
+    show_on_public_website: boolean;
     is_active: boolean;
     ticket_available: boolean;
     include_program: boolean;
@@ -281,6 +295,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     program: '',
     banner_url: 'https://res.cloudinary.com/qvnoo1cy/image/upload/v1788317724/rselcd2hgyfq7pnu4lvh.jpg',
     category: 'upcoming',
+    event_type: 'formation',
+    max_seats: 20,
+    meeting_url: '',
+    show_in_member_agenda: true,
+    show_on_public_website: false,
     is_active: true,
     ticket_available: true,
     include_program: true,
@@ -292,6 +311,115 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   });
   const [eventBannerUploadLoading, setEventBannerUploadLoading] = useState(false);
   const eventBannerInputRef = useRef<HTMLInputElement>(null);
+  const [eventDatePart, setEventDatePart] = useState('');
+  const [eventTimePart, setEventTimePart] = useState('20:00');
+
+  // Helper to parse date string into datePart ('YYYY-MM-DD') and timePart ('HH:mm')
+  const parseDateAndTimeToComponents = (text: string): { datePart: string; timePart: string } => {
+    if (!text) {
+      const today = new Date().toISOString().slice(0, 10);
+      return { datePart: today, timePart: '20:00' };
+    }
+
+    let timePart = '20:00';
+    const timeMatch = text.match(/(?:·|\bat\b|\bà\b|\s|T)\s*([01]?\d|2[0-3])[:h]([0-5]\d)/i)
+      || text.match(/\b([01]?\d|2[0-3])[:h]([0-5]\d)\b/i);
+    if (timeMatch) {
+      timePart = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2].padStart(2, '0')}`;
+    } else {
+      const simpleH = text.match(/(?:·|\bat\b|\bà\b|\s)\s*([01]?\d|2[0-3])h\b/i);
+      if (simpleH) {
+        timePart = `${simpleH[1].padStart(2, '0')}:00`;
+      }
+    }
+
+    const isoMatch = text.match(/(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+    if (isoMatch) {
+      return {
+        datePart: `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`,
+        timePart,
+      };
+    }
+
+    const slashMatch = text.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+    if (slashMatch) {
+      return {
+        datePart: `${slashMatch[3]}-${slashMatch[2].padStart(2, '0')}-${slashMatch[1].padStart(2, '0')}`,
+        timePart,
+      };
+    }
+
+    const frMonths: Record<string, string> = {
+      janvier: '01', janv: '01', jan: '01',
+      février: '02', fevrier: '02', févr: '02', fevr: '02', fev: '02',
+      mars: '03', mar: '03',
+      avril: '04', avr: '04',
+      mai: '05',
+      juin: '06',
+      juillet: '07', juil: '07',
+      août: '08', aout: '08',
+      septembre: '09', sept: '09', sep: '09',
+      octobre: '10', oct: '10',
+      novembre: '11', nov: '11',
+      décembre: '12', decembre: '12', déc: '12', dec: '12',
+    };
+
+    const lower = text.toLowerCase();
+    const frenchMatch = lower.match(/(\d{1,2})\s+([a-zàâäéèêëîïôöûüç]+)(?:\s+(\d{4}))?/);
+    if (frenchMatch) {
+      const day = frenchMatch[1].padStart(2, '0');
+      const month = frMonths[frenchMatch[2]];
+      const year = frenchMatch[3] || String(new Date().getFullYear());
+      if (month) {
+        return {
+          datePart: `${year}-${month}-${day}`,
+          timePart,
+        };
+      }
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    return { datePart: today, timePart };
+  };
+
+  const formatFrenchEventDate = (dateStr: string, timeStr: string): string => {
+    if (!dateStr) return '';
+    try {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      if (!y || !m || !d) return dateStr;
+      const dateObj = new Date(y, m - 1, d);
+      const daysOfWeek = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+      const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      const dayName = daysOfWeek[dateObj.getDay()];
+      const monthName = months[m - 1];
+      const timeFormatted = timeStr ? ` · ${timeStr.replace(':', 'h')}` : '';
+      return `${dayName} ${d} ${monthName} ${y}${timeFormatted}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const handleDatePartChange = (newDate: string) => {
+    setEventDatePart(newDate);
+    const formatted = formatFrenchEventDate(newDate, eventTimePart);
+    setEventModalForm((prev) => ({ ...prev, date: formatted }));
+    if (eventErrors.date) setEventErrors((prev) => ({ ...prev, date: undefined }));
+  };
+
+  const handleTimePartChange = (newTime: string) => {
+    setEventTimePart(newTime);
+    const formatted = formatFrenchEventDate(eventDatePart, newTime);
+    setEventModalForm((prev) => ({ ...prev, date: formatted }));
+    if (eventErrors.date) setEventErrors((prev) => ({ ...prev, date: undefined }));
+  };
+
+  // ── Agenda (Formations & Réunions) State ──
+  const [allRegistrations, setAllRegistrations] = useState<MemberEventRegistration[]>(() => getAllEventRegistrations());
+  const [cancellationLogs, setCancellationLogs] = useState<CancellationLog[]>(() => getCancellationLogs());
+  const [agendaFilter, setAgendaFilter] = useState<'all' | 'formation' | 'reunion' | 'evenement'>('all');
+  const [selectedAgendaEvent, setSelectedAgendaEvent] = useState<EventRecord | null>(null);
+  const [attendanceRemark, setAttendanceRemark] = useState<Record<string, string>>({});
+  const [agendaActiveSubTab, setAgendaActiveSubTab] = useState<'sessions' | 'history'>('sessions');
 
   // ── 5. Form Config State ──
   const [formConfig, setFormConfig] = useState<FormConfig>(defaultFormConfig);
@@ -734,10 +862,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       edition: eventModalForm.edition,
       date: eventModalForm.date,
       location: eventModalForm.location,
-      program: eventModalForm.program || 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.',
+      program: eventModalForm.program || 'Session formation & atelier pratique.',
       banner_url: eventModalForm.banner_url || 'https://res.cloudinary.com/qvnoo1cy/image/upload/v1788317724/rselcd2hgyfq7pnu4lvh.jpg',
       category: eventModalForm.category,
       is_active: eventModalForm.is_active,
+      event_type: eventModalForm.event_type || 'evenement',
+      max_seats: Number(eventModalForm.max_seats) || 20,
+      meeting_url: eventModalForm.meeting_url || '',
+      show_in_member_agenda: eventModalForm.show_in_member_agenda ?? true,
+      show_on_public_website: eventModalForm.show_on_public_website ?? (eventModalForm.event_type === 'evenement'),
       ticket_available: eventModalForm.ticket_available,
       show_program: eventModalForm.include_program,
       show_access_info: eventModalForm.include_access_entry,
@@ -821,6 +954,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // ── AGENDA ATTENDANCE HANDLERS ──
+  const handleRefreshAgendaData = () => {
+    setAllRegistrations(getAllEventRegistrations());
+    setCancellationLogs(getCancellationLogs());
+  };
+
+  const handleMarkAttendance = (registrationId: string, status: 'present' | 'absent') => {
+    const remark = attendanceRemark[registrationId] || '';
+    updateAttendanceStatus(registrationId, status, remark || undefined);
+    setAllRegistrations(getAllEventRegistrations());
+    showToast(
+      status === 'present'
+        ? '✅ Membre marqué Présent(e) avec succès.'
+        : `⚠️ Membre marqué Absent(e). Remarque enregistrée et visible dans l'espace membre.`,
+      status === 'present' ? 'success' : 'warning'
+    );
+  };
+
   // ── CANDIDATES & RECRUITMENT HANDLERS ──
   const handleStatusChange = async (
     id: string,
@@ -858,13 +1009,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       showToast('Aucune candidature à exporter.', 'warning');
       return;
     }
-    const headers = ['Nom & Prénom', 'Email', 'Téléphone', 'Filière / Classe', 'Pôle / Département', 'Statut', 'Date'];
+    const headers = ['Nom & Prénom', 'Email', 'Téléphone', 'Filière / Spécialité', 'Établissement / Faculté', 'Statut', 'Date'];
     const rows = applications.map((app) => [
       `"${app.full_name || ''}"`,
       `"${app.email || ''}"`,
       `"${app.phone || ''}"`,
       `"${app.major || ''}"`,
-      `"${app.department || ''}"`,
+      `"${app.faculty || app.department || ''}"`,
       `"${app.status || 'pending'}"`,
       `"${app.created_at ? new Date(app.created_at).toLocaleDateString('fr-FR') : ''}"`,
     ]);
@@ -1446,11 +1597,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* Navigation Menu */}
           <nav className="space-y-1">
             {[
-              { id: 'dashboard', label: "Home", icon: LayoutDashboard },
+              { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+              { id: 'members', label: 'Membres & Comptes', icon: Users, badge: getStoredMembers().length },
               { id: 'applications', label: 'Candidatures', icon: UserCheck, badge: applications.filter((a) => a.status === 'pending').length },
               { id: 'partners', label: 'Partenaires', icon: Building2, badge: partners.length },
               { id: 'about', label: 'Qui Sommes-Nous', icon: BookOpen },
               { id: 'event', label: 'Événements', icon: Calendar, badge: allEvents.length },
+              { id: 'agenda', label: 'Agenda Formations', icon: ClipboardList, badge: allEvents.filter(e => e.show_in_member_agenda).length },
               { id: 'team', label: 'Équipe Exécutive', icon: Users, badge: teamMembers.length },
               { id: 'gallery', label: 'Galerie Photos', icon: ImageIcon, badge: photos.length },
               { id: 'newsletter', label: 'Newsletter Brevo', icon: Mail, badge: subscribers.length },
@@ -2048,15 +2201,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10);
+                      setEventDatePart(today);
+                      setEventTimePart('20:00');
+                      const formatted = formatFrenchEventDate(today, '20:00');
                       setEditingEvent(null);
                       setEventModalForm({
                         title: '',
                         edition: '',
-                        date: '',
+                        date: formatted,
                         location: '',
                         program: '',
                         banner_url: 'https://res.cloudinary.com/qvnoo1cy/image/upload/v1788317724/rselcd2hgyfq7pnu4lvh.jpg',
                         category: 'previous',
+                        event_type: 'evenement',
+                        max_seats: 50,
+                        meeting_url: '',
+                        show_in_member_agenda: false,
+                        show_on_public_website: true,
                         is_active: false,
                         ticket_available: false,
                         include_program: true,
@@ -2077,15 +2239,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                   <button
                     onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10);
+                      setEventDatePart(today);
+                      setEventTimePart('20:00');
+                      const formatted = formatFrenchEventDate(today, '20:00');
                       setEditingEvent(null);
                       setEventModalForm({
                         title: '',
                         edition: '',
-                        date: '',
+                        date: formatted,
                         location: '',
                         program: '',
                         banner_url: 'https://res.cloudinary.com/qvnoo1cy/image/upload/v1788317724/rselcd2hgyfq7pnu4lvh.jpg',
                         category: 'upcoming',
+                        event_type: 'evenement',
+                        max_seats: 50,
+                        meeting_url: '',
+                        show_in_member_agenda: false,
+                        show_on_public_website: true,
                         is_active: false,
                         ticket_available: true,
                         include_program: true,
@@ -2093,7 +2264,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         include_ambiance: true,
                         access_info: 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
                         entry_info: '100% Gratuite avec réservation préalable en ligne.',
-                        ambiance_info: 'Musique live, animations, buffet & tombola du club Joker ESEN.',
+                        ambiance_info: 'Musique live, animations, buffet & tombola du club Joker.',
                       });
                       setEventErrors({});
                       setIsEventModalOpen(true);
@@ -2223,6 +2394,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => {
+                            const { datePart, timePart } = parseDateAndTimeToComponents(event.date);
+                            setEventDatePart(datePart);
+                            setEventTimePart(timePart);
                             setEditingEvent(event);
                             setEventModalForm({
                               title: event.title,
@@ -2232,6 +2406,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               program: event.program,
                               banner_url: event.banner_url,
                               category: event.category || (event.is_active ? 'upcoming' : 'previous'),
+                              event_type: (event.event_type as any) || 'evenement',
+                              max_seats: event.max_seats || 20,
+                              meeting_url: event.meeting_url || '',
+                              show_in_member_agenda: event.show_in_member_agenda !== false,
+                              show_on_public_website: event.show_on_public_website ?? false,
                               is_active: event.is_active,
                               ticket_available: event.ticket_available !== false,
                               include_program: event.show_program !== false,
@@ -2239,7 +2418,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               include_ambiance: event.show_ambiance_info !== false,
                               access_info: event.access_info || 'Ouvert aux étudiants munis de leur réservation / pass gratuit.',
                               entry_info: event.entry_info || '100% Gratuite avec réservation préalable en ligne.',
-                              ambiance_info: event.ambiance_info || 'Musique live, animations, buffet & tombola du club Joker ESEN.',
+                              ambiance_info: event.ambiance_info || 'Musique live, animations, buffet & tombola du club Joker.',
                             });
                             setEventErrors({});
                             setIsEventModalOpen(true);
@@ -2263,6 +2442,382 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           )}
+
+
+          {/* TAB: AGENDA FORMATIONS & RÉUNIONS */}
+          {activeTab === 'agenda' && (() => {
+            const agendaEvents = allEvents.filter(e =>
+              e.show_in_member_agenda !== false &&
+              (agendaFilter === 'all' || e.event_type === agendaFilter)
+            );
+            const sessionRegs = selectedAgendaEvent
+              ? allRegistrations.filter(r => r.event_id === selectedAgendaEvent.id)
+              : [];
+
+            return (
+              <div className="space-y-6 animate-in fade-in">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 tracking-tight font-sans">
+                      Agenda des Formations &amp; Réunions ({agendaEvents.length})
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Gérez les sessions visibles dans l'espace membre, vérifiez les présences et consultez l'historique des inscriptions.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleRefreshAgendaData}
+                      className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Actualiser</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const today = new Date().toISOString().slice(0, 10);
+                        setEventDatePart(today);
+                        setEventTimePart('14:00');
+                        const formatted = formatFrenchEventDate(today, '14:00');
+                        setEditingEvent(null);
+                        setEventModalForm({
+                          title: '',
+                          edition: '',
+                          date: formatted,
+                          location: '',
+                          program: '',
+                          banner_url: 'https://res.cloudinary.com/qvnoo1cy/image/upload/v1788317724/rselcd2hgyfq7pnu4lvh.jpg',
+                          category: 'upcoming',
+                          event_type: 'formation',
+                          max_seats: 20,
+                          meeting_url: '',
+                          show_in_member_agenda: true,
+                          show_on_public_website: false,
+                          is_active: false,
+                          ticket_available: false,
+                          include_program: true,
+                          include_access_entry: false,
+                          include_ambiance: false,
+                          access_info: '',
+                          entry_info: '',
+                          ambiance_info: '',
+                        });
+                        setEventErrors({});
+                        setIsEventModalOpen(true);
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 text-white shrink-0" />
+                      <span className="text-white font-bold">Nouvelle Formation / Réunion</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-tabs */}
+                <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-100 w-fit">
+                  {(['sessions', 'history'] as const).map(st => (
+                    <button
+                      key={st}
+                      onClick={() => setAgendaActiveSubTab(st)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        agendaActiveSubTab === st ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {st === 'sessions' ? '📋 Sessions & Présences' : '📜 Historique Inscriptions'}
+                    </button>
+                  ))}
+                </div>
+
+                {agendaActiveSubTab === 'sessions' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Sessions list */}
+                    <div className="lg:col-span-1 space-y-3">
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200/70 shadow-xs">
+                        <p className="text-[11px] font-bold uppercase text-slate-500 mb-2">Filtrer par type</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(['all', 'formation', 'reunion', 'evenement'] as const).map(f => (
+                            <button
+                              key={f}
+                              onClick={() => setAgendaFilter(f)}
+                              className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
+                                agendaFilter === f ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                              }`}
+                            >
+                              {f === 'all' ? 'Tous' : f === 'formation' ? '🎓 Formation' : f === 'reunion' ? '🤝 Réunion' : '🎉 Événement'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {agendaEvents.length === 0 ? (
+                        <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/70 space-y-2">
+                          <ClipboardList className="w-10 h-10 text-slate-300 mx-auto" />
+                          <p className="text-xs font-bold text-slate-600">Aucune session dans l'agenda membre</p>
+                          <p className="text-[11px] text-slate-400">Créez une formation ou réunion et activez "Afficher dans l'Agenda Membres".</p>
+                        </div>
+                      ) : (
+                        agendaEvents.map(evt => {
+                          const regs = allRegistrations.filter(r => r.event_id === evt.id);
+                          const isSelected = selectedAgendaEvent?.id === evt.id;
+                          return (
+                            <button
+                              key={evt.id}
+                              onClick={() => setSelectedAgendaEvent(evt)}
+                              className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer space-y-1.5 ${
+                                isSelected
+                                  ? 'bg-slate-900 border-slate-900 text-white'
+                                  : 'bg-white border-slate-200/70 hover:border-slate-300 shadow-xs'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                                  isSelected ? 'bg-white/20 text-white' :
+                                  evt.event_type === 'formation' ? 'bg-indigo-100 text-indigo-800' :
+                                  evt.event_type === 'reunion' ? 'bg-amber-100 text-amber-900' :
+                                  'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {evt.event_type === 'formation' ? '🎓' : evt.event_type === 'reunion' ? '🤝' : '🎉'} {evt.event_type || 'évt'}
+                                </span>
+                                <span className={`text-[10px] font-mono font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                                  {regs.length}/{evt.max_seats ?? 50}
+                                </span>
+                              </div>
+                              <p className={`text-xs font-bold line-clamp-1 ${isSelected ? 'text-white' : 'text-slate-900'}`}>{evt.title}</p>
+                              <p className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>{evt.date}</p>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Attendance panel */}
+                    <div className="lg:col-span-2">
+                      {!selectedAgendaEvent ? (
+                        <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/70 shadow-xs space-y-3 h-full flex flex-col items-center justify-center">
+                          <UserCheck className="w-12 h-12 text-slate-300" />
+                          <h3 className="font-bold text-slate-700 text-sm">Sélectionnez une session</h3>
+                          <p className="text-xs text-slate-400 max-w-xs">Cliquez sur une formation ou réunion à gauche pour voir et gérer les présences.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* Session info header */}
+                          <div className="p-5 rounded-3xl bg-white border border-slate-200/70 shadow-xs flex items-start justify-between gap-4">
+                            <div className="space-y-1">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                                selectedAgendaEvent.event_type === 'formation' ? 'bg-indigo-100 text-indigo-800' :
+                                selectedAgendaEvent.event_type === 'reunion' ? 'bg-amber-100 text-amber-900' :
+                                'bg-blue-100 text-blue-800'
+                              }`}>
+                                {selectedAgendaEvent.event_type || 'session'}
+                              </span>
+                              <h3 className="text-base font-bold text-slate-900 font-sans">{selectedAgendaEvent.title}</h3>
+                              <p className="text-xs text-slate-500">{selectedAgendaEvent.date} · {selectedAgendaEvent.location}</p>
+                              <div className="flex items-center gap-3 pt-1 text-xs text-slate-600">
+                                <span className="font-bold">{sessionRegs.length} inscrits</span>
+                                <span>·</span>
+                                <span className="text-emerald-600 font-bold">{sessionRegs.filter(r => r.attendance_status === 'present').length} présents</span>
+                                <span>·</span>
+                                <span className="text-rose-600 font-bold">{sessionRegs.filter(r => r.attendance_status === 'absent').length} absents</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setSelectedAgendaEvent(null)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* Registered members table */}
+                          {sessionRegs.length === 0 ? (
+                            <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/70 shadow-xs space-y-2">
+                              <Users className="w-10 h-10 text-slate-300 mx-auto" />
+                              <p className="text-xs font-bold text-slate-600">Aucun membre inscrit</p>
+                              <p className="text-[11px] text-slate-400">Les membres peuvent s'inscrire depuis leur espace personnel.</p>
+                            </div>
+                          ) : (
+                            <div className="rounded-3xl bg-white border border-slate-200/70 overflow-hidden shadow-xs">
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs">
+                                  <thead className="bg-slate-50 text-slate-500 font-bold text-[11px] uppercase tracking-wider border-b border-slate-200/80">
+                                    <tr>
+                                      <th className="p-4">Membre</th>
+                                      <th className="p-4">Inscrit le</th>
+                                      <th className="p-4">Statut Présence</th>
+                                      <th className="p-4">Remarque d'absence</th>
+                                      <th className="p-4 text-right">Action</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100 text-slate-800">
+                                    {sessionRegs.map(reg => (
+                                      <tr key={reg.id} className="hover:bg-slate-50/70 transition-colors">
+                                        <td className="p-4">
+                                          <p className="font-bold text-slate-900">{reg.member_name || '—'}</p>
+                                          <p className="text-[11px] text-slate-500">{reg.member_email || ''}</p>
+                                        </td>
+                                        <td className="p-4 text-slate-600 font-mono text-[11px]">{reg.registered_at}</td>
+                                        <td className="p-4">
+                                          {reg.attendance_status === 'present' && (
+                                            <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase">✅ Présent</span>
+                                          )}
+                                          {reg.attendance_status === 'absent' && (
+                                            <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 text-[10px] font-extrabold uppercase">⚠️ Absent</span>
+                                          )}
+                                          {(!reg.attendance_status || reg.attendance_status === 'pending') && (
+                                            <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-extrabold uppercase">⏳ En attente</span>
+                                          )}
+                                        </td>
+                                        <td className="p-4">
+                                          <input
+                                            type="text"
+                                            value={attendanceRemark[reg.id] ?? (reg.absence_remark || '')}
+                                            onChange={(e) => setAttendanceRemark(prev => ({ ...prev, [reg.id]: e.target.value }))}
+                                            placeholder="Ex: Absent sans justification..."
+                                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none focus:border-rose-400 focus:bg-white transition-colors"
+                                          />
+                                        </td>
+                                        <td className="p-4">
+                                          <div className="flex items-center justify-end gap-1.5">
+                                            <button
+                                              onClick={() => handleMarkAttendance(reg.id, 'present')}
+                                              className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200 cursor-pointer transition-all"
+                                            >
+                                              Présent ✅
+                                            </button>
+                                            <button
+                                              onClick={() => handleMarkAttendance(reg.id, 'absent')}
+                                              className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200 cursor-pointer transition-all"
+                                            >
+                                              Absent ⚠️
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {agendaActiveSubTab === 'history' && (
+                  <div className="space-y-6">
+                    <div className="p-5 rounded-3xl bg-white border border-slate-200/70 shadow-xs">
+                      <h3 className="text-base font-bold text-slate-900 font-sans mb-1">Historique des Inscriptions &amp; Désinscriptions</h3>
+                      <p className="text-xs text-slate-500">Log immuable de toutes les actions d'inscription et d'annulation des membres.</p>
+                    </div>
+
+                    {/* Inscriptions active table */}
+                    <div className="rounded-3xl bg-white border border-slate-200/70 overflow-hidden shadow-xs">
+                      <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <h4 className="font-bold text-sm text-slate-900">Inscriptions actives ({allRegistrations.length})</h4>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-50 text-slate-500 font-bold text-[11px] uppercase tracking-wider border-b border-slate-200/80">
+                            <tr>
+                              <th className="p-4">Membre</th>
+                              <th className="p-4">Session</th>
+                              <th className="p-4">Type</th>
+                              <th className="p-4">Inscrit le</th>
+                              <th className="p-4">Présence</th>
+                              <th className="p-4">Remarque Admin</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-800">
+                            {allRegistrations.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} className="p-8 text-center text-slate-400">
+                                  Aucune inscription enregistrée.
+                                </td>
+                              </tr>
+                            ) : (
+                              allRegistrations.map(reg => (
+                                <tr key={reg.id} className={`hover:bg-slate-50/70 transition-colors ${reg.attendance_status === 'absent' ? 'bg-rose-50/40' : ''}`}>
+                                  <td className="p-4">
+                                    <p className="font-bold text-slate-900">{reg.member_name || '—'}</p>
+                                    <p className="text-[11px] text-slate-500">{reg.member_email || ''}</p>
+                                  </td>
+                                  <td className="p-4 font-medium text-slate-800 max-w-[160px]">
+                                    <p className="line-clamp-1">{reg.event_title}</p>
+                                  </td>
+                                  <td className="p-4">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                                      reg.event_type === 'formation' ? 'bg-indigo-100 text-indigo-800' :
+                                      reg.event_type === 'reunion' ? 'bg-amber-100 text-amber-900' :
+                                      'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {reg.event_type || 'évt'}
+                                    </span>
+                                  </td>
+                                  <td className="p-4 font-mono text-[11px] text-slate-600">{reg.registered_at}</td>
+                                  <td className="p-4">
+                                    {reg.attendance_status === 'present' && <span className="text-emerald-600 font-bold">✅ Présent</span>}
+                                    {reg.attendance_status === 'absent' && <span className="text-rose-600 font-bold">⚠️ Absent</span>}
+                                    {(!reg.attendance_status || reg.attendance_status === 'pending') && <span className="text-slate-400">⏳ Attente</span>}
+                                  </td>
+                                  <td className="p-4 text-[11px] text-rose-700 italic max-w-[180px]">
+                                    {reg.absence_remark || '—'}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Cancellation log table */}
+                    <div className="rounded-3xl bg-white border border-slate-200/70 overflow-hidden shadow-xs">
+                      <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+                        <UserX className="w-4 h-4 text-rose-500" />
+                        <h4 className="font-bold text-sm text-slate-900">Désinscriptions &amp; Annulations ({cancellationLogs.length})</h4>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-50 text-slate-500 font-bold text-[11px] uppercase tracking-wider border-b border-slate-200/80">
+                            <tr>
+                              <th className="p-4">Membre</th>
+                              <th className="p-4">Email</th>
+                              <th className="p-4">Session annulée</th>
+                              <th className="p-4">Date d'annulation</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-800">
+                            {cancellationLogs.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="p-8 text-center text-slate-400">
+                                  Aucune désinscription enregistrée.
+                                </td>
+                              </tr>
+                            ) : (
+                              cancellationLogs.map(log => (
+                                <tr key={log.id} className="hover:bg-rose-50/30 transition-colors">
+                                  <td className="p-4 font-bold text-slate-900">{log.member_name}</td>
+                                  <td className="p-4 text-slate-500">{log.member_email}</td>
+                                  <td className="p-4 font-medium text-slate-800 max-w-[180px]">
+                                    <p className="line-clamp-1">{log.event_title}</p>
+                                  </td>
+                                  <td className="p-4 font-mono text-[11px] text-rose-700 font-bold">{log.cancelled_at}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* TAB 5: CANDIDATES & APPLICATIONS */}
           {activeTab === 'applications' && (
@@ -2344,8 +2899,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <tr>
                         <th className="p-4">Candidat</th>
                         <th className="p-4">Contact</th>
-                        <th className="p-4">Filière / Classe</th>
-                        <th className="p-4">Pôle / Département</th>
+                        <th className="p-4">Filière / Spécialité</th>
+                        <th className="p-4">Établissement / Faculté</th>
                         <th className="p-4">Statut</th>
                         <th className="p-4 text-right">Actions</th>
                       </tr>
@@ -2389,7 +2944,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </td>
                             <td className="p-4">
                               <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 border border-sky-200/60 text-xs font-semibold">
-                                {app.department}
+                                {app.faculty || app.department || 'ESEN Manouba'}
                               </span>
                             </td>
                             <td className="p-4">
@@ -2996,10 +3551,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200/70 space-y-4 shadow-xs">
                 <div>
                   <h3 className="font-bold text-base text-slate-900 uppercase font-sans">
-                    Filières &amp; Classes Disponibles ({formConfig.majors.length})
+                    Filières &amp; Spécialités d'études ({formConfig.majors.length})
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Options proposées aux étudiants lors de leur inscription au club Joker ESEN.
+                    Options proposées aux étudiants lors de leur inscription au club Joker.
                   </p>
                 </div>
 
@@ -3634,6 +4189,76 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
+              {/* Event Type, Capacity & Meeting URL */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                    Catégorie de Session
+                  </label>
+                  <select
+                    value={eventModalForm.event_type}
+                    onChange={(e) => setEventModalForm({ ...eventModalForm, event_type: e.target.value as any })}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none"
+                  >
+                    <option value="formation">🎓 Formation / Workshop</option>
+                    <option value="reunion">🤝 Réunion Club / Bureau</option>
+                    <option value="evenement">🎉 Événement / Festivité</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                    Capacité (Places max)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={eventModalForm.max_seats}
+                    onChange={(e) => setEventModalForm({ ...eventModalForm, max_seats: parseInt(e.target.value) || 20 })}
+                    placeholder="20"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                    Lien Visio / Réunion (Optionnel)
+                  </label>
+                  <input
+                    type="url"
+                    value={eventModalForm.meeting_url}
+                    onChange={(e) => setEventModalForm({ ...eventModalForm, meeting_url: e.target.value })}
+                    placeholder="https://meet.google.com/xyz"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Visibility Options */}
+              <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/80 space-y-2">
+                <p className="text-xs font-bold uppercase text-blue-900">Visibilité & Emplacement</p>
+                <div className="flex flex-col sm:flex-row gap-4 text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={eventModalForm.show_in_member_agenda ?? true}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, show_in_member_agenda: e.target.checked })}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Afficher dans l'Agenda Membres (Espace Membre)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={eventModalForm.show_on_public_website ?? false}
+                      onChange={(e) => setEventModalForm({ ...eventModalForm, show_on_public_website: e.target.checked })}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Afficher sur le site public principal</span>
+                  </label>
+                </div>
+              </div>
+
               {/* Main Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
@@ -3684,22 +4309,65 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                    Date &amp; Heure <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={eventModalForm.date}
-                    onChange={(e) => {
-                      setEventModalForm({ ...eventModalForm, date: e.target.value });
-                      if (eventErrors.date) setEventErrors({ ...eventErrors, date: undefined });
-                    }}
-                    placeholder="Ex: Samedi 26 Octobre 2026 · 20h00"
-                    className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 border text-xs text-slate-800 outline-none transition-colors ${
-                      eventErrors.date ? 'border-rose-500 ring-1 ring-rose-500/50' : 'border-slate-200 focus:bg-white focus:border-slate-400'
-                    }`}
-                  />
+                <div className="sm:col-span-2 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold uppercase text-slate-700">
+                      Date &amp; Heure de l'Événement <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <span>🇹🇳</span>
+                      <span>Heure de Tunisie (GMT+1)</span>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                        1. Choisir le Jour
+                      </label>
+                      <input
+                        type="date"
+                        value={eventDatePart}
+                        onChange={(e) => handleDatePartChange(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 border text-xs text-slate-800 font-semibold outline-none transition-colors ${
+                          eventErrors.date ? 'border-rose-500 ring-1 ring-rose-500/50' : 'border-slate-200 focus:bg-white focus:border-slate-400'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                        2. Choisir l'Heure (Tunisie)
+                      </label>
+                      <input
+                        type="time"
+                        value={eventTimePart}
+                        onChange={(e) => handleTimePartChange(e.target.value)}
+                        className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 border text-xs text-slate-800 font-semibold outline-none transition-colors ${
+                          eventErrors.date ? 'border-rose-500 ring-1 ring-rose-500/50' : 'border-slate-200 focus:bg-white focus:border-slate-400'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                      Format d'affichage public (synchronisé)
+                    </label>
+                    <input
+                      type="text"
+                      value={eventModalForm.date}
+                      onChange={(e) => {
+                        setEventModalForm({ ...eventModalForm, date: e.target.value });
+                        if (eventErrors.date) setEventErrors({ ...eventErrors, date: undefined });
+                      }}
+                      placeholder="Ex: Samedi 26 Octobre 2026 · 20h00"
+                      className={`w-full px-4 py-2 rounded-xl bg-slate-50 border text-xs text-slate-800 outline-none transition-colors ${
+                        eventErrors.date ? 'border-rose-500 ring-1 ring-rose-500/50' : 'border-slate-200 focus:bg-white focus:border-slate-400'
+                      }`}
+                    />
+                  </div>
+
                   {eventErrors.date && (
                     <p className="text-[10px] text-rose-500 mt-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />

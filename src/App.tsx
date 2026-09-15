@@ -5,6 +5,7 @@ import { Team, type TeamMember } from './components/Team';
 import { Event } from './components/Event';
 import { Gallery } from './components/Gallery';
 import { MembershipForm } from './components/MembershipForm';
+import { ClubQuiz } from './components/ClubQuiz';
 import { LoginModal } from './components/LoginModal';
 import { MemberLoginModal } from './components/MemberLoginModal';
 import { MemberDashboard } from './components/member/MemberDashboard';
@@ -256,7 +257,10 @@ export function App() {
         <Event eventData={eventData} events={allEvents} />
         <Gallery />
         {recruitmentOpen ? (
-          <MembershipForm />
+          <>
+            <MembershipForm />
+            <ClubQuiz />
+          </>
         ) : (
           <section id="join" className="py-16 bg-[#0E1714] text-center border-b border-[#F3C4A0]/15 px-4">
             <div className="max-w-md mx-auto p-8 rounded-3xl bg-[#162721] border border-[#234238] space-y-3">
@@ -279,13 +283,18 @@ export function App() {
         }
       }} />
 
-      {/* Admin Login Modal */}
+      {/* Admin / General Login Modal */}
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
-        onLoginSuccess={(tab) => {
+        onLoginSuccess={(tab, loggedInMember) => {
           if (tab === 'admin') {
             handleSetView('admin');
+          } else if (tab === 'member') {
+            if (loggedInMember) {
+              setCurrentMember(loggedInMember);
+            }
+            handleSetView('member');
           }
         }}
       />

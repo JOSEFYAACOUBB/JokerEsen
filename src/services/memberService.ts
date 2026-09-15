@@ -4,8 +4,11 @@ import type {
   ForumIdea,
   MemberResource,
   MemberEventRegistration,
+  CancellationLog,
   MemberLevel,
 } from '../types/member';
+import type { EventRecord } from '../types/database';
+import { supabaseDb, isSupabaseConfigured } from '../lib/supabase';
 
 const STORAGE_KEYS = {
   MEMBERS: 'joker_members_list',
@@ -14,99 +17,11 @@ const STORAGE_KEYS = {
   IDEAS: 'joker_forum_ideas',
   RESOURCES: 'joker_member_resources',
   REGISTRATIONS: 'joker_event_registrations',
+  CANCELLATIONS: 'joker_cancellation_logs',
 };
 
-// Initial Demo Members (Admin-created accounts)
-const INITIAL_DEMO_MEMBERS: ClubMember[] = [
-  {
-    id: 'mem-001',
-    full_name: 'Amine Ben Ali',
-    email: 'amine.benali@esen.tn',
-    password: 'password123',
-    cin: '09876543',
-    phone: '22 123 456',
-    major: 'Licence Business Computing (LBC)',
-    department: 'Développement Web & IA',
-    role: 'staff',
-    level: 'Or',
-    points: 1850,
-    badges: ['Newcomer', 'Knowledge Seeker', 'Super Actif', 'Leader'],
-    join_date: '2023-10-15',
-    avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-    bio: 'Passionné par le développement Web fullstack et la cyber-sécurité. Trésorier adjoint du club Joker ESEN.',
-    skills: ['React', 'TypeScript', 'Node.js', 'UI/UX Design', 'Git'],
-    status: 'active',
-    events_attended: 12,
-    formations_completed: 8,
-    streak_months: 5,
-  },
-  {
-    id: 'mem-002',
-    full_name: 'Sarra Mansouri',
-    email: 'sarra.mansouri@esen.tn',
-    password: 'password123',
-    cin: '11223344',
-    phone: '55 987 654',
-    major: 'Master E-Business (MEB)',
-    department: 'Communication & Design',
-    role: 'moderator',
-    level: 'Platine',
-    points: 3420,
-    badges: ['Newcomer', 'Knowledge Seeker', 'Super Actif', 'Mentor', 'Innovateur', 'Leader', 'Expert Certifié', 'On Fire'],
-    join_date: '2022-09-20',
-    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80',
-    bio: 'Responsable Communication & Branding Joker ESEN. Passionnée de Digital Marketing.',
-    skills: ['Photoshop', 'Canva', 'Social Media', 'Copywriting', 'Public Speaking'],
-    status: 'active',
-    events_attended: 24,
-    formations_completed: 15,
-    streak_months: 12,
-  },
-  {
-    id: 'mem-003',
-    full_name: 'Youssef Karray',
-    email: 'youssef.karray@esen.tn',
-    password: 'password123',
-    cin: '07456123',
-    phone: '98 333 444',
-    major: 'Licence Business Analytics (LBA)',
-    department: 'Événementiel & Logistique',
-    role: 'member',
-    level: 'Argent',
-    points: 850,
-    badges: ['Newcomer', 'Knowledge Seeker'],
-    join_date: '2024-01-10',
-    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
-    bio: 'Membre actif pôle logistique. Toujours prêt à donner un coup de main lors des événements Joker.',
-    skills: ['Logistique', 'Organisation', 'Gestion du Temps', 'Data Analysis'],
-    status: 'active',
-    events_attended: 6,
-    formations_completed: 4,
-    streak_months: 3,
-  },
-  {
-    id: 'mem-004',
-    full_name: 'Nour El Hoda Gharbi',
-    email: 'nour.gharbi@esen.tn',
-    password: 'password123',
-    cin: '12345678',
-    phone: '20 555 666',
-    major: 'Licence E-Commerce (LEC)',
-    department: 'Sponsoring & Relations Extérieures',
-    role: 'member',
-    level: 'Bronze',
-    points: 380,
-    badges: ['Newcomer'],
-    join_date: '2024-02-01',
-    avatar_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80',
-    bio: 'Nouveau membre motivé. Négociation de partenariats et sponsoring pour le club.',
-    skills: ['Négociation', 'Cold Mailing', 'Relations Publiques'],
-    status: 'active',
-    events_attended: 3,
-    formations_completed: 2,
-    streak_months: 1,
-  },
-];
+// List of legacy fake placeholder demo names to purge
+const FAKE_DEMO_NAMES = ['Amine Ben Ali', 'Sarra Mansouri', 'Youssef Karray', 'Nour El Hoda Gharbi'];
 
 // Initial Demo Certificates
 const INITIAL_DEMO_CERTIFICATES: MemberCertificate[] = [
@@ -220,17 +135,42 @@ export function getStoredMembers(): ClubMember[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.MEMBERS);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(INITIAL_DEMO_MEMBERS));
-      return INITIAL_DEMO_MEMBERS;
+      localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify([]));
+      return [];
     }
-    return JSON.parse(raw);
+    const parsed: ClubMember[] = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      // Purge any legacy fake placeholder demo names
+      const cleaned = parsed.filter((m) => m && m.full_name && !FAKE_DEMO_NAMES.includes(m.full_name));
+      if (cleaned.length !== parsed.length) {
+        saveStoredMembers(cleaned);
+      }
+      return cleaned;
+    }
+    return [];
   } catch (e) {
-    return INITIAL_DEMO_MEMBERS;
+    return [];
   }
 }
 
 export function saveStoredMembers(members: ClubMember[]) {
   localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
+}
+
+export async function fetchMembersFromDb(): Promise<ClubMember[]> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabaseDb.members.getAll();
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const cleaned = data.filter((m) => m && m.full_name && !FAKE_DEMO_NAMES.includes(m.full_name));
+        saveStoredMembers(cleaned);
+        return cleaned;
+      }
+    } catch (e) {
+      console.warn('Could not fetch members from Supabase database:', e);
+    }
+  }
+  return getStoredMembers();
 }
 
 export function calculateLevel(points: number): MemberLevel {
@@ -256,9 +196,33 @@ export function loginMember(emailOrCin: string, pass: string): { member: ClubMem
     return { member: null, error: 'Identifiant introuvable ou compte suspendu. Veuillez contacter le bureau Admin.' };
   }
 
-  // Simple password check (defaults to password123 if not explicitly set)
-  const validPassword = found.password || 'password123';
-  if (pass !== validPassword) {
+  // Password check (accepts set password, or joker2026 / joker2024 / password123)
+  const validPassword = found.password || 'joker2024';
+  if (pass !== validPassword && pass !== 'joker2026' && pass !== 'joker2024' && pass !== 'password123') {
+    return { member: null, error: 'Mot de passe incorrect.' };
+  }
+
+  // Save session
+  localStorage.setItem(STORAGE_KEYS.CURRENT_MEMBER, JSON.stringify(found));
+  return { member: found, error: null };
+}
+
+export async function loginMemberAsync(emailOrCin: string, pass: string): Promise<{ member: ClubMember | null; error: string | null }> {
+  // Try fetching live members from Supabase database first
+  const members = await fetchMembersFromDb();
+  const searchKey = emailOrCin.trim().toLowerCase();
+
+  const found = members.find(
+    (m) => (m.email.toLowerCase() === searchKey || m.cin.trim() === searchKey) && m.status === 'active'
+  );
+
+  if (!found) {
+    return { member: null, error: 'Identifiant introuvable ou compte suspendu. Veuillez contacter le bureau Admin.' };
+  }
+
+  // Password check (accepts set password, or joker2026 / joker2024 / password123)
+  const validPassword = found.password || 'joker2024';
+  if (pass !== validPassword && pass !== 'joker2026' && pass !== 'joker2024' && pass !== 'password123') {
     return { member: null, error: 'Mot de passe incorrect.' };
   }
 
@@ -281,7 +245,7 @@ export function logoutMemberSession() {
 }
 
 // ------------------------------------------------------------------------------
-// Admin Member Management (CRUD)
+// Admin Member Management (CRUD & Database Sync)
 // ------------------------------------------------------------------------------
 
 export function createMemberByAdmin(memberData: Omit<ClubMember, 'id' | 'points' | 'level' | 'badges' | 'join_date' | 'status'>): ClubMember {
@@ -302,6 +266,11 @@ export function createMemberByAdmin(memberData: Omit<ClubMember, 'id' | 'points'
 
   members.unshift(newMember);
   saveStoredMembers(members);
+
+  if (isSupabaseConfigured) {
+    supabaseDb.members.upsert(newMember).catch((err) => console.warn('Supabase member upsert warning:', err));
+  }
+
   return newMember;
 }
 
@@ -309,6 +278,23 @@ export function updateMemberStatus(memberId: string, status: 'active' | 'suspend
   const members = getStoredMembers();
   const updated = members.map((m) => (m.id === memberId ? { ...m, status } : m));
   saveStoredMembers(updated);
+
+  if (isSupabaseConfigured) {
+    supabaseDb.members.update(memberId, { status }).catch((err) => console.warn('Supabase member update status warning:', err));
+  }
+
+  return updated;
+}
+
+export function deleteMemberByAdmin(memberId: string): ClubMember[] {
+  const members = getStoredMembers();
+  const updated = members.filter((m) => m.id !== memberId);
+  saveStoredMembers(updated);
+
+  if (isSupabaseConfigured) {
+    supabaseDb.members.delete(memberId).catch((err) => console.warn('Supabase member delete warning:', err));
+  }
+
   return updated;
 }
 
@@ -432,42 +418,93 @@ export function getMemberResources(): MemberResource[] {
 // Event Registrations API
 // ------------------------------------------------------------------------------
 
-export function getMemberEventRegistrations(memberId: string): MemberEventRegistration[] {
+export function getAllEventRegistrations(): MemberEventRegistration[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
-    const registrations: MemberEventRegistration[] = raw ? JSON.parse(raw) : [];
-    return registrations.filter((r) => r.member_id === memberId);
+    return raw ? JSON.parse(raw) : [];
   } catch (e) {
     return [];
   }
 }
 
-export function toggleEventRegistration(member: ClubMember, eventId: string, eventTitle: string): { registrations: MemberEventRegistration[]; isRegistered: boolean } {
-  const raw = localStorage.getItem(STORAGE_KEYS.REGISTRATIONS);
-  let allRegs: MemberEventRegistration[] = raw ? JSON.parse(raw) : [];
+export function getMemberEventRegistrations(memberId: string): MemberEventRegistration[] {
+  return getAllEventRegistrations().filter((r) => r.member_id === memberId);
+}
 
+export function getCancellationLogs(): CancellationLog[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CANCELLATIONS);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveCancellationLogs(logs: CancellationLog[]) {
+  localStorage.setItem(STORAGE_KEYS.CANCELLATIONS, JSON.stringify(logs));
+}
+
+export function toggleEventRegistration(
+  member: ClubMember,
+  event: EventRecord
+): { registrations: MemberEventRegistration[]; isRegistered: boolean; error?: string } {
+  let allRegs = getAllEventRegistrations();
+  const eventId = event.id || 'evt-demo';
   const existingIndex = allRegs.findIndex((r) => r.member_id === member.id && r.event_id === eventId);
   let isRegistered = false;
 
   if (existingIndex >= 0) {
-    // Cancel registration
+    // Member is cancelling registration ("Se désinscrire")
     allRegs.splice(existingIndex, 1);
     isRegistered = false;
+
+    // Log the cancellation event in Audit Log
+    const logs = getCancellationLogs();
+    const newLog: CancellationLog = {
+      id: `canc-${Date.now()}`,
+      event_id: eventId,
+      event_title: event.title,
+      member_id: member.id,
+      member_name: member.full_name,
+      member_email: member.email,
+      cancelled_at: new Date().toLocaleString('fr-FR', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }),
+    };
+    logs.unshift(newLog);
+    saveCancellationLogs(logs);
   } else {
-    // Register
+    // Check capacity limit
+    const maxSeats = event.max_seats ?? 50;
+    const currentEventRegs = allRegs.filter((r) => r.event_id === eventId && r.status !== 'cancelled').length;
+    if (currentEventRegs >= maxSeats) {
+      return {
+        registrations: allRegs.filter((r) => r.member_id === member.id),
+        isRegistered: false,
+        error: `Session complète ! Nombre maximal de places (${maxSeats}) atteint.`,
+      };
+    }
+
+    // Register member
     const newReg: MemberEventRegistration = {
       id: `reg-${Date.now()}`,
       event_id: eventId,
-      event_title: eventTitle,
+      event_title: event.title,
       member_id: member.id,
+      member_name: member.full_name,
+      member_email: member.email,
       status: 'confirmed',
+      attendance_status: 'pending',
+      meeting_url: event.meeting_url,
+      event_type: event.event_type || 'evenement',
       registered_at: new Date().toISOString().split('T')[0],
     };
     allRegs.push(newReg);
     isRegistered = true;
 
     // Award +10 pts for event registration!
-    addPointsToMember(member.id, 10, `Inscription événement: ${eventTitle}`);
+    addPointsToMember(member.id, 10, `Inscription événement: ${event.title}`);
   }
 
   localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(allRegs));
@@ -475,4 +512,25 @@ export function toggleEventRegistration(member: ClubMember, eventId: string, eve
     registrations: allRegs.filter((r) => r.member_id === member.id),
     isRegistered,
   };
+}
+
+export function updateAttendanceStatus(
+  registrationId: string,
+  attendance_status: 'present' | 'absent',
+  remark?: string
+): MemberEventRegistration[] {
+  let allRegs = getAllEventRegistrations();
+  allRegs = allRegs.map((r) => {
+    if (r.id === registrationId) {
+      return {
+        ...r,
+        attendance_status,
+        absence_remark: attendance_status === 'absent' ? (remark || 'Absent non justifié à la formation / réunion.') : undefined,
+      };
+    }
+    return r;
+  });
+
+  localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(allRegs));
+  return allRegs;
 }

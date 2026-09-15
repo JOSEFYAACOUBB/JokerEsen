@@ -4,12 +4,13 @@ import { fetchClubSettings, updateClubSettings } from './settingsService';
 
 export const defaultFormConfig: FormConfig = {
   majors: [
-    'L1 Business Computing',
-    'L2 Business Computing',
-    'L3 Business Analytics',
-    'L1 E-Commerce & Digital',
-    'L2/L3 E-Commerce',
-    'Master ESEN',
+    'L1 Business Computing / Informatique',
+    'L2 Business Computing / Informatique',
+    'L3 Business Analytics / BI',
+    'L1 E-Commerce & Marketing Digital',
+    'L2/L3 E-Commerce & Management',
+    'Master (Informatique / Digital / Gestion)',
+    'Autre Spécialité / Cycle d\'ingénieur',
   ],
   departments: [
     'Événementiel & Animation',
@@ -22,7 +23,7 @@ export const defaultFormConfig: FormConfig = {
   welcome_title: "Rejoins L'Aventure",
   welcome_subtitle: 'Salut & Bienvenue !',
   form_heading: 'Inscris-toi',
-  form_subheading: 'Complète tes informations pour rejoindre le club JokerEsen.',
+  form_subheading: 'Complète tes informations pour rejoindre le club Joker.',
 };
 
 export async function fetchFormConfig(): Promise<FormConfig> {

@@ -83,6 +83,9 @@ alter table public.events add column if not exists show_access_info boolean defa
 alter table public.events add column if not exists show_entry_info boolean default true;
 alter table public.events add column if not exists show_ambiance_info boolean default true;
 alter table public.events add column if not exists show_program boolean default true;
+alter table public.events add column if not exists event_type text default 'evenement' check (event_type in ('formation', 'reunion', 'evenement'));
+alter table public.events add column if not exists max_seats integer default 50;
+alter table public.events add column if not exists meeting_url text default '';
 
 
 -- Seed default active event
@@ -230,3 +233,48 @@ alter publication supabase_realtime add table public.events;
 alter publication supabase_realtime add table public.team_members;
 alter publication supabase_realtime add table public.recruitment_applications;
 alter publication supabase_realtime add table public.gallery_images;
+
+-- ------------------------------------------------------------------------------
+-- 11. CLUB MEMBERS (Espace Membre / Portail Adhérents)
+-- ------------------------------------------------------------------------------
+create table if not exists public.club_members (
+  id text primary key,
+  full_name text not null,
+  email text not null unique,
+  password text not null,
+  cin text not null unique,
+  phone text default '',
+  major text default '',
+  department text default '',
+  role text default 'member' check (role in ('member', 'staff', 'moderator', 'admin')),
+  level text default 'Bronze' check (level in ('Bronze', 'Argent', 'Or', 'Platine')),
+  points integer default 50 not null,
+  badges text[] default array['Newcomer'],
+  join_date text default to_char(now(), 'YYYY-MM-DD'),
+  birth_date date,
+  avatar_url text default '',
+  bio text default '',
+  skills text[] default array[]::text[],
+  status text default 'active' check (status in ('active', 'suspended')),
+  events_attended integer default 0,
+  formations_completed integer default 0,
+  streak_months integer default 1,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Permissions
+grant all on public.club_members to anon, authenticated, postgres, service_role;
+
+-- RLS
+alter table public.club_members enable row level security;
+
+drop policy if exists "Public manage club members" on public.club_members;
+create policy "Public manage club members"
+  on public.club_members for all
+  to anon, authenticated, public, service_role
+  using (true)
+  with check (true);
+
+-- Realtime
+alter publication supabase_realtime add table public.club_members;

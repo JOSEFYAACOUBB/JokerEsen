@@ -16,6 +16,7 @@ export interface ClubMember {
   points: number;
   badges: string[];
   join_date: string;
+  birth_date?: string;
   avatar_url?: string;
   bio?: string;
   skills?: string[];
@@ -68,6 +69,23 @@ export interface MemberEventRegistration {
   event_id: string;
   event_title: string;
   member_id: string;
-  status: 'confirmed' | 'pending' | 'declined';
+  member_name?: string;
+  member_email?: string;
+  status: 'confirmed' | 'pending' | 'declined' | 'cancelled';
+  attendance_status?: 'pending' | 'present' | 'absent';
+  absence_remark?: string;
+  meeting_url?: string;
+  event_type?: 'formation' | 'reunion' | 'evenement';
   registered_at: string;
+  cancelled_at?: string;
+}
+
+export interface CancellationLog {
+  id: string;
+  event_id: string;
+  event_title: string;
+  member_id: string;
+  member_name: string;
+  member_email: string;
+  cancelled_at: string;
 }
