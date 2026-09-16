@@ -123,6 +123,11 @@ export interface RecruitmentApplication {
   department: string;
   faculty?: string;
   motivation?: string;
+  why_join?: string;
+  event_idea?: string;
+  skills?: string[];
+  activity_axes?: string[];
+  desired_trainings?: string[];
   status?: 'pending' | 'accepted' | 'rejected' | 'contacted';
   created_at?: string;
 }

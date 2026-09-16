@@ -9,9 +9,9 @@ export const defaultEventData: EventRecord = {
   location: 'Grand Cour & Amphi ESEN, Campus Manouba',
   program: 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.',
   banner_url: 'https://res.cloudinary.com/qvnoo1cy/image/upload/v1788317724/rselcd2hgyfq7pnu4lvh.jpg',
-  is_active: true,
-  category: 'upcoming',
-  ticket_available: true,
+  is_active: false,
+  category: 'previous',
+  ticket_available: false,
   show_access_info: true,
   show_entry_info: true,
   show_ambiance_info: true,
@@ -145,12 +145,12 @@ export function cacheAllEvents(events: EventRecord[]) {
   }
 }
 
-export function getCachedEvent(): EventRecord {
+export function getCachedEvent(): EventRecord | null {
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_ACTIVE_EVENT_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed && parsed.title) {
+      if (parsed && parsed.title && parsed.is_active) {
         return {
           ...parsed,
           category: detectCategory(parsed),
@@ -166,7 +166,7 @@ export function getCachedEvent(): EventRecord {
   }
   const all = getCachedAllEvents();
   const active = all.find((e) => e.is_active);
-  return active || defaultEventData;
+  return active || null;
 }
 
 export function cacheEvent(event: any) {

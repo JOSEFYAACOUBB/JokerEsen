@@ -108,7 +108,7 @@ interface AdminDashboardProps {
     access_info?: string;
     entry_info?: string;
     ambiance_info?: string;
-  };
+  } | null;
   onUpdateEvent: (data: any) => void;
   allEventsProp?: EventRecord[];
   onUpdateAllEvents?: (events: EventRecord[]) => void;
@@ -217,6 +217,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [loadingApps, setLoadingApps] = useState(false);
   const [appFilter, setAppFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected' | 'contacted'>('all');
   const [appSearch, setAppSearch] = useState('');
+  const [selectedCandidateModal, setSelectedCandidateModal] = useState<RecruitmentApplication | null>(null);
 
   // ── 2. Partners Data State ──
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -1003,22 +1004,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   };
 
-  // CSV Export
-  const exportCandidatesToCSV = () => {
+  // Excel / CSV Export (Includes all 5 questionnaire fields)
+  const exportCandidatesToExcel = () => {
     if (applications.length === 0) {
       showToast('Aucune candidature à exporter.', 'warning');
       return;
     }
-    const headers = ['Nom & Prénom', 'Email', 'Téléphone', 'Filière / Spécialité', 'Établissement / Faculté', 'Statut', 'Date'];
+    const headers = [
+      'Nom & Prénom',
+      'Email',
+      'Téléphone',
+      'Date de Naissance',
+      'Établissement / Faculté',
+      'Filière / Spécialité',
+      'Statut',
+      'Date de demande',
+      'Pourquoi rejoindre (Q1)',
+      'Idées Événement/Projet (Q2)',
+      'Compétences (Q3)',
+      'Axes inspirants (Q4)',
+      'Formations souhaitées (Q5)',
+    ];
+
     const rows = applications.map((app) => [
-      `"${app.full_name || ''}"`,
-      `"${app.email || ''}"`,
-      `"${app.phone || ''}"`,
-      `"${app.major || ''}"`,
-      `"${app.faculty || app.department || ''}"`,
-      `"${app.status || 'pending'}"`,
+      `"${(app.full_name || '').replace(/"/g, '""')}"`,
+      `"${(app.email || '').replace(/"/g, '""')}"`,
+      `"${(app.phone || '').replace(/"/g, '""')}"`,
+      `"${(app.birth_date || '').replace(/"/g, '""')}"`,
+      `"${(app.faculty || app.department || '').replace(/"/g, '""')}"`,
+      `"${(app.major || '').replace(/"/g, '""')}"`,
+      `"${(app.status || 'pending').replace(/"/g, '""')}"`,
       `"${app.created_at ? new Date(app.created_at).toLocaleDateString('fr-FR') : ''}"`,
+      `"${(app.why_join || app.motivation || '').replace(/"/g, '""')}"`,
+      `"${(app.event_idea || '').replace(/"/g, '""')}"`,
+      `"${(Array.isArray(app.skills) ? app.skills.join(' ; ') : '').replace(/"/g, '""')}"`,
+      `"${(Array.isArray(app.activity_axes) ? app.activity_axes.join(' ; ') : '').replace(/"/g, '""')}"`,
+      `"${(Array.isArray(app.desired_trainings) ? app.desired_trainings.join(' ; ') : '').replace(/"/g, '""')}"`,
     ]);
+
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
@@ -1027,7 +1050,132 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast(`${applications.length} candidatures exportées en format CSV !`, 'success');
+    showToast(`${applications.length} candidatures exportées au format Excel !`, 'success');
+  };
+
+  // PDF Export Function
+  const exportCandidatesToPDF = (singleApp?: RecruitmentApplication) => {
+    const listToExport = singleApp ? [singleApp] : applications;
+    if (listToExport.length === 0) {
+      showToast('Aucune candidature à exporter.', 'warning');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showToast('Veuillez autoriser les fenêtres surgissantes pour ouvrir le PDF.', 'warning');
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <title>Candidatures Club Joker ESEN</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 25px; color: #1e293b; background: #fff; line-height: 1.5; }
+          .header { text-align: center; border-bottom: 3px solid #a73541; padding-bottom: 12px; margin-bottom: 24px; }
+          .header h1 { color: #a73541; margin: 0; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+          .header p { margin: 4px 0 0 0; color: #64748b; font-size: 12px; font-weight: bold; }
+          .card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-bottom: 18px; page-break-inside: avoid; background: #faf8f6; }
+          .card-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 12px; }
+          .candidate-name { font-size: 16px; font-weight: bold; color: #a73541; margin: 0; }
+          .candidate-meta { font-size: 11px; color: #475569; margin-top: 3px; }
+          .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+          .status-accepted { background: #dcfce7; color: #15803d; }
+          .status-pending { background: #fef3c7; color: #b45309; }
+          .status-rejected { background: #ffe4e6; color: #be123c; }
+          .status-contacted { background: #e0f2fe; color: #0369a1; }
+          .q-box { margin-bottom: 10px; background: #ffffff; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0; }
+          .q-title { font-size: 11px; font-weight: bold; color: #0f172a; margin-bottom: 3px; text-transform: uppercase; }
+          .q-text { font-size: 12px; color: #334155; font-style: italic; white-space: pre-wrap; }
+          .tag-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+          .tag { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 12px; }
+          .tag-axis { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
+          .tag-training { background: #fce7f3; color: #9d174d; border-color: #fbcfe8; }
+          @media print {
+            .no-print { display: none !important; }
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+          <button onclick="window.print()" style="background: #a73541; color: white; border: none; padding: 10px 22px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 13px;">🖨️ Imprimer / Sauvegarder en PDF</button>
+        </div>
+        <div class="header">
+          <h1>CLUB JOKER ESEN · RAPPORT DES CANDIDATURES</h1>
+          <p>Candidatures enregistrées : ${listToExport.length} · Document officiel du ${new Date().toLocaleDateString('fr-FR')}</p>
+        </div>
+        ${listToExport.map((app, idx) => `
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3 class="candidate-name">#${idx + 1} ${app.full_name}</h3>
+                <div class="candidate-meta">
+                  📧 <strong>${app.email}</strong> | 📞 <strong>${app.phone}</strong> | 🎓 <strong>${app.major}</strong> (${app.faculty || app.department || 'ESEN'}) ${app.birth_date ? `| 🎂 ${app.birth_date}` : ''}
+                </div>
+              </div>
+              <span class="status-badge status-${app.status || 'pending'}">${app.status || 'pending'}</span>
+            </div>
+
+            ${(app.why_join || app.motivation) ? `
+              <div class="q-box">
+                <div class="q-title">Q1 : Pourquoi rejoindre le club ?</div>
+                <div class="q-text">"${app.why_join || app.motivation}"</div>
+              </div>
+            ` : ''}
+
+            ${app.event_idea ? `
+              <div class="q-box">
+                <div class="q-title">Q2 : Idée d'événement / projet / formation :</div>
+                <div class="q-text">"${app.event_idea}"</div>
+              </div>
+            ` : ''}
+
+            ${Array.isArray(app.skills) && app.skills.length > 0 ? `
+              <div class="q-box">
+                <div class="q-title">Q3 : Compétences & Domaines d'intérêt :</div>
+                <div class="tag-list">
+                  ${app.skills.map(s => `<span class="tag">${s}</span>`).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            ${Array.isArray(app.activity_axes) && app.activity_axes.length > 0 ? `
+              <div class="q-box">
+                <div class="q-title">Q4 : Axes d'activités inspirants :</div>
+                <div class="tag-list">
+                  ${app.activity_axes.map(a => `<span class="tag tag-axis">${a}</span>`).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            ${Array.isArray(app.desired_trainings) && app.desired_trainings.length > 0 ? `
+              <div class="q-box">
+                <div class="q-title">Q5 : Formations souhaitées :</div>
+                <div class="tag-list">
+                  ${app.desired_trainings.map(t => `<span class="tag tag-training">${t}</span>`).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `).join('')}
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 400);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    showToast('Aperçu PDF généré !', 'success');
   };
 
   // ── TEAM HANDLERS ──
@@ -2834,11 +2982,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={exportCandidatesToCSV}
-                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    onClick={exportCandidatesToExcel}
+                    className="px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="Exporter au format Excel / CSV avec l'ensemble des questions"
                   >
-                    <Download className="w-4 h-4 text-slate-600" />
-                    <span>Exporter CSV</span>
+                    <Download className="w-4 h-4 text-emerald-700" />
+                    <span>Exporter Excel</span>
+                  </button>
+                  <button
+                    onClick={() => exportCandidatesToPDF()}
+                    className="px-3.5 py-2.5 rounded-xl bg-[#A73541]/10 hover:bg-[#A73541]/20 text-[#A73541] border border-[#A73541]/20 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="Télécharger / Imprimer la liste au format PDF"
+                  >
+                    <Download className="w-4 h-4 text-[#A73541]" />
+                    <span>Télécharger PDF</span>
                   </button>
                   <button
                     onClick={() => loadApplications()}
@@ -2917,9 +3074,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <tr key={app.id || app.email} className="hover:bg-slate-50/70 transition-colors">
                             <td className="p-4">
                               <p className="font-bold text-slate-900 text-sm">{app.full_name}</p>
-                              {app.motivation && (
+                              {(app.why_join || app.motivation) && (
                                 <p className="text-[11px] text-slate-500 line-clamp-1 italic mt-0.5">
-                                  "{app.motivation}"
+                                  "{app.why_join || app.motivation}"
                                 </p>
                               )}
                             </td>
@@ -2967,7 +3124,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <option value="rejected">❌ Refusé</option>
                               </select>
                             </td>
-                            <td className="p-4 text-right flex items-center justify-end gap-1">
+                            <td className="p-4 text-right flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setSelectedCandidateModal(app)}
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                title="Voir toutes les réponses au questionnaire"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                                <span>Voir Réponses</span>
+                              </button>
                               {app.status === 'accepted' && (
                                 <button
                                   onClick={() => {
@@ -2980,7 +3145,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       major: app.major || 'Licence Business Computing (LBC)',
                                       department: app.department || 'Développement Web & IA',
                                       role: 'member',
-                                      bio: app.motivation || 'Membre accepté via recrutement.',
+                                      bio: app.motivation || app.why_join || 'Membre accepté via recrutement.',
                                     });
                                     showToast(`Compte membre généré pour ${app.full_name} !`, 'success');
                                   }}
@@ -3006,6 +3171,142 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </table>
                 </div>
               </div>
+
+              {/* CANDIDATE DETAILS MODAL */}
+              {selectedCandidateModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+                  <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+                    {/* Modal Header */}
+                    <div className="p-6 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
+                      <div>
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold uppercase tracking-wider mb-1">
+                          Détails Candidature
+                        </div>
+                        <h3 className="text-xl font-bold tracking-tight">{selectedCandidateModal.full_name}</h3>
+                        <p className="text-xs text-slate-300 flex items-center gap-2 mt-0.5">
+                          <span>{selectedCandidateModal.email}</span> · <span>{selectedCandidateModal.phone}</span>
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedCandidateModal(null)}
+                        className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Modal Content */}
+                    <div className="p-6 overflow-y-auto space-y-5 text-slate-800">
+                      {/* General Metadata */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs">
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Établissement / Faculté</span>
+                          <span className="font-semibold text-slate-900">{selectedCandidateModal.faculty || selectedCandidateModal.department || 'ESEN Manouba'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Filière / Niveau</span>
+                          <span className="font-semibold text-slate-900">{selectedCandidateModal.major}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Date de Naissance</span>
+                          <span className="font-semibold text-slate-900">{selectedCandidateModal.birth_date || 'Non spécifiée'}</span>
+                        </div>
+                      </div>
+
+                      {/* Question 1 */}
+                      <div className="space-y-1.5 p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
+                        <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wide">
+                          Q1 : Pourquoi veux-tu rejoindre le club JOKER ESEN ?
+                        </h4>
+                        <p className="text-xs text-slate-700 italic bg-white p-3 rounded-xl border border-rose-200/60 leading-relaxed">
+                          "{selectedCandidateModal.why_join || selectedCandidateModal.motivation || 'Pas de réponse saisie'}"
+                        </p>
+                      </div>
+
+                      {/* Question 2 */}
+                      <div className="space-y-1.5 p-4 rounded-2xl bg-slate-50 border border-slate-200/70">
+                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                          Q2 : As-tu une idée d'événement, de projet ou de formation à proposer ?
+                        </h4>
+                        <p className="text-xs text-slate-700 italic bg-white p-3 rounded-xl border border-slate-200 leading-relaxed">
+                          "{selectedCandidateModal.event_idea || 'Pas d\'idée spécifiée'}"
+                        </p>
+                      </div>
+
+                      {/* Question 3 */}
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                          Q3 : Compétences actuelles &amp; Domaines d'intérêt ⭐
+                        </h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {Array.isArray(selectedCandidateModal.skills) && selectedCandidateModal.skills.length > 0 ? (
+                            selectedCandidateModal.skills.map((s, idx) => (
+                              <span key={idx} className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold">
+                                {s}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Aucune compétence sélectionnée</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Question 4 */}
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wide">
+                          Q4 : Axes d'activités inspirants ⭐
+                        </h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {Array.isArray(selectedCandidateModal.activity_axes) && selectedCandidateModal.activity_axes.length > 0 ? (
+                            selectedCandidateModal.activity_axes.map((a, idx) => (
+                              <span key={idx} className="px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200/60 text-indigo-800 text-xs font-semibold">
+                                {a}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Aucun axe sélectionné</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Question 5 */}
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wide">
+                          Q5 : Formations souhaitées ⭐
+                        </h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {Array.isArray(selectedCandidateModal.desired_trainings) && selectedCandidateModal.desired_trainings.length > 0 ? (
+                            selectedCandidateModal.desired_trainings.map((t, idx) => (
+                              <span key={idx} className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200/60 text-rose-800 text-xs font-semibold">
+                                {t}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Aucune formation sélectionnée</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+                      <button
+                        onClick={() => exportCandidatesToPDF(selectedCandidateModal)}
+                        className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Download className="w-3.5 h-3.5 text-slate-600" />
+                        <span>Exporter PDF</span>
+                      </button>
+                      <button
+                        onClick={() => setSelectedCandidateModal(null)}
+                        className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer"
+                      >
+                        Fermer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

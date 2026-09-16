@@ -11,6 +11,11 @@ export interface SubmitApplicationData {
   department: string;
   faculty?: string;
   motivation?: string;
+  whyJoin?: string;
+  eventIdea?: string;
+  skills?: string[];
+  activityAxes?: string[];
+  desiredTrainings?: string[];
 }
 
 export async function submitRecruitmentApplication(data: SubmitApplicationData): Promise<{ success: boolean; error?: string }> {
@@ -27,21 +32,28 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
 
   const facultyVal = data.faculty || data.department;
 
-  // 1. Try SDK insert with both faculty & department in case the column exists in Supabase
+  const payload: any = {
+    full_name: data.fullName,
+    email: data.email,
+    phone: data.phone,
+    birth_date: data.birthDate || null,
+    major: data.major,
+    department: facultyVal,
+    faculty: facultyVal,
+    motivation: data.motivation || '',
+    why_join: data.whyJoin || '',
+    event_idea: data.eventIdea || '',
+    skills: data.skills || [],
+    activity_axes: data.activityAxes || [],
+    desired_trainings: data.desiredTrainings || [],
+    status: 'pending',
+  };
+
+  // 1. Try SDK insert with all new fields
   try {
     const { error: sdkErrorWithFaculty } = await supabase
       .from('recruitment_applications')
-      .insert({
-        full_name: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        birth_date: data.birthDate || null,
-        major: data.major,
-        department: facultyVal,
-        faculty: facultyVal,
-        motivation: data.motivation || '',
-        status: 'pending',
-      });
+      .insert(payload);
 
     if (!sdkErrorWithFaculty) {
       return { success: true };
@@ -51,19 +63,11 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
   }
 
   try {
-    // 2. Fallback: SDK insert with standard columns (department holds faculty)
+    // 2. Fallback: SDK insert without faculty column if faculty column is absent
+    const { faculty, ...standardPayload } = payload;
     const { error: sdkError } = await supabase
       .from('recruitment_applications')
-      .insert({
-        full_name: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        birth_date: data.birthDate || null,
-        major: data.major,
-        department: facultyVal,
-        motivation: data.motivation || '',
-        status: 'pending',
-      });
+      .insert(standardPayload);
 
     if (!sdkError) {
       return { success: true };
@@ -72,15 +76,7 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
     console.warn('SDK insert failed, trying REST fallback:', sdkError);
 
     // 3. Fallback to native REST with minimal return header
-    const { error: restError } = await supabaseDb.recruitment.submit({
-      full_name: data.fullName,
-      email: data.email,
-      phone: data.phone,
-      birth_date: data.birthDate || null,
-      major: data.major,
-      department: facultyVal,
-      motivation: data.motivation || '',
-    });
+    const { error: restError } = await supabaseDb.recruitment.submit(standardPayload);
 
     if (restError) {
       console.error('Failed to submit application to Supabase:', restError);

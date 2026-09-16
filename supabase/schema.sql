@@ -117,6 +117,11 @@ create table if not exists public.recruitment_applications (
   major text not null,
   department text not null,
   motivation text,
+  why_join text,
+  event_idea text,
+  skills text[] default array[]::text[],
+  activity_axes text[] default array[]::text[],
+  desired_trainings text[] default array[]::text[],
   status text default 'pending' check (status in ('pending', 'accepted', 'rejected', 'contacted')) not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

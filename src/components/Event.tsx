@@ -18,6 +18,7 @@ import {
   Check
 } from 'lucide-react';
 
+
 import { getCachedAllEvents } from '../services/eventService';
 import { subscribeToNewsletter } from '../services/brevoService';
 import { optimizeCloudinaryUrl } from '../lib/cloudinary';
@@ -40,6 +41,7 @@ interface EventItem {
 
 interface EventProps {
   eventData?: {
+    id?: string;
     title: string;
     edition: string;
     date: string;
@@ -50,7 +52,7 @@ interface EventProps {
     access_info?: string;
     entry_info?: string;
     ambiance_info?: string;
-  };
+  } | null;
   events?: EventRecord[];
 }
 
@@ -249,20 +251,30 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
   // Active filter tab (All, Upcoming, Previous)
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'previous'>('all');
 
-  // Fallback defaults for the main Next Event
-  const title = eventData?.title || 'Joker Carnival Night 2026';
-  const edition = eventData?.edition || 'Édition Spéciale · 10ème Anniversaire';
-  const dateText = eventData?.date || 'Samedi 26 Octobre 2026 · 20h00';
-  const locationText = eventData?.location || 'Grand Cour & Amphi ESEN, Campus Manouba';
-  const rawProgram = eventData?.program || '';
+  // Determine active upcoming event
+  const activeUpcomingRecord = (events || []).find(
+    (e) => e.is_active && (e.category === 'upcoming' || !e.category)
+  );
+
+  const hasActiveUpcoming = Boolean(
+    activeUpcomingRecord || (eventData && (eventData as any).is_active !== false && eventData.id)
+  );
+
+  const currentActiveEvent = activeUpcomingRecord || (hasActiveUpcoming ? eventData : null);
+
+  const title = currentActiveEvent?.title || '';
+  const edition = currentActiveEvent?.edition || '';
+  const dateText = currentActiveEvent?.date || '';
+  const locationText = currentActiveEvent?.location || '';
+  const rawProgram = currentActiveEvent?.program || '';
   const isJunk = rawProgram.includes('Avantages de HTML') || rawProgram.includes('<section>');
   const programText = isJunk
     ? 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.'
     : (rawProgram || 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.');
-  const bannerUrl = eventData?.bannerUrl || eventData?.banner_url || '/images/event_banner.jpg';
-  const accessInfoText = eventData?.access_info || 'Ouvert aux étudiants munis de leur réservation / pass gratuit.';
-  const entryInfoText = eventData?.entry_info || '100% Gratuite avec réservation préalable en ligne.';
-  const ambianceInfoText = eventData?.ambiance_info || 'Musique live, animations, buffet & tombola du club Joker ESEN.';
+  const bannerUrl = (currentActiveEvent as any)?.bannerUrl || (currentActiveEvent as any)?.banner_url || '/images/event_banner.jpg';
+  const accessInfoText = (currentActiveEvent as any)?.access_info || '';
+  const entryInfoText = (currentActiveEvent as any)?.entry_info || '';
+  const ambianceInfoText = (currentActiveEvent as any)?.ambiance_info || '';
 
   // Dynamic previous and upcoming events list from Supabase / Props (filtered for public site)
   const sourceEvents: EventRecord[] = events && events.length > 0 ? events : getCachedAllEvents();
@@ -545,112 +557,167 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
             )}
           </div>
 
-          {/* ── Countdown Timer — full-width above event card ── */}
-          <CountdownTimer dateText={dateText} />
+          {hasActiveUpcoming ? (
+            <>
+              {/* ── Countdown Timer — full-width above event card ── */}
+              <CountdownTimer dateText={dateText} />
 
-          {/* Light Container for Next Event */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-[#FFFFFF] border border-[#EDE4DE] shadow-[0_8px_28px_rgba(43,15,18,0.12)]">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-              
-              {/* Left Column: Clean flyer image */}
-              <div className="lg:col-span-6 flex flex-col">
-                <div className="relative w-full h-full min-h-[300px] sm:min-h-[360px] rounded-2xl overflow-hidden bg-[#FAF7F5] border border-[#EDE4DE] shadow-sm group">
-                  <img
-                    src={optimizeCloudinaryUrl(bannerUrl, { width: 640, quality: 'auto' }) || bannerUrl}
-                    alt={title}
-                    width={588}
-                    height={441}
-                    decoding="async"
-                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#2A2020]/75 via-transparent to-transparent pointer-events-none" />
+              {/* Light Container for Next Event */}
+              <div className="p-6 sm:p-8 rounded-3xl bg-[#FFFFFF] border border-[#EDE4DE] shadow-[0_8px_28px_rgba(43,15,18,0.12)]">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                  
+                  {/* Left Column: Clean flyer image */}
+                  <div className="lg:col-span-6 flex flex-col">
+                    <div className="relative w-full h-full min-h-[300px] sm:min-h-[360px] rounded-2xl overflow-hidden bg-[#FAF7F5] border border-[#EDE4DE] shadow-sm group">
+                      <img
+                        src={optimizeCloudinaryUrl(bannerUrl, { width: 640, quality: 'auto' }) || bannerUrl}
+                        alt={title}
+                        width={588}
+                        height={441}
+                        decoding="async"
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#2A2020]/75 via-transparent to-transparent pointer-events-none" />
 
-                  {/* Top-Left Floating Badge: Edition Tag (semi-transparent dark scrim pill) */}
-                  {edition && (
-                    <div className="absolute top-4 left-4 bg-[#1A1013]/60 text-white backdrop-blur-md border border-white/20 text-[10px] sm:text-xs font-medium tracking-wide px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
-                      <span>{edition}</span>
+                      {/* Top-Left Floating Badge: Edition Tag (semi-transparent dark scrim pill) */}
+                      {edition && (
+                        <div className="absolute top-4 left-4 bg-[#1A1013]/60 text-white backdrop-blur-md border border-white/20 text-[10px] sm:text-xs font-medium tracking-wide px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
+                          <span>{edition}</span>
+                        </div>
+                      )}
+
+                      {/* Bottom-Right Floating Badge: Status badge "PLACES OUVERTES" (solid forest green fill, high-contrast) */}
+                      <div className="absolute bottom-4 right-4 bg-[#2D6A4F] text-white border border-[#1B4332] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5 backdrop-blur-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        <span>PLACES OUVERTES</span>
+                      </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Bottom-Right Floating Badge: Status badge "PLACES OUVERTES" (solid forest green fill, high-contrast) */}
-                  <div className="absolute bottom-4 right-4 bg-[#2D6A4F] text-white border border-[#1B4332] text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5 backdrop-blur-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    <span>PLACES OUVERTES</span>
+                  {/* Right Column: Structured event details with standardized 24px vertical scale */}
+                  <div className="lg:col-span-6 flex flex-col justify-between space-y-6">
+                    
+                    {/* Header block — Title first, 16px space-y-4 to clean 2-fact metadata line */}
+                    <div className="space-y-4">
+                      <h3
+                        className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase text-[#2A2020] tracking-tight leading-[1.15]"
+                        style={{ fontFamily: "'Plus Jakarta Sans', 'Bebas Neue', sans-serif" }}
+                      >
+                        {title}
+                      </h3>
+
+                      {/* Clean 2-fact metadata line with clear spacing between Date & Location */}
+                      <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm font-normal text-[#5C1F2E]">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4 text-[#5C1F2E] shrink-0" />
+                          <span>{dateText}</span>
+                        </span>
+                        <span className="text-[#5C1F2E]/40 font-normal px-1">·</span>
+                        <span className="flex items-center gap-1.5">
+                          <MapPin className="w-4 h-4 text-[#5C1F2E] shrink-0" />
+                          <span>{locationText}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Structured Description / Programme (Individual Place #1) */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-[#F0EBE7] border border-[#EDE4DE] space-y-2">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-[#EDE4DE]">
+                        <span className="text-[11px] font-mono font-bold text-[#7D3F4A] uppercase tracking-wider">
+                          Points Forts &amp; Déroulement
+                        </span>
+                      </div>
+                      <ExpandableEventDescription text={programText} bgFadeColor="#F0EBE7" />
+                    </div>
+
+                    {/* Practical info badges (Individual Places #2 & #3) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-[#2A2020]/80">
+                      <div className="p-3.5 rounded-xl bg-[#FAF7F5] border border-[#EDE4DE]">
+                        <p className="font-bold text-[#7D3F4A] uppercase text-[10px] tracking-wider mb-1">🎟️ Entrée &amp; Accès</p>
+                        <p className="line-clamp-2 leading-relaxed text-[#2A2020]/80">{entryInfoText || '100% Gratuite avec réservation'}</p>
+                      </div>
+                      <div className="p-3.5 rounded-xl bg-[#FAF7F5] border border-[#EDE4DE]">
+                        <p className="font-bold text-[#7D3F4A] uppercase text-[10px] tracking-wider mb-1">✨ Ambiance</p>
+                        <p className="line-clamp-2 leading-relaxed text-[#2A2020]/80">{ambianceInfoText || 'Musique live & animations'}</p>
+                      </div>
+                    </div>
+
+                    {/* CTA Button Row: Grouped together with 12px gap, share icon attached to primary action */}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={() => setIsRsvpOpen(true)}
+                        className="px-6 py-3 rounded-full bg-[#7D3F4A] hover:bg-[#5C1F2E] text-white font-black uppercase text-xs sm:text-sm tracking-wider transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_4px_16px_rgba(43,15,18,0.2)] flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                      >
+                        <Ticket className="w-4 h-4 text-white" />
+                        <span>RÉSERVER MA PLACE</span>
+                      </button>
+
+                      <button
+                        onClick={handleShare}
+                        title="Partager cet événement"
+                        aria-label="Partager cet événement"
+                        className="p-3 rounded-full bg-[#F0EBE7] hover:bg-[#E5DDD7] text-[#2A2020] border border-[#E5DDD7] transition-all duration-200 flex items-center justify-center cursor-pointer"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
                   </div>
                 </div>
               </div>
+            </>
+          ) : (
+            /* Premium French "À TRÈS BIENTÔT !" card matching site brand UI */
+            <div className="relative overflow-hidden p-8 sm:p-14 rounded-3xl bg-[#FFFFFF] border border-[#EDE4DE] shadow-[0_8px_32px_rgba(43,15,18,0.08)] text-center space-y-6 group">
+              {/* Background ambient radial glow & suit watermarks */}
+              <div className="absolute -top-24 -right-24 w-72 h-72 bg-[#7D3F4A]/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute top-4 right-6 text-3xl select-none pointer-events-none opacity-10 text-[#7D3F4A]">
+                ♦
+              </div>
+              <div className="absolute bottom-4 left-6 text-3xl select-none pointer-events-none opacity-10 text-[#7D3F4A]">
+                ♠
+              </div>
 
-              {/* Right Column: Structured event details with standardized 24px vertical scale */}
-              <div className="lg:col-span-6 flex flex-col justify-between space-y-6">
-                
-                {/* Header block — Title first, 16px space-y-4 to clean 2-fact metadata line */}
-                <div className="space-y-4">
-                  <h3
-                    className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase text-[#2A2020] tracking-tight leading-[1.15]"
-                    style={{ fontFamily: "'Plus Jakarta Sans', 'Bebas Neue', sans-serif" }}
-                  >
-                    {title}
-                  </h3>
+              {/* Tag / Badge: matching chapter badge design system */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#7D3F4A]/10 border border-[#7D3F4A]/20 text-[#7D3F4A] text-[11px] font-mono font-bold tracking-[0.18em] uppercase">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#7D3F4A] animate-pulse" />
+                <span>PROCHAIN ÉVÉNEMENT &middot; À VENIR</span>
+              </div>
 
-                  {/* Clean 2-fact metadata line with clear spacing between Date & Location */}
-                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm font-normal text-[#5C1F2E]">
-                    <span className="flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4 text-[#5C1F2E] shrink-0" />
-                      <span>{dateText}</span>
-                    </span>
-                    <span className="text-[#5C1F2E]/40 font-normal px-1">·</span>
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4 text-[#5C1F2E] shrink-0" />
-                      <span>{locationText}</span>
-                    </span>
-                  </div>
-                </div>
+              {/* Headline & Body Text (matching site typography font-display, font-black, clean sans) */}
+              <div className="max-w-2xl mx-auto space-y-3.5">
+                <h3
+                  className="text-3xl sm:text-5xl font-black uppercase text-[#2A2020] tracking-tight leading-none font-display"
+                  style={{ fontFamily: "'Plus Jakarta Sans', 'Bebas Neue', sans-serif" }}
+                >
+                  À TRÈS BIENTÔT !
+                </h3>
+                <p className="text-sm sm:text-base text-[#2A2020]/75 leading-relaxed max-w-xl mx-auto font-normal">
+                  Notre équipe prépare activement la prochaine expérience. Suivez nos actualités ou inscrivez-vous pour être informé dès l’ouverture de la billetterie !
+                </p>
+              </div>
 
-                {/* Structured Description / Programme (Individual Place #1) */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#F0EBE7] border border-[#EDE4DE] space-y-2">
-                  <div className="flex items-center justify-between pb-1.5 border-b border-[#EDE4DE]">
-                    <span className="text-[11px] font-mono font-bold text-[#7D3F4A] uppercase tracking-wider">
-                      Points Forts &amp; Déroulement
-                    </span>
-                  </div>
-                  <ExpandableEventDescription text={programText} bgFadeColor="#F0EBE7" />
-                </div>
-
-                {/* Practical info badges (Individual Places #2 & #3) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-[#2A2020]/80">
-                  <div className="p-3.5 rounded-xl bg-[#FAF7F5] border border-[#EDE4DE]">
-                    <p className="font-bold text-[#7D3F4A] uppercase text-[10px] tracking-wider mb-1">🎟️ Entrée &amp; Accès</p>
-                    <p className="line-clamp-2 leading-relaxed text-[#2A2020]/80">{entryInfoText || '100% Gratuite avec réservation'}</p>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-[#FAF7F5] border border-[#EDE4DE]">
-                    <p className="font-bold text-[#7D3F4A] uppercase text-[10px] tracking-wider mb-1">✨ Ambiance</p>
-                    <p className="line-clamp-2 leading-relaxed text-[#2A2020]/80">{ambianceInfoText || 'Musique live & animations'}</p>
-                  </div>
-                </div>
-
-                {/* CTA Button Row: Grouped together with 12px gap, share icon attached to primary action */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={() => setIsRsvpOpen(true)}
-                    className="px-6 py-3 rounded-full bg-[#7D3F4A] hover:bg-[#5C1F2E] text-white font-black uppercase text-xs sm:text-sm tracking-wider transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_4px_16px_rgba(43,15,18,0.2)] flex items-center justify-center gap-2 cursor-pointer shrink-0"
-                  >
-                    <Ticket className="w-4 h-4 text-white" />
-                    <span>RÉSERVER MA PLACE</span>
-                  </button>
-
-                  <button
-                    onClick={handleShare}
-                    title="Partager cet événement"
-                    aria-label="Partager cet événement"
-                    className="p-3 rounded-full bg-[#F0EBE7] hover:bg-[#E5DDD7] text-[#2A2020] border border-[#E5DDD7] transition-all duration-200 flex items-center justify-center cursor-pointer"
-                  >
-                    <Share2 className="w-4 h-4" />
-                  </button>
-                </div>
-
+              {/* Action Buttons: Exact site button styling */}
+              <div className="pt-2 flex flex-wrap items-center justify-center gap-3.5 relative z-10">
+                <a
+                  href="#footer"
+                  className="px-6 py-3 rounded-full bg-[#7D3F4A] hover:bg-[#5C1F2E] text-white font-black uppercase text-xs sm:text-sm tracking-wider transition-all duration-200 hover:scale-105 active:scale-95 shadow-[0_4px_16px_rgba(43,15,18,0.2)] flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  <Share2 className="w-4 h-4 text-white" />
+                  <span>VOIR NOS RÉSEAUX</span>
+                </a>
+                <a
+                  href="#newsletter-band"
+                  className="px-6 py-3 rounded-full bg-[#FAF7F5] hover:bg-[#F0EBE7] text-[#7D3F4A] border border-[#EDE4DE] hover:border-[#7D3F4A]/30 font-black uppercase text-xs sm:text-sm tracking-wider transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  <Bell className="w-4 h-4 text-[#7D3F4A]" />
+                  <span>RECEVOIR LES ALERTES</span>
+                </a>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* ══════════════════════════════════════════════════════
@@ -719,6 +786,7 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
               <a
                 href="#newsletter-band"
                 className="px-6 py-2.5 rounded-full bg-[#B93A34] text-white font-bold uppercase text-xs tracking-wider hover:bg-[#A32E29] transition-colors"
+                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               >
                 Recevoir les alertes
               </a>

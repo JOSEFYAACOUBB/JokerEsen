@@ -5,7 +5,6 @@ import { Team, type TeamMember } from './components/Team';
 import { Event } from './components/Event';
 import { Gallery } from './components/Gallery';
 import { MembershipForm } from './components/MembershipForm';
-import { ClubQuiz } from './components/ClubQuiz';
 import { LoginModal } from './components/LoginModal';
 import { MemberLoginModal } from './components/MemberLoginModal';
 import { MemberDashboard } from './components/member/MemberDashboard';
@@ -64,8 +63,10 @@ export function App() {
     access_info?: string;
     entry_info?: string;
     ambiance_info?: string;
-  }>(() => {
+  } | null>(() => {
     const cached = getCachedEvent();
+    if (!cached || !cached.is_active) return null;
+
     const rawProgram = cached.program || '';
     const isJunkHtml = rawProgram.includes('Avantages de HTML') || rawProgram.includes('<section>');
     const cleanProgram = isJunkHtml
@@ -138,27 +139,29 @@ export function App() {
         if (events && events.length > 0) {
           setAllEvents(events);
           cacheAllEvents(events);
-          const active = events.find((e) => e.is_active) || events[0];
-          if (active) {
-            const rawProgram = active.program || '';
+          const activeUpcoming = events.find((e) => e.is_active && (e.category === 'upcoming' || !e.category));
+          if (activeUpcoming) {
+            const rawProgram = activeUpcoming.program || '';
             const isJunkHtml = rawProgram.includes('Avantages de HTML') || rawProgram.includes('<section>');
             const cleanProgram = isJunkHtml
               ? 'Concerts live · DJ sets exclusifs · Buffet festif & Tombola avec de nombreux lots à gagner.'
               : rawProgram;
 
             setEventData({
-              id: active.id,
-              title: active.title,
-              edition: active.edition,
-              date: active.date,
-              location: active.location,
+              id: activeUpcoming.id,
+              title: activeUpcoming.title,
+              edition: activeUpcoming.edition,
+              date: activeUpcoming.date,
+              location: activeUpcoming.location,
               program: cleanProgram,
-              bannerUrl: active.banner_url || '/images/event_banner.jpg',
-              banner_url: active.banner_url || '/images/event_banner.jpg',
-              access_info: active.access_info,
-              entry_info: active.entry_info,
-              ambiance_info: active.ambiance_info,
+              bannerUrl: activeUpcoming.banner_url || '/images/event_banner.jpg',
+              banner_url: activeUpcoming.banner_url || '/images/event_banner.jpg',
+              access_info: activeUpcoming.access_info,
+              entry_info: activeUpcoming.entry_info,
+              ambiance_info: activeUpcoming.ambiance_info,
             });
+          } else {
+            setEventData(null as any);
           }
         }
 
@@ -182,7 +185,7 @@ export function App() {
   const handleUpdateAllEvents = (newEvents: EventRecord[]) => {
     setAllEvents(newEvents);
     cacheAllEvents(newEvents);
-    const active = newEvents.find((e) => e.is_active) || newEvents[0];
+    const active = newEvents.find((e) => e.is_active && (e.category === 'upcoming' || !e.category));
     if (active) {
       setEventData({
         id: active.id,
@@ -197,6 +200,8 @@ export function App() {
         entry_info: active.entry_info,
         ambiance_info: active.ambiance_info,
       });
+    } else {
+      setEventData(null as any);
     }
   };
 
@@ -257,10 +262,7 @@ export function App() {
         <Event eventData={eventData} events={allEvents} />
         <Gallery />
         {recruitmentOpen ? (
-          <>
-            <MembershipForm />
-            <ClubQuiz />
-          </>
+          <MembershipForm />
         ) : (
           <section id="join" className="py-16 bg-[#0E1714] text-center border-b border-[#F3C4A0]/15 px-4">
             <div className="max-w-md mx-auto p-8 rounded-3xl bg-[#162721] border border-[#234238] space-y-3">

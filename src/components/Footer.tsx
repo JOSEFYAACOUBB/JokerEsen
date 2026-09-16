@@ -38,7 +38,7 @@ export const Footer: React.FC<FooterProps> = () => {
 
   return (
     <>
-      <footer className="w-full bg-[#F8FAFC] py-12 sm:py-16 px-4 sm:px-6 lg:px-8 text-center border-t border-slate-200">
+      <footer id="footer" className="w-full bg-[#F8FAFC] py-12 sm:py-16 px-4 sm:px-6 lg:px-8 text-center border-t border-slate-200">
         <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 flex flex-col items-center">
 
           {/* Logo Centered at Top */}
