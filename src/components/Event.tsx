@@ -278,6 +278,36 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
 
   // Dynamic previous and upcoming events list from Supabase / Props (filtered for public site)
   const sourceEvents: EventRecord[] = events && events.length > 0 ? events : getCachedAllEvents();
+
+  // Helper to parse French/ISO date strings into a timestamp for sorting
+  const parseDateForSort = (dateStr: string): number => {
+    if (!dateStr) return 0;
+    // ISO format
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+      const d = new Date(dateStr.replace(' ', 'T'));
+      if (!isNaN(d.getTime())) return d.getTime();
+    }
+    // DD/MM/YYYY or DD-MM-YYYY
+    const slashMatch = dateStr.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+    if (slashMatch) return new Date(+slashMatch[3], +slashMatch[2] - 1, +slashMatch[1]).getTime();
+    // French: "Samedi 26 Octobre 2026 · 20h00"
+    const frMonths: Record<string, number> = {
+      janvier:0,janv:0,jan:0,février:1,fevrier:1,févr:1,fevr:1,fev:1,mars:2,mar:2,
+      avril:3,avr:3,mai:4,juin:5,juillet:6,juil:6,août:7,aout:7,
+      septembre:8,sept:8,sep:8,octobre:9,oct:9,novembre:10,nov:10,
+      décembre:11,decembre:11,déc:11,dec:11,
+    };
+    const m = dateStr.toLowerCase().match(/(\d{1,2})\s+([a-zàâäéèêëîïôöûüç]+)(?:\s+(\d{4}))?/);
+    if (m) {
+      const monthIdx = frMonths[m[2]];
+      if (monthIdx !== undefined) {
+        const year = m[3] ? +m[3] : new Date().getFullYear();
+        return new Date(year, monthIdx, +m[1]).getTime();
+      }
+    }
+    return 0;
+  };
+
   const eventList: EventItem[] = sourceEvents
     .filter((evt) => evt.show_on_public_website !== false && (evt.event_type === 'evenement' || evt.show_on_public_website === true))
     .map((evt, idx) => ({
@@ -293,7 +323,8 @@ export const Event: React.FC<EventProps> = ({ eventData, events }) => {
       access_info: evt.access_info,
       entry_info: evt.entry_info,
       ambiance_info: evt.ambiance_info,
-    }));
+    }))
+    .sort((a, b) => parseDateForSort(b.date) - parseDateForSort(a.date)); // newest first
 
   const filteredEvents = activeTab === 'all'
     ? eventList
