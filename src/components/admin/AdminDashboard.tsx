@@ -1805,19 +1805,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="space-y-6">
           {/* Sidebar Logo Header */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-slate-50 p-1 flex items-center justify-center shrink-0 border border-slate-200/80 shadow-xs">
-                <img
-                  src="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_240/v1788317705/ltbc0dahw1uwzmcogpvs.png"
-                  alt="Joker ESEN"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div>
-                <h1 className="text-sm font-black text-slate-900 tracking-tight leading-none font-sans">Joker ESEN</h1>
-                <span className="text-[10px] font-bold text-slate-400 block mt-0.5 uppercase tracking-wider font-mono">Panneau Admin</span>
-              </div>
-            </div>
+            <img
+              src="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_240/v1788317705/ltbc0dahw1uwzmcogpvs.png"
+              alt="Joker ESEN"
+              className="h-10 w-auto object-contain"
+            />
             <button
               onClick={() => setSidebarOpen(false)}
               className="lg:hidden p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
