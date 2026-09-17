@@ -1824,55 +1824,77 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           {/* Navigation Menu */}
-          <nav className="space-y-1">
+          <nav className="space-y-4">
             {[
-              { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
-              { id: 'members', label: 'Membres & Comptes', icon: Users, badge: getStoredMembers().length },
-              { id: 'applications', label: 'Candidatures', icon: UserCheck, badge: applications.filter((a) => a.status === 'pending').length },
-              { id: 'partners', label: 'Partenaires', icon: Building2, badge: partners.length },
-              { id: 'about', label: 'Qui Sommes-Nous', icon: BookOpen },
-              { id: 'event', label: 'Événements', icon: Calendar, badge: allEvents.length },
-              { id: 'agenda', label: 'Agenda Formations', icon: ClipboardList, badge: agendaList.length },
-              { id: 'team', label: 'Équipe Exécutive', icon: Users, badge: teamMembers.length },
-              { id: 'gallery', label: 'Galerie Photos', icon: ImageIcon, badge: photos.length },
-              { id: 'newsletter', label: 'Newsletter Brevo', icon: Mail, badge: subscribers.length },
-              { id: 'settings', label: 'Paramètres', icon: Settings },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    handleTabSelect(tab.id as any);
-                    if (window.innerWidth < 1024) {
-                      setSidebarOpen(false);
-                    }
-                  }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-medium transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-slate-100 text-slate-900 font-bold shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-slate-900' : 'text-slate-400'}`} />
-                    <span>{tab.label}</span>
-                  </div>
-                  {tab.badge !== undefined && tab.badge > 0 && (
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              {
+                category: '🌐 SITE WEB PUBLIC',
+                items: [
+                  { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+                  { id: 'event', label: 'Événements', icon: Calendar, badge: allEvents.length },
+                  { id: 'partners', label: 'Partenaires', icon: Building2, badge: partners.length },
+                  { id: 'about', label: 'Qui Sommes-Nous', icon: BookOpen },
+                  { id: 'gallery', label: 'Galerie Photos', icon: ImageIcon, badge: photos.length },
+                  { id: 'newsletter', label: 'Newsletter Brevo', icon: Mail, badge: subscribers.length },
+                ],
+              },
+              {
+                category: '👥 ESPACE MEMBRES & ÉMARGEMENT',
+                items: [
+                  { id: 'members', label: 'Membres & Comptes', icon: Users, badge: getStoredMembers().length },
+                  { id: 'agenda', label: 'Agenda Formations', icon: ClipboardList, badge: agendaList.length },
+                  { id: 'applications', label: 'Candidatures', icon: UserCheck, badge: applications.filter((a) => a.status === 'pending').length },
+                ],
+              },
+              {
+                category: '🃏 GESTION DU CLUB',
+                items: [
+                  { id: 'team', label: 'Équipe Exécutive', icon: Users, badge: teamMembers.length },
+                  { id: 'settings', label: 'Paramètres', icon: Settings },
+                ],
+              },
+            ].map((group, groupIdx) => (
+              <div key={groupIdx} className="space-y-1 pt-3 border-t border-slate-100 first:pt-0 first:border-0">
+                <p className="px-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                  {group.category}
+                </p>
+                {group.items.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        handleTabSelect(tab.id as any);
+                        if (window.innerWidth < 1024) {
+                          setSidebarOpen(false);
+                        }
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-medium transition-all cursor-pointer ${
                         isActive
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-slate-100 text-slate-600'
+                          ? 'bg-slate-100 text-slate-900 font-bold shadow-xs'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                      <div className="flex items-center gap-3">
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-slate-900' : 'text-slate-400'}`} />
+                        <span>{tab.label}</span>
+                      </div>
+                      {tab.badge !== undefined && tab.badge > 0 && (
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            isActive
+                              ? 'bg-slate-900 text-white'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {tab.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </div>
 
