@@ -268,4 +268,33 @@ export const supabaseDb = {
       });
     },
   },
+
+  // 8. Event Registrations Database Integration
+  registrations: {
+    async getAll() {
+      return supabaseFetch<any[]>('member_registrations?order=created_at.desc');
+    },
+
+    async upsert(registration: any) {
+      return supabaseFetch<any[]>('member_registrations', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify(registration),
+      });
+    },
+
+    async update(id: string, updates: any) {
+      return supabaseFetch<any[]>(`member_registrations?id=eq.${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+    },
+
+    async delete(id: string) {
+      return supabaseFetch(`member_registrations?id=eq.${id}`, {
+        method: 'DELETE',
+      });
+    },
+  },
 };
+

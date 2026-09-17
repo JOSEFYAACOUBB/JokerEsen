@@ -7,7 +7,6 @@ import type {
   CancellationLog,
   MemberLevel,
 } from '../types/member';
-import type { EventRecord } from '../types/database';
 import { supabaseDb, isSupabaseConfigured } from '../lib/supabase';
 
 const STORAGE_KEYS = {
@@ -298,33 +297,8 @@ export function deleteMemberByAdmin(memberId: string): ClubMember[] {
   return updated;
 }
 
-export function addPointsToMember(memberId: string, amount: number, _reason?: string): ClubMember[] {
-  const members = getStoredMembers();
-  const updated = members.map((m) => {
-    if (m.id === memberId) {
-      const newPoints = Math.max(0, m.points + amount);
-      const newLevel = calculateLevel(newPoints);
-      return {
-        ...m,
-        points: newPoints,
-        level: newLevel,
-      };
-    }
-    return m;
-  });
-
-  saveStoredMembers(updated);
-
-  // Sync current active session if it's the logged-in member
-  const current = getCurrentMemberSession();
-  if (current && current.id === memberId) {
-    const updatedSelf = updated.find((m) => m.id === memberId);
-    if (updatedSelf) {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_MEMBER, JSON.stringify(updatedSelf));
-    }
-  }
-
-  return updated;
+export function addPointsToMember(_memberId: string, _amount: number, _reason?: string): ClubMember[] {
+  return getStoredMembers();
 }
 
 // ------------------------------------------------------------------------------
@@ -376,9 +350,6 @@ export function addForumIdea(author: ClubMember, title: string, category: ForumI
   const updated = [newIdea, ...ideas];
   localStorage.setItem(STORAGE_KEYS.IDEAS, JSON.stringify(updated));
 
-  // Award +20 points for proposing an idea!
-  addPointsToMember(author.id, 20, 'Proposition d\'idée sur le forum');
-
   return updated;
 }
 
@@ -427,6 +398,21 @@ export function getAllEventRegistrations(): MemberEventRegistration[] {
   }
 }
 
+export async function fetchEventRegistrationsFromDb(): Promise<MemberEventRegistration[]> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabaseDb.registrations.getAll();
+      if (!error && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(data));
+        return data as MemberEventRegistration[];
+      }
+    } catch (e) {
+      console.warn('Could not fetch registrations from Supabase database:', e);
+    }
+  }
+  return getAllEventRegistrations();
+}
+
 export function getMemberEventRegistrations(memberId: string): MemberEventRegistration[] {
   return getAllEventRegistrations().filter((r) => r.member_id === memberId);
 }
@@ -446,7 +432,7 @@ export function saveCancellationLogs(logs: CancellationLog[]) {
 
 export function toggleEventRegistration(
   member: ClubMember,
-  event: EventRecord
+  event: { id: string; title: string; max_seats?: number; meeting_url?: string; event_type?: string }
 ): { registrations: MemberEventRegistration[]; isRegistered: boolean; error?: string } {
   let allRegs = getAllEventRegistrations();
   const eventId = event.id || 'evt-demo';
@@ -455,8 +441,13 @@ export function toggleEventRegistration(
 
   if (existingIndex >= 0) {
     // Member is cancelling registration ("Se désinscrire")
+    const removedReg = allRegs[existingIndex];
     allRegs.splice(existingIndex, 1);
     isRegistered = false;
+
+    if (isSupabaseConfigured && removedReg?.id) {
+      supabaseDb.registrations.delete(removedReg.id).catch(() => {});
+    }
 
     // Log the cancellation event in Audit Log
     const logs = getCancellationLogs();
@@ -497,14 +488,15 @@ export function toggleEventRegistration(
       status: 'confirmed',
       attendance_status: 'pending',
       meeting_url: event.meeting_url,
-      event_type: event.event_type || 'evenement',
+      event_type: (event.event_type as 'formation' | 'reunion' | 'evenement') || 'evenement',
       registered_at: new Date().toISOString().split('T')[0],
     };
     allRegs.push(newReg);
     isRegistered = true;
 
-    // Award +10 pts for event registration!
-    addPointsToMember(member.id, 10, `Inscription événement: ${event.title}`);
+    if (isSupabaseConfigured) {
+      supabaseDb.registrations.upsert(newReg).catch(() => {});
+    }
   }
 
   localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(allRegs));
@@ -512,6 +504,32 @@ export function toggleEventRegistration(
     registrations: allRegs.filter((r) => r.member_id === member.id),
     isRegistered,
   };
+}
+
+export function submitMemberJustification(
+  registrationId: string,
+  justification: string
+): MemberEventRegistration[] {
+  let allRegs = getAllEventRegistrations();
+  allRegs = allRegs.map((r) => {
+    if (r.id === registrationId) {
+      return {
+        ...r,
+        justification_reason: justification.trim(),
+      };
+    }
+    return r;
+  });
+
+  localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(allRegs));
+
+  if (isSupabaseConfigured) {
+    supabaseDb.registrations.update(registrationId, {
+      justification_reason: justification.trim(),
+    }).catch(() => {});
+  }
+
+  return allRegs;
 }
 
 export function updateAttendanceStatus(
@@ -522,6 +540,10 @@ export function updateAttendanceStatus(
   let allRegs = getAllEventRegistrations();
   allRegs = allRegs.map((r) => {
     if (r.id === registrationId) {
+      // Irreversible lock: Once marked present or absent, prevent further status changes
+      if (r.attendance_status === 'present' || r.attendance_status === 'absent') {
+        return r;
+      }
       return {
         ...r,
         attendance_status,
@@ -532,5 +554,18 @@ export function updateAttendanceStatus(
   });
 
   localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(allRegs));
+
+  if (isSupabaseConfigured) {
+    const updatedItem = allRegs.find((r) => r.id === registrationId);
+    if (updatedItem) {
+      supabaseDb.registrations.update(registrationId, {
+        attendance_status: updatedItem.attendance_status,
+        absence_remark: updatedItem.absence_remark || '',
+      }).catch(() => {});
+    }
+  }
+
   return allRegs;
 }
+
+

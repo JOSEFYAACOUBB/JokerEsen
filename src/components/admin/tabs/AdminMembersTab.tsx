@@ -54,9 +54,11 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
   const [registrations, setRegistrations] = useState<MemberEventRegistration[]>(() => getAllEventRegistrations());
   const [cancellationLogs, setCancellationLogs] = useState<CancellationLog[]>(() => getCancellationLogs());
 
-  // Absence Modal state
+  // Absence & Present Modal state
   const [selectedRegForAbsence, setSelectedRegForAbsence] = useState<MemberEventRegistration | null>(null);
   const [absenceRemarkInput, setAbsenceRemarkInput] = useState('');
+  const [selectedRegForPresent, setSelectedRegForPresent] = useState<MemberEventRegistration | null>(null);
+
 
   const [search, setSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState<string>('all');
@@ -157,12 +159,6 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
     setSelectedMemberForPoints(null);
   };
 
-  const handleMarkPresent = (reg: MemberEventRegistration) => {
-    const updated = updateAttendanceStatus(reg.id, 'present');
-    setRegistrations(updated);
-    onShowToast(`Présence confirmée pour ${reg.member_name || reg.member_email || 'le membre'}`, 'success');
-  };
-
   const handleOpenAbsenceModal = (reg: MemberEventRegistration) => {
     setSelectedRegForAbsence(reg);
     setAbsenceRemarkInput(reg.absence_remark || 'Absent(e) non justifié(e) à la formation / réunion.');
@@ -174,7 +170,6 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
     const updated = updateAttendanceStatus(selectedRegForAbsence.id, 'absent', absenceRemarkInput);
     setRegistrations(updated);
     setSelectedRegForAbsence(null);
-    onShowToast(`Absence & remarque enregistrées. Signalement rouge envoyé !`, 'error');
   };
 
   const filteredMembers = members.filter((m) => {
@@ -415,12 +410,10 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
                         <div className="text-[11px] text-slate-400">{m.major}</div>
                       </td>
 
-                      {/* Niveau */}
+                      {/* Rôle */}
                       <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-extrabold ${LEVEL_COLORS[m.level] || 'bg-slate-50 text-slate-700'}`}>
-                          {m.level}
-                          <span className="opacity-60">·</span>
-                          <span>{m.points} pts</span>
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-slate-700 text-[10px] font-extrabold uppercase">
+                          {m.role}
                         </span>
                       </td>
 
@@ -435,13 +428,6 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
                       {/* Actions */}
                       <td className="py-3 px-5">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => { setSelectedMemberForPoints(m); setIsPointsModalOpen(true); }}
-                            className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 cursor-pointer transition-colors"
-                            title="Attribuer Points"
-                          >
-                            <Award className="w-3.5 h-3.5" />
-                          </button>
                           <button
                             onClick={() => handleToggleStatus(m)}
                             className={`p-1.5 rounded-lg cursor-pointer transition-colors ${m.status === 'active' ? 'bg-amber-50 hover:bg-amber-100 text-amber-600' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'}`}
@@ -814,6 +800,11 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
                         <td className="py-3.5 px-4">
                           <div className="font-bold text-slate-900">{reg.member_name || 'Membre Joker'}</div>
                           <div className="text-[10px] text-slate-500">{reg.member_email || reg.member_id}</div>
+                          {reg.justification_reason && (
+                            <div className="text-[10px] text-amber-800 font-medium bg-amber-50 px-2 py-0.5 rounded-md mt-1 border border-amber-200 inline-block">
+                              💬 Motif : "{reg.justification_reason}"
+                            </div>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 font-bold text-slate-800">{reg.event_title}</td>
                         <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">{reg.registered_at}</td>
@@ -833,18 +824,30 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-right space-x-2">
-                          <button
-                            onClick={() => handleMarkPresent(reg)}
-                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer"
-                          >
-                            Présent ✓
-                          </button>
-                          <button
-                            onClick={() => handleOpenAbsenceModal(reg)}
-                            className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] cursor-pointer"
-                          >
-                            Marquer Absent ⚠️
-                          </button>
+                          {reg.attendance_status === 'present' ? (
+                            <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 font-extrabold text-[11px] inline-flex items-center gap-1 border border-emerald-300">
+                              ✅ Présence Confirmée (Verrouillé)
+                            </span>
+                          ) : reg.attendance_status === 'absent' ? (
+                            <span className="px-3 py-1.5 rounded-xl bg-rose-100 text-rose-800 font-extrabold text-[11px] inline-flex items-center gap-1 border border-rose-300">
+                              ⚠️ Absence Marquée (Verrouillé)
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setSelectedRegForPresent(reg)}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer shadow-xs transition-colors"
+                              >
+                                Présent ✓
+                              </button>
+                              <button
+                                onClick={() => handleOpenAbsenceModal(reg)}
+                                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] cursor-pointer shadow-xs transition-colors"
+                              >
+                                Marquer Absent ⚠️
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -1018,6 +1021,67 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ MODAL: Confirm Present Attendance ══ */}
+      {selectedRegForPresent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden space-y-4 p-6">
+            <button
+              onClick={() => setSelectedRegForPresent(null)}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 rounded-xl"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-lg">
+                ✓
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider block">Validation Présence</span>
+                <h3 className="font-bold text-slate-900 text-base">Confirmer la présence de {selectedRegForPresent.member_name || selectedRegForPresent.member_email}</h3>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+              <p><strong>Session :</strong> {selectedRegForPresent.event_title}</p>
+              <p><strong>Inscrit(e) le :</strong> {selectedRegForPresent.registered_at}</p>
+              {selectedRegForPresent.justification_reason && (
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                  💬 <strong>Motif d'indisponibilité transmis par le membre :</strong>
+                  <p className="italic mt-0.5 font-medium">"{selectedRegForPresent.justification_reason}"</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed flex items-start gap-2">
+              <span className="text-base shrink-0">⚠️</span>
+              <span>
+                <strong>Attention :</strong> Une fois la présence confirmée, ce statut sera définitivement <strong>verrouillé</strong>. L'option pour le marquer comme absent ne sera plus disponible.
+              </span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setSelectedRegForPresent(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  const updated = updateAttendanceStatus(selectedRegForPresent.id, 'present');
+                  setRegistrations(updated);
+                  setSelectedRegForPresent(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs"
+              >
+                Confirmer la Présence ✓
+              </button>
             </div>
           </div>
         </div>

@@ -2,6 +2,22 @@ export type MemberRole = 'member' | 'moderator' | 'staff';
 export type MemberLevel = 'Bronze' | 'Argent' | 'Or' | 'Platine';
 export type MemberStatus = 'active' | 'suspended';
 
+export interface AgendaItem {
+  id: string;
+  title: string;
+  edition?: string;
+  date: string;
+  location: string;
+  program?: string;
+  meeting_url?: string;
+  event_type: 'formation' | 'reunion' | 'evenement';
+  max_seats?: number;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+
 export interface ClubMember {
   id: string;
   full_name: string;
@@ -74,6 +90,7 @@ export interface MemberEventRegistration {
   status: 'confirmed' | 'pending' | 'declined' | 'cancelled';
   attendance_status?: 'pending' | 'present' | 'absent';
   absence_remark?: string;
+  justification_reason?: string;
   meeting_url?: string;
   event_type?: 'formation' | 'reunion' | 'evenement';
   registered_at: string;

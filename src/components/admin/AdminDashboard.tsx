@@ -46,6 +46,13 @@ import type {
   FormConfig,
   EventRecord
 } from '../../types/database';
+import type { AgendaItem } from '../../types/member';
+import {
+  fetchAllAgendaItems,
+  createAgendaItem,
+  updateAgendaItem,
+  deleteAgendaItem
+} from '../../services/agendaService';
 import {
   fetchRecruitmentApplications,
   updateRecruitmentStatus,
@@ -418,9 +425,93 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [allRegistrations, setAllRegistrations] = useState<MemberEventRegistration[]>(() => getAllEventRegistrations());
   const [cancellationLogs, setCancellationLogs] = useState<CancellationLog[]>(() => getCancellationLogs());
   const [agendaFilter, setAgendaFilter] = useState<'all' | 'formation' | 'reunion' | 'evenement'>('all');
-  const [selectedAgendaEvent, setSelectedAgendaEvent] = useState<EventRecord | null>(null);
+  const [agendaList, setAgendaList] = useState<AgendaItem[]>([]);
+  const [selectedAgendaEvent, setSelectedAgendaEvent] = useState<AgendaItem | null>(null);
   const [attendanceRemark, setAttendanceRemark] = useState<Record<string, string>>({});
   const [agendaActiveSubTab, setAgendaActiveSubTab] = useState<'sessions' | 'history'>('sessions');
+  const [selectedRegForPresent, setSelectedRegForPresent] = useState<MemberEventRegistration | null>(null);
+  const [selectedRegForAbsence, setSelectedRegForAbsence] = useState<MemberEventRegistration | null>(null);
+  const [absenceRemarkInput, setAbsenceRemarkInput] = useState('');
+
+  // Agenda Modal state
+  const [isAgendaModalOpen, setIsAgendaModalOpen] = useState(false);
+  const [editingAgendaItem, setEditingAgendaItem] = useState<AgendaItem | null>(null);
+  const [agendaForm, setAgendaForm] = useState({
+    title: '',
+    edition: '',
+    date: '',
+    location: '',
+    program: '',
+    meeting_url: '',
+    event_type: 'formation' as 'formation' | 'reunion' | 'evenement',
+    max_seats: 50,
+  });
+
+  useEffect(() => {
+    fetchAllAgendaItems().then(setAgendaList);
+  }, []);
+
+  const handleRefreshAgendaData = async () => {
+    const items = await fetchAllAgendaItems();
+    setAgendaList(items);
+    setAllRegistrations(getAllEventRegistrations());
+    setCancellationLogs(getCancellationLogs());
+  };
+
+  const handleOpenNewAgendaModal = () => {
+    setEditingAgendaItem(null);
+    setAgendaForm({
+      title: '',
+      edition: '',
+      date: `Samedi ${new Date().getDate()} Octobre 2026 · 14h00`,
+      location: 'Salle Lab ESEN Manouba',
+      program: '',
+      meeting_url: '',
+      event_type: 'formation',
+      max_seats: 50,
+    });
+    setIsAgendaModalOpen(true);
+  };
+
+  const handleOpenEditAgendaModal = (item: AgendaItem) => {
+    setEditingAgendaItem(item);
+    setAgendaForm({
+      title: item.title,
+      edition: item.edition || '',
+      date: item.date,
+      location: item.location,
+      program: item.program || '',
+      meeting_url: item.meeting_url || '',
+      event_type: item.event_type || 'formation',
+      max_seats: item.max_seats ?? 50,
+    });
+    setIsAgendaModalOpen(true);
+  };
+
+  const handleSaveAgendaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!agendaForm.title.trim() || !agendaForm.date.trim() || !agendaForm.location.trim()) return;
+
+    if (editingAgendaItem) {
+      await updateAgendaItem(editingAgendaItem.id, agendaForm);
+    } else {
+      await createAgendaItem(agendaForm);
+    }
+
+    const refreshed = await fetchAllAgendaItems();
+    setAgendaList(refreshed);
+    setIsAgendaModalOpen(false);
+    setEditingAgendaItem(null);
+  };
+
+  const handleDeleteAgendaAction = async (id: string) => {
+    if (window.confirm('Voulez-vous vraiment supprimer cette session d\'agenda ?')) {
+      await deleteAgendaItem(id);
+      if (selectedAgendaEvent?.id === id) setSelectedAgendaEvent(null);
+      const refreshed = await fetchAllAgendaItems();
+      setAgendaList(refreshed);
+    }
+  };
 
   // ── 5. Form Config State ──
   const [formConfig, setFormConfig] = useState<FormConfig>(defaultFormConfig);
@@ -956,21 +1047,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // ── AGENDA ATTENDANCE HANDLERS ──
-  const handleRefreshAgendaData = () => {
-    setAllRegistrations(getAllEventRegistrations());
-    setCancellationLogs(getCancellationLogs());
-  };
 
-  const handleMarkAttendance = (registrationId: string, status: 'present' | 'absent') => {
-    const remark = attendanceRemark[registrationId] || '';
+  const handleMarkAttendance = (registrationId: string, status: 'present' | 'absent', remarkOverride?: string) => {
+    const remark = remarkOverride !== undefined ? remarkOverride : (attendanceRemark[registrationId] || '');
     updateAttendanceStatus(registrationId, status, remark || undefined);
     setAllRegistrations(getAllEventRegistrations());
-    showToast(
-      status === 'present'
-        ? '✅ Membre marqué Présent(e) avec succès.'
-        : `⚠️ Membre marqué Absent(e). Remarque enregistrée et visible dans l'espace membre.`,
-      status === 'present' ? 'success' : 'warning'
-    );
   };
 
   // ── CANDIDATES & RECRUITMENT HANDLERS ──
@@ -1751,7 +1832,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               { id: 'partners', label: 'Partenaires', icon: Building2, badge: partners.length },
               { id: 'about', label: 'Qui Sommes-Nous', icon: BookOpen },
               { id: 'event', label: 'Événements', icon: Calendar, badge: allEvents.length },
-              { id: 'agenda', label: 'Agenda Formations', icon: ClipboardList, badge: allEvents.filter(e => e.show_in_member_agenda).length },
+              { id: 'agenda', label: 'Agenda Formations', icon: ClipboardList, badge: agendaList.length },
               { id: 'team', label: 'Équipe Exécutive', icon: Users, badge: teamMembers.length },
               { id: 'gallery', label: 'Galerie Photos', icon: ImageIcon, badge: photos.length },
               { id: 'newsletter', label: 'Newsletter Brevo', icon: Mail, badge: subscribers.length },
@@ -2594,9 +2675,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* TAB: AGENDA FORMATIONS & RÉUNIONS */}
           {activeTab === 'agenda' && (() => {
-            const agendaEvents = allEvents.filter(e =>
-              e.show_in_member_agenda !== false &&
-              (agendaFilter === 'all' || e.event_type === agendaFilter)
+            const filteredAgenda = agendaList.filter(e =>
+              agendaFilter === 'all' || e.event_type === agendaFilter
             );
             const sessionRegs = selectedAgendaEvent
               ? allRegistrations.filter(r => r.event_id === selectedAgendaEvent.id)
@@ -2608,10 +2688,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold text-slate-900 tracking-tight font-sans">
-                      Agenda des Formations &amp; Réunions ({agendaEvents.length})
+                      Agenda des Formations &amp; Réunions ({filteredAgenda.length})
                     </h2>
                     <p className="text-xs text-slate-500">
-                      Gérez les sessions visibles dans l'espace membre, vérifiez les présences et consultez l'historique des inscriptions.
+                      Gérez les sessions d'agenda visibles dans l'espace membre, vérifiez les présences et consultez l'historique.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -2623,37 +2703,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <span>Actualiser</span>
                     </button>
                     <button
-                      onClick={() => {
-                        const today = new Date().toISOString().slice(0, 10);
-                        setEventDatePart(today);
-                        setEventTimePart('14:00');
-                        const formatted = formatFrenchEventDate(today, '14:00');
-                        setEditingEvent(null);
-                        setEventModalForm({
-                          title: '',
-                          edition: '',
-                          date: formatted,
-                          location: '',
-                          program: '',
-                          banner_url: 'https://res.cloudinary.com/qvnoo1cy/image/upload/v1788317724/rselcd2hgyfq7pnu4lvh.jpg',
-                          category: 'upcoming',
-                          event_type: 'formation',
-                          max_seats: 20,
-                          meeting_url: '',
-                          show_in_member_agenda: true,
-                          show_on_public_website: false,
-                          is_active: false,
-                          ticket_available: false,
-                          include_program: true,
-                          include_access_entry: false,
-                          include_ambiance: false,
-                          access_info: '',
-                          entry_info: '',
-                          ambiance_info: '',
-                        });
-                        setEventErrors({});
-                        setIsEventModalOpen(true);
-                      }}
+                      onClick={handleOpenNewAgendaModal}
                       className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer"
                     >
                       <Plus className="w-4 h-4 text-white shrink-0" />
@@ -2698,42 +2748,68 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                       </div>
 
-                      {agendaEvents.length === 0 ? (
+                      {filteredAgenda.length === 0 ? (
                         <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/70 space-y-2">
                           <ClipboardList className="w-10 h-10 text-slate-300 mx-auto" />
                           <p className="text-xs font-bold text-slate-600">Aucune session dans l'agenda membre</p>
-                          <p className="text-[11px] text-slate-400">Créez une formation ou réunion et activez "Afficher dans l'Agenda Membres".</p>
+                          <p className="text-[11px] text-slate-400">Cliquez sur "Nouvelle Formation / Réunion" ci-dessus pour en ajouter une.</p>
                         </div>
                       ) : (
-                        agendaEvents.map(evt => {
+                        filteredAgenda.map(evt => {
                           const regs = allRegistrations.filter(r => r.event_id === evt.id);
                           const isSelected = selectedAgendaEvent?.id === evt.id;
                           return (
-                            <button
+                            <div
                               key={evt.id}
-                              onClick={() => setSelectedAgendaEvent(evt)}
-                              className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer space-y-1.5 ${
+                              className={`p-4 rounded-2xl border transition-all space-y-2 ${
                                 isSelected
                                   ? 'bg-slate-900 border-slate-900 text-white'
                                   : 'bg-white border-slate-200/70 hover:border-slate-300 shadow-xs'
                               }`}
                             >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                                  isSelected ? 'bg-white/20 text-white' :
-                                  evt.event_type === 'formation' ? 'bg-indigo-100 text-indigo-800' :
-                                  evt.event_type === 'reunion' ? 'bg-amber-100 text-amber-900' :
-                                  'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {evt.event_type === 'formation' ? '🎓' : evt.event_type === 'reunion' ? '🤝' : '🎉'} {evt.event_type || 'évt'}
-                                </span>
-                                <span className={`text-[10px] font-mono font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
-                                  {regs.length}/{evt.max_seats ?? 50}
-                                </span>
+                              <div
+                                onClick={() => setSelectedAgendaEvent(evt)}
+                                className="cursor-pointer space-y-1.5"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                                    isSelected ? 'bg-white/20 text-white' :
+                                    evt.event_type === 'formation' ? 'bg-indigo-100 text-indigo-800' :
+                                    evt.event_type === 'reunion' ? 'bg-amber-100 text-amber-900' :
+                                    'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {evt.event_type === 'formation' ? '🎓' : evt.event_type === 'reunion' ? '🤝' : '🎉'} {evt.event_type || 'évt'}
+                                  </span>
+                                  <span className={`text-[10px] font-mono font-bold ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                                    {regs.length}/{evt.max_seats ?? 50}
+                                  </span>
+                                </div>
+                                <p className={`text-xs font-bold line-clamp-1 ${isSelected ? 'text-white' : 'text-slate-900'}`}>{evt.title}</p>
+                                <p className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>{evt.date}</p>
                               </div>
-                              <p className={`text-xs font-bold line-clamp-1 ${isSelected ? 'text-white' : 'text-slate-900'}`}>{evt.title}</p>
-                              <p className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>{evt.date}</p>
-                            </button>
+
+                              <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100/20">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleOpenEditAgendaModal(evt); }}
+                                  className={`p-1 rounded-lg text-xs flex items-center gap-1 cursor-pointer ${
+                                    isSelected ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                                  }`}
+                                  title="Modifier cette session"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                  <span className="text-[10px]">Éditer</span>
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteAgendaAction(evt.id); }}
+                                  className={`p-1 rounded-lg text-xs flex items-center gap-1 cursor-pointer ${
+                                    isSelected ? 'text-rose-300 hover:text-rose-100' : 'text-rose-500 hover:text-rose-700'
+                                  }`}
+                                  title="Supprimer cette session"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
                           );
                         })
                       )}
@@ -2803,6 +2879,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                         <td className="p-4">
                                           <p className="font-bold text-slate-900">{reg.member_name || '—'}</p>
                                           <p className="text-[11px] text-slate-500">{reg.member_email || ''}</p>
+                                          {reg.justification_reason && (
+                                            <div className="text-[10px] text-amber-800 font-medium bg-amber-50 px-2 py-0.5 rounded-md mt-1 border border-amber-200 inline-block">
+                                              💬 Motif : "{reg.justification_reason}"
+                                            </div>
+                                          )}
                                         </td>
                                         <td className="p-4 text-slate-600 font-mono text-[11px]">{reg.registered_at}</td>
                                         <td className="p-4">
@@ -2819,26 +2900,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                         <td className="p-4">
                                           <input
                                             type="text"
+                                            disabled={reg.attendance_status === 'present' || reg.attendance_status === 'absent'}
                                             value={attendanceRemark[reg.id] ?? (reg.absence_remark || '')}
                                             onChange={(e) => setAttendanceRemark(prev => ({ ...prev, [reg.id]: e.target.value }))}
                                             placeholder="Ex: Absent sans justification..."
-                                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none focus:border-rose-400 focus:bg-white transition-colors"
+                                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none focus:border-rose-400 focus:bg-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                           />
                                         </td>
                                         <td className="p-4">
                                           <div className="flex items-center justify-end gap-1.5">
-                                            <button
-                                              onClick={() => handleMarkAttendance(reg.id, 'present')}
-                                              className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200 cursor-pointer transition-all"
-                                            >
-                                              Présent ✅
-                                            </button>
-                                            <button
-                                              onClick={() => handleMarkAttendance(reg.id, 'absent')}
-                                              className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200 cursor-pointer transition-all"
-                                            >
-                                              Absent ⚠️
-                                            </button>
+                                            {reg.attendance_status === 'present' ? (
+                                              <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-300">
+                                                ✅ Présence Confirmée (Verrouillé)
+                                              </span>
+                                            ) : reg.attendance_status === 'absent' ? (
+                                              <span className="px-3 py-1.5 rounded-xl bg-rose-100 text-rose-800 text-[10px] font-extrabold border border-rose-300">
+                                                ⚠️ Absence Marquée (Verrouillé)
+                                              </span>
+                                            ) : (
+                                              <>
+                                                <button
+                                                  onClick={() => setSelectedRegForPresent(reg)}
+                                                  className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200 cursor-pointer transition-all"
+                                                >
+                                                  Présent ✅
+                                                </button>
+                                                <button
+                                                  onClick={() => {
+                                                    setSelectedRegForAbsence(reg);
+                                                    setAbsenceRemarkInput(attendanceRemark[reg.id] || reg.absence_remark || 'Absent(e) non justifié(e) à la formation / réunion.');
+                                                  }}
+                                                  className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200 cursor-pointer transition-all"
+                                                >
+                                                  Absent ⚠️
+                                                </button>
+                                              </>
+                                            )}
                                           </div>
                                         </td>
                                       </tr>
@@ -5139,6 +5236,289 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL AGENDA: CREATE / EDIT AGENDA ITEM */}
+      {isAgendaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-base text-slate-900 font-sans uppercase">
+                {editingAgendaItem ? 'Modifier la Session Agenda' : 'Créer une Formation / Réunion'}
+              </h3>
+              <button onClick={() => setIsAgendaModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAgendaSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Type de Session <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['formation', 'reunion', 'evenement'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setAgendaForm((prev) => ({ ...prev, event_type: t }))}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
+                        agendaForm.event_type === t
+                          ? 'bg-slate-900 text-white border-slate-900'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {t === 'formation' ? '🎓 Formation' : t === 'reunion' ? '🤝 Réunion' : '🎉 Atelier'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Titre de la Formation / Réunion <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Masterclass UI/UX Design & Figma"
+                  value={agendaForm.title}
+                  onChange={(e) => setAgendaForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-blue-600 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">Édition / Pôle</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Pôle Design · Session 1"
+                    value={agendaForm.edition}
+                    onChange={(e) => setAgendaForm((prev) => ({ ...prev, edition: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-blue-600 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                    Capacité (Places) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    max={500}
+                    value={agendaForm.max_seats}
+                    onChange={(e) => setAgendaForm((prev) => ({ ...prev, max_seats: parseInt(e.target.value) || 50 }))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-blue-600 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Date &amp; Horaire <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Mardi 24 Octobre 2026 · 14h00"
+                  value={agendaForm.date}
+                  onChange={(e) => setAgendaForm((prev) => ({ ...prev, date: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-blue-600 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Lieu / Salle <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Salle Lab 3 ESEN ou Google Meet"
+                  value={agendaForm.location}
+                  onChange={(e) => setAgendaForm((prev) => ({ ...prev, location: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-blue-600 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Lien Visio / Google Meet (Optionnel)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://meet.google.com/..."
+                  value={agendaForm.meeting_url}
+                  onChange={(e) => setAgendaForm((prev) => ({ ...prev, meeting_url: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-blue-600 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Programme / Détails
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Détails du programme de la session, prérequis, formateur..."
+                  value={agendaForm.program}
+                  onChange={(e) => setAgendaForm((prev) => ({ ...prev, program: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-blue-600 font-medium resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAgendaModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs cursor-pointer"
+                >
+                  {editingAgendaItem ? 'Mettre à jour' : 'Créer la Session'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══ MODAL: Confirm Present Attendance ══ */}
+      {selectedRegForPresent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden space-y-4 p-6">
+            <button
+              onClick={() => setSelectedRegForPresent(null)}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 rounded-xl"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-lg">
+                ✓
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider block">Validation Présence</span>
+                <h3 className="font-bold text-slate-900 text-base">Confirmer la présence de {selectedRegForPresent.member_name || selectedRegForPresent.member_email}</h3>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+              <p><strong>Session :</strong> {selectedRegForPresent.event_title}</p>
+              <p><strong>Inscrit(e) le :</strong> {selectedRegForPresent.registered_at}</p>
+              {selectedRegForPresent.justification_reason && (
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                  💬 <strong>Motif d'indisponibilité transmis par le membre :</strong>
+                  <p className="italic mt-0.5 font-medium">"{selectedRegForPresent.justification_reason}"</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed flex items-start gap-2">
+              <span className="text-base shrink-0">⚠️</span>
+              <span>
+                <strong>Attention :</strong> Une fois la présence confirmée, ce statut sera définitivement <strong>verrouillé</strong>. L'option pour le marquer comme absent ne sera plus disponible.
+              </span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setSelectedRegForPresent(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  handleMarkAttendance(selectedRegForPresent.id, 'present');
+                  setSelectedRegForPresent(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs"
+              >
+                Confirmer la Présence ✓
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedRegForAbsence && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden space-y-4 p-6">
+            <button
+              onClick={() => setSelectedRegForAbsence(null)}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 rounded-xl"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 font-bold text-lg">
+                ⚠️
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold text-rose-600 uppercase tracking-wider block">Signalement d'Absence</span>
+                <h3 className="font-bold text-slate-900 text-base">Marquer {selectedRegForAbsence.member_name || selectedRegForAbsence.member_email} absent(e)</h3>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+              <p><strong>Session :</strong> {selectedRegForAbsence.event_title}</p>
+              <p><strong>Inscrit(e) le :</strong> {selectedRegForAbsence.registered_at}</p>
+              {selectedRegForAbsence.justification_reason && (
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                  💬 <strong>Motif transmis par le membre :</strong>
+                  <p className="italic mt-0.5 font-medium">"{selectedRegForAbsence.justification_reason}"</p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 block">
+                Remarque / Motif d'absence pour l'administration :
+              </label>
+              <textarea
+                rows={2}
+                value={absenceRemarkInput}
+                onChange={(e) => setAbsenceRemarkInput(e.target.value)}
+                placeholder="Ex: Absent non justifié..."
+                className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-rose-400 focus:bg-white transition-all resize-none"
+              />
+            </div>
+
+            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed flex items-start gap-2">
+              <span className="text-base shrink-0">⚠️</span>
+              <span>
+                <strong>Attention :</strong> Une fois l'absence marquée, ce statut sera définitivement <strong>verrouillé</strong>. L'option pour le marquer présent ne sera plus disponible.
+              </span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setSelectedRegForAbsence(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  handleMarkAttendance(selectedRegForAbsence.id, 'absent', absenceRemarkInput);
+                  setSelectedRegForAbsence(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs"
+              >
+                Confirmer l'Absence ⚠️
+              </button>
+            </div>
           </div>
         </div>
       )}
