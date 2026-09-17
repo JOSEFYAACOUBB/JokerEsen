@@ -125,6 +125,7 @@ export interface RecruitmentApplication {
   motivation?: string;
   why_join?: string;
   event_idea?: string;
+  facebook_link?: string;
   skills?: string[];
   activity_axes?: string[];
   desired_trainings?: string[];

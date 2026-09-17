@@ -13,6 +13,7 @@ export interface SubmitApplicationData {
   motivation?: string;
   whyJoin?: string;
   eventIdea?: string;
+  facebookLink?: string;
   skills?: string[];
   activityAxes?: string[];
   desiredTrainings?: string[];
@@ -43,6 +44,7 @@ export async function submitRecruitmentApplication(data: SubmitApplicationData):
     motivation: data.motivation || '',
     why_join: data.whyJoin || '',
     event_idea: data.eventIdea || '',
+    facebook_link: data.facebookLink || '',
     skills: data.skills || [],
     activity_axes: data.activityAxes || [],
     desired_trainings: data.desiredTrainings || [],
