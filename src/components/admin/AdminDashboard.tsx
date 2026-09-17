@@ -12,7 +12,6 @@ import {
   Plus,
   Search,
   Trash2,
-  ExternalLink,
   Users,
   Lock,
   Mail,
@@ -1827,14 +1826,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <nav className="space-y-4">
             {[
               {
-                category: '🌐 SITE WEB PUBLIC',
+                category: '🌐 CONTENU DU SITE WEB',
                 items: [
                   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
                   { id: 'event', label: 'Événements', icon: Calendar, badge: allEvents.length },
                   { id: 'partners', label: 'Partenaires', icon: Building2, badge: partners.length },
                   { id: 'about', label: 'Qui Sommes-Nous', icon: BookOpen },
+                  { id: 'team', label: 'Équipe Exécutive', icon: Users, badge: teamMembers.length },
                   { id: 'gallery', label: 'Galerie Photos', icon: ImageIcon, badge: photos.length },
                   { id: 'newsletter', label: 'Newsletter Brevo', icon: Mail, badge: subscribers.length },
+                  { id: 'settings', label: 'Paramètres', icon: Settings },
                 ],
               },
               {
@@ -1843,13 +1844,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   { id: 'members', label: 'Membres & Comptes', icon: Users, badge: getStoredMembers().length },
                   { id: 'agenda', label: 'Agenda Formations', icon: ClipboardList, badge: agendaList.length },
                   { id: 'applications', label: 'Candidatures', icon: UserCheck, badge: applications.filter((a) => a.status === 'pending').length },
-                ],
-              },
-              {
-                category: '🃏 GESTION DU CLUB',
-                items: [
-                  { id: 'team', label: 'Équipe Exécutive', icon: Users, badge: teamMembers.length },
-                  { id: 'settings', label: 'Paramètres', icon: Settings },
                 ],
               },
             ].map((group, groupIdx) => (
@@ -1901,25 +1895,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Sidebar Footer Actions */}
         <div className="pt-4 border-t border-slate-100 space-y-2">
           <button
-            onClick={onBackToPublic}
-            className="w-full py-2.5 px-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
-          >
-            <span className="flex items-center gap-2">
-              <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-              <span>Site Public</span>
-            </span>
-            <span className="text-[10px] text-slate-400">&rarr;</span>
-          </button>
-
-          <button
             onClick={handleLogout}
             className="w-full py-2.5 px-3.5 rounded-2xl bg-rose-50 border border-rose-200/60 text-rose-700 hover:bg-rose-100 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5 text-rose-700 shrink-0" />
             <span className="text-rose-700 font-bold">Déconnexion</span>
           </button>
-        </div>
-      </aside>
+        </div></aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8F9FA]">
