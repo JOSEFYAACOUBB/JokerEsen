@@ -33,6 +33,11 @@ import {
   Info,
   ClipboardList,
   UserX,
+  ExternalLink,
+  Cake,
+  ChevronLeft,
+  ChevronRight,
+  Globe,
 } from 'lucide-react';
 
 import type { TeamMember } from '../Team';
@@ -188,6 +193,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('joker_admin_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('joker_admin_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
 
   // Rich Toast Notifications System
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -1792,37 +1808,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-900/70 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300 lg:hidden"
+          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar Navigation */}
+      {/* Sidebar Navigation (Responsive & Push / Collapsible) */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 flex flex-col justify-between bg-white border-r border-slate-200/80 p-4 sm:p-5 shrink-0 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col justify-between bg-white border-r border-slate-200/80 shrink-0 shadow-xl lg:shadow-none lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:overflow-x-hidden transition-all duration-300 ease-in-out ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        } ${
+          sidebarCollapsed
+            ? 'w-72 lg:w-20 p-3 sm:p-3'
+            : 'w-72 lg:w-64 p-4 sm:p-5'
         }`}
       >
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Sidebar Logo Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <img
-              src="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_240/v1788317705/ltbc0dahw1uwzmcogpvs.png"
-              alt="Joker ESEN"
-              className="h-10 w-auto object-contain"
-            />
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+          <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+            {sidebarCollapsed ? (
+              <div className="hidden lg:flex w-full items-center justify-center">
+                <img
+                  src="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_240/v1788317705/ltbc0dahw1uwzmcogpvs.png"
+                  alt="Joker ESEN"
+                  className="h-8 w-8 object-contain"
+                  title="Joker ESEN Admin"
+                />
+              </div>
+            ) : null}
+
+            <div className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
+              <img
+                src="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_240/v1788317705/ltbc0dahw1uwzmcogpvs.png"
+                alt="Joker ESEN"
+                className="h-9 sm:h-10 w-auto object-contain"
+              />
+            </div>
+
+            <div className="flex items-center gap-1">
+              {/* Desktop Collapse / Expand Toggle in Sidebar Header */}
+              <button
+                onClick={toggleSidebarCollapsed}
+                className="hidden lg:flex p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                title={sidebarCollapsed ? 'Agrandir le menu' : 'Réduire le menu'}
+                aria-label={sidebarCollapsed ? 'Agrandir le menu' : 'Réduire le menu'}
+              >
+                {sidebarCollapsed ? (
+                  <ChevronRight className="w-4 h-4" />
+                ) : (
+                  <ChevronLeft className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Mobile Close Button */}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-label="Fermer le menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Navigation Menu */}
-          <nav className="space-y-5">
+          <nav className="space-y-4">
             {[
               {
                 category: '🌐 CONTENU DU SITE WEB',
+                shortCat: 'Site',
                 items: [
                   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
                   { id: 'event', label: 'Événements', icon: Calendar, badge: allEvents.length },
@@ -1836,6 +1890,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               },
               {
                 category: '👥 ESPACE MEMBRES & ÉMARGEMENT',
+                shortCat: 'Membres',
                 items: [
                   { id: 'members', label: 'Membres & Comptes', icon: Users, badge: getStoredMembers().length },
                   { id: 'agenda', label: 'Agenda Formations', icon: ClipboardList, badge: agendaList.length },
@@ -1843,12 +1898,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 ],
               },
             ].map((group, groupIdx) => (
-              <div key={groupIdx} className="space-y-1.5 pt-3 border-t border-slate-100 first:pt-0 first:border-0">
-                <div className="px-3 py-1 rounded-lg bg-slate-50/80 border border-slate-100/80 mb-2 w-fit">
+              <div key={groupIdx} className="space-y-1 pt-2.5 border-t border-slate-100 first:pt-0 first:border-0">
+                {sidebarCollapsed ? (
+                  <div className="hidden lg:block my-2 border-t border-slate-100" />
+                ) : (
+                  <div className="px-2.5 py-1 rounded-lg bg-slate-50/80 border border-slate-100/80 mb-1.5 w-fit">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-mono">
+                      {group.category}
+                    </p>
+                  </div>
+                )}
+                {/* On mobile always show the header text */}
+                <div className="lg:hidden px-2.5 py-1 rounded-lg bg-slate-50/80 border border-slate-100/80 mb-1.5 w-fit">
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-mono">
                     {group.category}
                   </p>
                 </div>
+
                 <div className="space-y-1">
                   {group.items.map((tab) => {
                     const Icon = tab.icon;
@@ -1862,26 +1928,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             setSidebarOpen(false);
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer ${
+                        title={tab.label}
+                        className={`w-full flex items-center rounded-2xl text-xs transition-all cursor-pointer relative ${
+                          sidebarCollapsed
+                            ? 'lg:justify-center lg:px-2 lg:py-2.5 px-3.5 py-2.5 justify-between'
+                            : 'px-3.5 py-2.5 justify-between'
+                        } ${
                           isActive
-                            ? 'bg-slate-900 text-white font-bold shadow-sm border border-slate-900'
+                            ? 'bg-slate-900 text-white font-bold shadow-xs border border-slate-900'
                             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 font-semibold border border-transparent'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'lg:gap-0' : ''}`}>
                           <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                          <span>{tab.label}</span>
-                        </div>
-                        {tab.badge !== undefined && tab.badge > 0 && (
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              isActive
-                                ? 'bg-white/20 text-white font-extrabold'
-                                : 'bg-slate-100 text-slate-600 border border-slate-200/80'
-                            }`}
-                          >
-                            {tab.badge}
+                          <span className={`${sidebarCollapsed ? 'lg:hidden' : ''} truncate`}>
+                            {tab.label}
                           </span>
+                        </div>
+
+                        {tab.badge !== undefined && tab.badge > 0 && (
+                          sidebarCollapsed ? (
+                            <>
+                              {/* Expanded badge on mobile */}
+                              <span
+                                className={`lg:hidden px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  isActive
+                                    ? 'bg-white/20 text-white font-extrabold'
+                                    : 'bg-slate-100 text-slate-600 border border-slate-200/80'
+                                }`}
+                              >
+                                {tab.badge}
+                              </span>
+                              {/* Mini dot/pill on collapsed desktop */}
+                              <span
+                                className={`hidden lg:flex absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-extrabold items-center justify-center ${
+                                  isActive
+                                    ? 'bg-blue-400 text-slate-900'
+                                    : 'bg-slate-900 text-white'
+                                }`}
+                              >
+                                {tab.badge > 99 ? '99+' : tab.badge}
+                              </span>
+                            </>
+                          ) : (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isActive
+                                  ? 'bg-white/20 text-white font-extrabold'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200/80'
+                              }`}
+                            >
+                              {tab.badge}
+                            </span>
+                          )
                         )}
                       </button>
                     );
@@ -1893,28 +1992,96 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         {/* Sidebar Footer Actions */}
-        <div className="pt-4 border-t border-slate-100 space-y-2">
+        <div className="pt-3 border-t border-slate-100 space-y-2">
+          {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="w-full py-2.5 px-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-200/70 text-rose-700 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
+            title="Déconnexion"
+            className={`w-full py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-200/70 text-rose-700 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs ${
+              sidebarCollapsed ? 'lg:px-0 px-3.5' : 'px-3.5'
+            }`}
           >
             <LogOut className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-            <span className="text-rose-700 font-bold">Déconnexion</span>
+            <span className={`${sidebarCollapsed ? 'lg:hidden' : ''} text-rose-700 font-bold truncate`}>
+              Déconnexion
+            </span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8F9FA]">
+      {/* Main Content Area (Responsive & Push Layout) */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8F9FA] transition-all duration-300">
         {/* Top Header Navbar */}
-        <header className="h-16 px-6 sm:px-8 bg-white border-b border-slate-200/80 flex items-center justify-between shrink-0 shadow-xs">
-          <div className="flex items-center gap-3">
+        <header className="h-16 px-4 sm:px-6 lg:px-8 bg-white border-b border-slate-200/80 flex items-center justify-between shrink-0 shadow-xs z-30">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile Drawer Trigger */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer"
+              className="lg:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
               aria-label="Ouvrir le menu"
             >
               <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Desktop Push / Collapse Button */}
+            <button
+              onClick={toggleSidebarCollapsed}
+              className="hidden lg:flex p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shrink-0"
+              title={sidebarCollapsed ? 'Agrandir la barre latérale' : 'Réduire la barre latérale'}
+              aria-label={sidebarCollapsed ? 'Agrandir la barre latérale' : 'Réduire la barre latérale'}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-4 h-4" />
+              ) : (
+                <ChevronLeft className="w-4 h-4" />
+              )}
+            </button>
+
+            {/* Current Active Section Badge & Title */}
+            <div className="flex items-center gap-2 min-w-0 truncate">
+              <span className="text-xs font-bold text-slate-400 hidden sm:inline">Admin</span>
+              <span className="text-xs text-slate-300 hidden sm:inline">/</span>
+              <span className="text-xs sm:text-sm font-bold text-slate-800 font-sans truncate">
+                {activeTab === 'dashboard' && 'Home'}
+                {activeTab === 'event' && 'Événements'}
+                {activeTab === 'partners' && 'Partenaires'}
+                {activeTab === 'about' && 'Qui Sommes-Nous'}
+                {activeTab === 'team' && 'Équipe Exécutive'}
+                {activeTab === 'gallery' && 'Galerie Photos'}
+                {activeTab === 'newsletter' && 'Newsletter Brevo'}
+                {activeTab === 'settings' && 'Paramètres'}
+                {activeTab === 'members' && 'Membres & Comptes'}
+                {activeTab === 'agenda' && 'Agenda Formations'}
+                {activeTab === 'applications' && 'Candidatures Recrutement'}
+              </span>
+            </div>
+          </div>
+
+          {/* Right Header Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Recruitment status pill */}
+            <div
+              onClick={() => onToggleRecruitment(!recruitmentOpen)}
+              title="Cliquer pour activer/désactiver le recrutement"
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${
+                recruitmentOpen
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${recruitmentOpen ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <span>{recruitmentOpen ? 'Recrutement Ouvert' : 'Recrutement Fermé'}</span>
+            </div>
+
+            {/* Back to Public Site */}
+            <button
+              onClick={onBackToPublic}
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Voir le site public"
+            >
+              <Globe className="w-3.5 h-3.5 text-slate-600" />
+              <span className="hidden sm:inline">Site Public</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
             </button>
           </div>
         </header>
@@ -3299,21 +3466,100 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     {/* Modal Content */}
                     <div className="p-6 overflow-y-auto space-y-5 text-slate-800">
+                      {/* Status & Date */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider border ${
+                            selectedCandidateModal.status === 'accepted'
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                              : selectedCandidateModal.status === 'rejected'
+                              ? 'bg-rose-50 border-rose-200 text-rose-700'
+                              : selectedCandidateModal.status === 'contacted'
+                              ? 'bg-sky-50 border-sky-200 text-sky-700'
+                              : 'bg-amber-50 border-amber-200 text-amber-700'
+                          }`}>
+                            {selectedCandidateModal.status === 'accepted' ? '✅ Accepté'
+                              : selectedCandidateModal.status === 'rejected' ? '❌ Refusé'
+                              : selectedCandidateModal.status === 'contacted' ? '📞 Contacté'
+                              : '⏳ En attente'}
+                          </span>
+                        </div>
+                        {selectedCandidateModal.created_at && (
+                          <span className="text-[11px] text-slate-500 font-mono">
+                            📅 {new Date(selectedCandidateModal.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+
                       {/* General Metadata */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs">
                         <div>
-                          <span className="block text-[10px] font-bold uppercase text-slate-400">Établissement / Faculté</span>
-                          <span className="font-semibold text-slate-900">{selectedCandidateModal.faculty || selectedCandidateModal.department || 'ESEN Manouba'}</span>
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Nom Complet</span>
+                          <span className="font-semibold text-slate-900">{selectedCandidateModal.full_name}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Email</span>
+                          <a href={`mailto:${selectedCandidateModal.email}`} className="font-semibold text-slate-900 hover:underline flex items-center gap-1">
+                            <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                            {selectedCandidateModal.email}
+                          </a>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Téléphone</span>
+                          <a href={`tel:${selectedCandidateModal.phone}`} className="font-semibold text-slate-900 hover:underline flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+                            {selectedCandidateModal.phone}
+                          </a>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Date de Naissance</span>
+                          <span className="font-semibold text-slate-900 flex items-center gap-1">
+                            <Cake className="w-3 h-3 text-slate-400 shrink-0" />
+                            {selectedCandidateModal.birth_date || 'Non spécifiée'}
+                          </span>
                         </div>
                         <div>
                           <span className="block text-[10px] font-bold uppercase text-slate-400">Filière / Niveau</span>
                           <span className="font-semibold text-slate-900">{selectedCandidateModal.major}</span>
                         </div>
                         <div>
-                          <span className="block text-[10px] font-bold uppercase text-slate-400">Date de Naissance</span>
-                          <span className="font-semibold text-slate-900">{selectedCandidateModal.birth_date || 'Non spécifiée'}</span>
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Département</span>
+                          <span className="font-semibold text-slate-900">{selectedCandidateModal.department || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Établissement / Faculté</span>
+                          <span className="font-semibold text-slate-900">{selectedCandidateModal.faculty || selectedCandidateModal.department || 'ESEN Manouba'}</span>
+                        </div>
+                        <div className="col-span-2 sm:col-span-2">
+                          <span className="block text-[10px] font-bold uppercase text-slate-400">Profil Facebook</span>
+                          {selectedCandidateModal.facebook_link ? (
+                            <a
+                              href={selectedCandidateModal.facebook_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                              <span className="truncate max-w-[280px]">{selectedCandidateModal.facebook_link}</span>
+                              <ExternalLink className="w-3 h-3 text-blue-400 shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="font-semibold text-slate-400 italic">Non renseigné</span>
+                          )}
                         </div>
                       </div>
+
+                      {/* Question: Motivation */}
+                      {selectedCandidateModal.motivation && selectedCandidateModal.motivation !== selectedCandidateModal.why_join && (
+                        <div className="space-y-1.5 p-4 rounded-2xl bg-amber-50/50 border border-amber-100">
+                          <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                            Motivation Personnelle
+                          </h4>
+                          <p className="text-xs text-slate-700 italic bg-white p-3 rounded-xl border border-amber-200/60 leading-relaxed">
+                            "{selectedCandidateModal.motivation}"
+                          </p>
+                        </div>
+                      )}
 
                       {/* Question 1 */}
                       <div className="space-y-1.5 p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
