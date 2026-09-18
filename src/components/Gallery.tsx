@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Layers, Calendar } from 'lucide-react';
-import { galleryService } from '../services/galleryService';
+import { galleryService, getSavedAlbums, type AlbumMeta } from '../services/galleryService';
 import { optimizeCloudinaryUrl } from '../lib/cloudinary';
 
 export interface AlbumPhoto {
@@ -12,7 +12,7 @@ export interface AlbumPhoto {
 export interface GalleryAlbum {
   id: string | number;
   title: string;
-  category: 'Soirées' | 'Workshops' | 'Teambuilding';
+  category: string;
   date: string;
   coverImage: string;
   photos: AlbumPhoto[];
@@ -151,11 +151,19 @@ export const Gallery: React.FC = () => {
     async function loadCloudinaryGallery() {
       setLoading(true);
       try {
+        const savedMetaList = getSavedAlbums();
+        const savedMetaMap = new Map<string, AlbumMeta>();
+        savedMetaList.forEach((meta) => {
+          if (meta.name) {
+            savedMetaMap.set(meta.name.toLowerCase().trim(), meta);
+          }
+        });
+
         const { images } = await galleryService.fetchImages(0, 100);
         if (images && images.length > 0) {
           // Group images by album name (stored in img.description or img.title)
           const albumMap = new Map<string, AlbumPhoto[]>();
-          const albumMeta = new Map<string, { date: string; cover: string; category: 'Soirées' | 'Workshops' | 'Teambuilding' }>();
+          const albumMeta = new Map<string, { date: string; cover: string; category: string }>();
 
           images.forEach((img, idx) => {
             const rawAlbumName = img.description?.trim() || img.title?.trim() || 'Événements Joker';
@@ -172,22 +180,27 @@ export const Gallery: React.FC = () => {
             if (!albumMap.has(albumName)) {
               albumMap.set(albumName, []);
 
-              // Guess category based on title or keywords
-              const lower = (rawAlbumName + ' ' + (img.title || '')).toLowerCase();
-              let category: 'Soirées' | 'Workshops' | 'Teambuilding' = 'Soirées';
-              if (lower.includes('workshop') || lower.includes('formation') || lower.includes('design') || lower.includes('talk') || lower.includes('conférence')) {
-                category = 'Workshops';
-              } else if (lower.includes('teambuilding') || lower.includes('integration') || lower.includes('intégration') || lower.includes('olympiade') || lower.includes('sortie')) {
-                category = 'Teambuilding';
+              // Check saved metadata first
+              const savedMeta = savedMetaMap.get(rawAlbumName.toLowerCase()) || savedMetaMap.get(albumName.toLowerCase());
+
+              // Guess category based on title or keywords if no saved meta
+              let category = savedMeta?.category || 'Soirées';
+              if (!savedMeta?.category) {
+                const lower = (rawAlbumName + ' ' + (img.title || '')).toLowerCase();
+                if (lower.includes('workshop') || lower.includes('formation') || lower.includes('design') || lower.includes('talk') || lower.includes('conférence')) {
+                  category = 'Workshops';
+                } else if (lower.includes('teambuilding') || lower.includes('integration') || lower.includes('intégration') || lower.includes('olympiade') || lower.includes('sortie')) {
+                  category = 'Teambuilding';
+                }
               }
 
-              const formattedDate = img.created_at
+              const formattedDate = savedMeta?.date || (img.created_at
                 ? new Date(img.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-                : 'Session Récente';
+                : 'Session Récente');
 
               albumMeta.set(albumName, {
                 date: formattedDate,
-                cover: photoUrl,
+                cover: savedMeta?.coverUrl || photoUrl,
                 category,
               });
             }
@@ -213,7 +226,20 @@ export const Gallery: React.FC = () => {
             setAlbums(curatedDefaultAlbums);
           }
         } else {
-          setAlbums(curatedDefaultAlbums);
+          // If no custom photos uploaded, apply any saved album metadata on curated albums
+          const enhancedDefaults = curatedDefaultAlbums.map((a) => {
+            const saved = savedMetaMap.get(a.title.toLowerCase().trim());
+            if (saved) {
+              return {
+                ...a,
+                category: saved.category || a.category,
+                coverImage: saved.coverUrl || a.coverImage,
+                date: saved.date || a.date,
+              };
+            }
+            return a;
+          });
+          setAlbums(enhancedDefaults);
         }
       } catch (err) {
         console.warn('Could not load gallery images, using curated albums:', err);
@@ -226,8 +252,15 @@ export const Gallery: React.FC = () => {
     loadCloudinaryGallery();
   }, []);
 
-
-  const categories = ['Tous', 'Soirées', 'Workshops', 'Teambuilding'];
+  const categories = React.useMemo(() => {
+    const cats = new Set<string>();
+    albums.forEach((item) => {
+      if (item.category && item.category.trim()) {
+        cats.add(item.category.trim());
+      }
+    });
+    return ['Tous', ...Array.from(cats)];
+  }, [albums]);
 
   const filteredAlbums = activeCategory === 'Tous'
     ? albums
@@ -414,12 +447,16 @@ export const Gallery: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-7">
             {filteredAlbums.map((album, idx) => {
               const suitSymbol = ['♠', '♥', '♦', '♣'][idx % 4];
-              const tagColor =
-                album.category === 'Soirées'
-                  ? '#A73541'
-                  : album.category === 'Workshops'
-                  ? '#4B5B9E'
-                  : '#7D3F4A';
+              const getTagColor = (cat: string) => {
+                if (cat === 'Soirées') return '#A73541';
+                if (cat === 'Workshops') return '#4B5B9E';
+                if (cat === 'Teambuilding') return '#7D3F4A';
+                let hash = 0;
+                for (let i = 0; i < cat.length; i++) hash = cat.charCodeAt(i) + ((hash << 5) - hash);
+                const hue = Math.abs(hash) % 360;
+                return `hsl(${hue}, 60%, 36%)`;
+              };
+              const tagColor = getTagColor(album.category || 'Soirées');
 
               return (
                 <div

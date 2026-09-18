@@ -7,10 +7,13 @@ const LOCAL_STORAGE_ALBUMS_KEY = 'joker_albums_meta';
 
 export interface AlbumMeta {
   name: string;
-  category: 'Soirées' | 'Workshops' | 'Teambuilding';
+  category: string;
   coverUrl?: string;
   date?: string;
+  description?: string;
 }
+
+export const DEFAULT_GALLERY_CATEGORIES = ['Soirées', 'Workshops', 'Teambuilding'];
 
 export function getCachedGallery(): GalleryImage[] {
   try {
@@ -65,6 +68,33 @@ export function saveAlbumMeta(album: AlbumMeta) {
   }
 }
 
+export function updateAlbumMeta(oldName: string, updatedAlbum: AlbumMeta) {
+  try {
+    const current = getSavedAlbums();
+    const existingIndex = current.findIndex((a) => a.name.toLowerCase() === oldName.toLowerCase());
+    if (existingIndex >= 0) {
+      current[existingIndex] = { ...current[existingIndex], ...updatedAlbum };
+    } else {
+      current.push(updatedAlbum);
+    }
+    localStorage.setItem(LOCAL_STORAGE_ALBUMS_KEY, JSON.stringify(current));
+
+    // If album name changed, also update cached gallery items
+    if (oldName.toLowerCase() !== updatedAlbum.name.toLowerCase()) {
+      const cached = getCachedGallery();
+      const updated = cached.map((img) => {
+        if ((img.description || '').toLowerCase() === oldName.toLowerCase()) {
+          return { ...img, description: updatedAlbum.name };
+        }
+        return img;
+      });
+      cacheGallery(updated);
+    }
+  } catch (e) {
+    console.warn('Could not update album meta:', e);
+  }
+}
+
 export function removeAlbumMeta(albumName: string) {
   try {
     const current = getSavedAlbums();
@@ -73,6 +103,18 @@ export function removeAlbumMeta(albumName: string) {
   } catch (e) {
     console.warn('Could not remove album meta:', e);
   }
+}
+
+export function getSavedCategories(): string[] {
+  const defaultCats = [...DEFAULT_GALLERY_CATEGORIES];
+  const albums = getSavedAlbums();
+  const cats = new Set<string>(defaultCats);
+  albums.forEach((a) => {
+    if (a.category && a.category.trim()) {
+      cats.add(a.category.trim());
+    }
+  });
+  return Array.from(cats);
 }
 
 export const galleryService = {
@@ -273,6 +315,65 @@ export const galleryService = {
       await supabaseDb.gallery.delete(imageId);
     } catch (err) {
       console.warn('REST delete gallery image error:', err);
+    }
+  },
+
+  updateImage: async (
+    imageId: string,
+    updates: { title?: string; description?: string }
+  ): Promise<GalleryImage | null> => {
+    const cached = getCachedGallery();
+    let updatedImg: GalleryImage | null = null;
+    const newCached = cached.map((img) => {
+      if (img.id === imageId || img.cloudinary_public_id === imageId) {
+        updatedImg = {
+          ...img,
+          title: updates.title !== undefined ? updates.title : img.title,
+          description: updates.description !== undefined ? updates.description : img.description,
+          updated_at: new Date().toISOString(),
+        };
+        return updatedImg;
+      }
+      return img;
+    });
+    cacheGallery(newCached);
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase
+          .from('gallery_images')
+          .update({
+            title: updates.title,
+            description: updates.description,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', imageId);
+      } catch (e) {
+        console.warn('Exception updating gallery image in Supabase:', e);
+      }
+    }
+
+    return updatedImg;
+  },
+
+  renameAlbumImages: async (oldAlbumName: string, newAlbumName: string) => {
+    const cached = getCachedGallery();
+    const updated = cached.map((img) => {
+      if ((img.description || '').toLowerCase() === oldAlbumName.toLowerCase()) {
+        return { ...img, description: newAlbumName };
+      }
+      return img;
+    });
+    cacheGallery(updated);
+
+    if (!isSupabaseConfigured) return;
+    try {
+      await supabase
+        .from('gallery_images')
+        .update({ description: newAlbumName })
+        .eq('description', oldAlbumName);
+    } catch (e) {
+      console.warn('Exception renaming album images in Supabase:', e);
     }
   },
 
