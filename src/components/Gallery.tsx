@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Layers, Calendar } from 'lucide-react';
-import { galleryService, getSavedAlbums, type AlbumMeta } from '../services/galleryService';
+import { galleryService, fetchSavedAlbums, type AlbumMeta } from '../services/galleryService';
 import { optimizeCloudinaryUrl } from '../lib/cloudinary';
 
 export interface AlbumPhoto {
@@ -151,7 +151,11 @@ export const Gallery: React.FC = () => {
     async function loadCloudinaryGallery() {
       setLoading(true);
       try {
-        const savedMetaList = getSavedAlbums();
+        const [savedMetaList, { images }] = await Promise.all([
+          fetchSavedAlbums(),
+          galleryService.fetchImages(0, 100)
+        ]);
+
         const savedMetaMap = new Map<string, AlbumMeta>();
         savedMetaList.forEach((meta) => {
           if (meta.name) {
@@ -159,7 +163,6 @@ export const Gallery: React.FC = () => {
           }
         });
 
-        const { images } = await galleryService.fetchImages(0, 100);
         if (images && images.length > 0) {
           // Group images by album name (stored in img.description or img.title)
           const albumMap = new Map<string, AlbumPhoto[]>();

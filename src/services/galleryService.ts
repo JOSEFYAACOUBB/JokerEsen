@@ -1,6 +1,7 @@
 import { supabase, supabaseDb, isSupabaseConfigured } from '../lib/supabase';
 import { uploadToCloudinary, generateCloudinaryUrl } from '../lib/cloudinary';
 import type { GalleryImage } from '../types/database';
+import { fetchClubSettings, updateClubSettings } from './settingsService';
 
 const LOCAL_STORAGE_GALLERY_KEY = 'joker_gallery_cache';
 const LOCAL_STORAGE_ALBUMS_KEY = 'joker_albums_meta';
@@ -53,56 +54,100 @@ export function getSavedAlbums(): AlbumMeta[] {
   return [];
 }
 
-export function saveAlbumMeta(album: AlbumMeta) {
+export function cacheAlbumsMeta(albums: AlbumMeta[]) {
   try {
-    const current = getSavedAlbums();
-    const existingIndex = current.findIndex((a) => a.name.toLowerCase() === album.name.toLowerCase());
-    if (existingIndex >= 0) {
-      current[existingIndex] = { ...current[existingIndex], ...album };
-    } else {
-      current.push(album);
-    }
-    localStorage.setItem(LOCAL_STORAGE_ALBUMS_KEY, JSON.stringify(current));
+    localStorage.setItem(LOCAL_STORAGE_ALBUMS_KEY, JSON.stringify(albums));
   } catch (e) {
-    console.warn('Could not save album meta:', e);
+    console.warn('Could not write cached albums meta:', e);
   }
 }
 
-export function updateAlbumMeta(oldName: string, updatedAlbum: AlbumMeta) {
+export async function fetchSavedAlbums(): Promise<AlbumMeta[]> {
+  const cached = getSavedAlbums();
+  if (!isSupabaseConfigured) return cached;
   try {
-    const current = getSavedAlbums();
-    const existingIndex = current.findIndex((a) => a.name.toLowerCase() === oldName.toLowerCase());
-    if (existingIndex >= 0) {
-      current[existingIndex] = { ...current[existingIndex], ...updatedAlbum };
-    } else {
-      current.push(updatedAlbum);
+    const settings = await fetchClubSettings();
+    if (settings?.albums_meta && Array.isArray(settings.albums_meta)) {
+      cacheAlbumsMeta(settings.albums_meta);
+      return settings.albums_meta;
     }
-    localStorage.setItem(LOCAL_STORAGE_ALBUMS_KEY, JSON.stringify(current));
-
-    // If album name changed, also update cached gallery items
-    if (oldName.toLowerCase() !== updatedAlbum.name.toLowerCase()) {
-      const cached = getCachedGallery();
-      const updated = cached.map((img) => {
-        if ((img.description || '').toLowerCase() === oldName.toLowerCase()) {
-          return { ...img, description: updatedAlbum.name };
-        }
-        return img;
-      });
-      cacheGallery(updated);
-    }
-  } catch (e) {
-    console.warn('Could not update album meta:', e);
+  } catch (err) {
+    console.warn('Error fetching albums_meta from Supabase:', err);
   }
+  return cached;
 }
 
-export function removeAlbumMeta(albumName: string) {
-  try {
-    const current = getSavedAlbums();
-    const filtered = current.filter((a) => a.name.toLowerCase() !== albumName.toLowerCase());
-    localStorage.setItem(LOCAL_STORAGE_ALBUMS_KEY, JSON.stringify(filtered));
-  } catch (e) {
-    console.warn('Could not remove album meta:', e);
+export async function saveAlbumMeta(album: AlbumMeta): Promise<AlbumMeta[]> {
+  const current = getSavedAlbums();
+  const existingIndex = current.findIndex((a) => a.name.toLowerCase() === album.name.toLowerCase());
+  if (existingIndex >= 0) {
+    current[existingIndex] = { ...current[existingIndex], ...album };
+  } else {
+    current.push(album);
   }
+  cacheAlbumsMeta(current);
+
+  if (isSupabaseConfigured) {
+    try {
+      await updateClubSettings({ albums_meta: current });
+    } catch (e) {
+      console.warn('Could not save albums_meta to Supabase:', e);
+    }
+  }
+  return current;
+}
+
+export async function updateAlbumMeta(oldName: string, updatedAlbum: AlbumMeta): Promise<AlbumMeta[]> {
+  const current = getSavedAlbums();
+  const existingIndex = current.findIndex((a) => a.name.toLowerCase() === oldName.toLowerCase());
+  if (existingIndex >= 0) {
+    current[existingIndex] = { ...current[existingIndex], ...updatedAlbum };
+  } else {
+    current.push(updatedAlbum);
+  }
+  cacheAlbumsMeta(current);
+
+  // If album name changed, also update cached gallery items & Supabase gallery_images
+  if (oldName.toLowerCase() !== updatedAlbum.name.toLowerCase()) {
+    const cached = getCachedGallery();
+    const updated = cached.map((img) => {
+      if ((img.description || '').toLowerCase() === oldName.toLowerCase()) {
+        return { ...img, description: updatedAlbum.name };
+      }
+      return img;
+    });
+    cacheGallery(updated);
+
+    try {
+      await galleryService.renameAlbumImages(oldName, updatedAlbum.name);
+    } catch (e) {
+      console.warn('Error renaming album in gallery_images:', e);
+    }
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      await updateClubSettings({ albums_meta: current });
+    } catch (e) {
+      console.warn('Could not update albums_meta in Supabase:', e);
+    }
+  }
+  return current;
+}
+
+export async function removeAlbumMeta(albumName: string): Promise<AlbumMeta[]> {
+  const current = getSavedAlbums();
+  const filtered = current.filter((a) => a.name.toLowerCase() !== albumName.toLowerCase());
+  cacheAlbumsMeta(filtered);
+
+  if (isSupabaseConfigured) {
+    try {
+      await updateClubSettings({ albums_meta: filtered });
+    } catch (e) {
+      console.warn('Could not remove album from Supabase albums_meta:', e);
+    }
+  }
+  return filtered;
 }
 
 export function getSavedCategories(): string[] {

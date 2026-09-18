@@ -76,6 +76,7 @@ import { fetchAboutData, saveAboutData, defaultAboutData } from '../../services/
 import { fetchFormConfig, saveFormConfig, defaultFormConfig } from '../../services/formConfigService';
 import {
   galleryService,
+  fetchSavedAlbums,
   getSavedAlbums,
   saveAlbumMeta,
   updateAlbumMeta,
@@ -626,9 +627,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     loadEventsData();
     loadFormConfiguration();
     loadPhotos();
+    loadAlbumsMeta();
     loadTeam();
     loadClubSettingsData();
     loadSubscribersData();
+  };
+
+  const loadAlbumsMeta = async () => {
+    try {
+      const albums = await fetchSavedAlbums();
+      setSavedAlbums(albums);
+    } catch (err) {
+      console.warn('Error loading albums metadata:', err);
+    }
   };
 
   const loadSubscribersData = async () => {
@@ -1484,7 +1495,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       };
 
       if (albumModalMode === 'edit') {
-        updateAlbumMeta(editingAlbumOriginalName, albumData);
+        const updated = await updateAlbumMeta(editingAlbumOriginalName, albumData);
+        setSavedAlbums(updated);
         if (editingAlbumOriginalName.toLowerCase() !== albumData.name.toLowerCase()) {
           await galleryService.renameAlbumImages(editingAlbumOriginalName, albumData.name);
           setPhotos((prev) =>
@@ -1500,12 +1512,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
         showToast(`Album "${albumData.name}" mis à jour avec succès !`, 'success');
       } else {
-        saveAlbumMeta(albumData);
+        const updated = await saveAlbumMeta(albumData);
+        setSavedAlbums(updated);
         showToast(`Album "${albumData.name}" créé avec succès !`, 'success');
         setSelectedAlbum(albumData.name);
       }
 
-      setSavedAlbums(getSavedAlbums());
       setIsAlbumModalOpen(false);
     } catch (err: any) {
       setAlbumModalError(err.message || 'Erreur lors de l\'enregistrement de l\'album.');
@@ -1522,8 +1534,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       isDanger: true,
       onConfirm: async () => {
         closeConfirm();
-        removeAlbumMeta(albumName);
-        setSavedAlbums(getSavedAlbums());
+        const updated = await removeAlbumMeta(albumName);
+        setSavedAlbums(updated);
 
         const toDelete = photos.filter((p) => p.album === albumName);
         for (const p of toDelete) {

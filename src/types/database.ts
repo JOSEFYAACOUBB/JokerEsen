@@ -66,6 +66,7 @@ export interface ClubSettings {
   about_data?: AboutData;
   form_config?: FormConfig;
   social_links?: ClubSocialLinks;
+  albums_meta?: any[];
   updated_at?: string;
 }
 
