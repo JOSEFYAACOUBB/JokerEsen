@@ -297,8 +297,26 @@ export function deleteMemberByAdmin(memberId: string): ClubMember[] {
   return updated;
 }
 
-export function addPointsToMember(_memberId: string, _amount: number, _reason?: string): ClubMember[] {
-  return getStoredMembers();
+export function addPointsToMember(memberId: string, amount: number, _reason?: string): ClubMember[] {
+  const members = getStoredMembers();
+  const updated = members.map((m) => {
+    if (m.id === memberId) {
+      const newPoints = Math.max(0, (m.points || 0) + amount);
+      const newLevel = calculateLevel(newPoints);
+      return { ...m, points: newPoints, level: newLevel };
+    }
+    return m;
+  });
+  saveStoredMembers(updated);
+
+  const updatedMember = updated.find((m) => m.id === memberId);
+  if (isSupabaseConfigured && updatedMember) {
+    supabaseDb.members
+      .update(memberId, { points: updatedMember.points, level: updatedMember.level })
+      .catch((err) => console.warn('Supabase points update warning:', err));
+  }
+
+  return updated;
 }
 
 // ------------------------------------------------------------------------------

@@ -51,7 +51,7 @@ const LEVEL_COLORS: Record<string, string> = {
 };
 
 export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast }) => {
-  const [subTab, setSubTab] = useState<'members' | 'attendance' | 'cancellations'>('members');
+  const [subTab, setSubTab] = useState<'members' | 'attendance' | 'cancellations' | 'leaderboard'>('members');
   const [members, setMembers] = useState<ClubMember[]>(() => getStoredMembers());
   const [registrations, setRegistrations] = useState<MemberEventRegistration[]>(() => getAllEventRegistrations());
   const [cancellationLogs, setCancellationLogs] = useState<CancellationLog[]>(() => getCancellationLogs());
@@ -159,11 +159,13 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
     }
   };
 
-  const handleAddPointsSubmit = (e: React.FormEvent) => {
+  const handleAddPointsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMemberForPoints) return;
-    const updated = addPointsToMember(selectedMemberForPoints.id, pointsAmount, pointsReason);
-    setMembers(updated);
+    addPointsToMember(selectedMemberForPoints.id, pointsAmount, pointsReason);
+    // Refresh from DB so leaderboard and list are up to date
+    const latest = await fetchMembersFromDb().catch(() => getStoredMembers());
+    setMembers(latest);
     setIsPointsModalOpen(false);
     onShowToast(`+${pointsAmount} pts attribués à ${selectedMemberForPoints.full_name}.`, 'success');
     setSelectedMemberForPoints(null);
@@ -239,6 +241,16 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
           }`}
         >
           🚫 Historique Désinscriptions ({cancellationLogs.length})
+        </button>
+        <button
+          onClick={() => setSubTab('leaderboard')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            subTab === 'leaderboard'
+              ? 'bg-slate-900 text-white shadow-md'
+              : 'text-slate-700 hover:text-slate-900'
+          }`}
+        >
+          🏆 Classement Points
         </button>
       </div>
 
@@ -921,6 +933,77 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ LEADERBOARD TAB ══ */}
+      {subTab === 'leaderboard' && (
+        <div className="space-y-4 animate-in fade-in">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
+            <h2 className="text-lg font-black text-slate-900 font-sans">🏆 Classement des Points ({members.length} membres)</h2>
+            <p className="text-xs text-slate-500 mt-1">Membres classés par points. Utilisez le bouton &quot;+ Points&quot; dans l'onglet Comptes pour attribuer des points.</p>
+          </div>
+
+          {members.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
+              <p className="text-sm text-slate-400">Aucun membre enregistré.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="px-4 py-3 text-[10px] font-black uppercase text-slate-500 w-16">Rang</th>
+                    <th className="px-4 py-3 text-[10px] font-black uppercase text-slate-500">Membre</th>
+                    <th className="px-4 py-3 text-[10px] font-black uppercase text-slate-500">Département</th>
+                    <th className="px-4 py-3 text-[10px] font-black uppercase text-slate-500">Niveau</th>
+                    <th className="px-4 py-3 text-[10px] font-black uppercase text-slate-500 text-right">Points</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {[...members]
+                    .filter((m) => m.status === 'active')
+                    .sort((a, b) => (b.points || 0) - (a.points || 0))
+                    .map((m, idx) => {
+                      const rank = idx + 1;
+                      const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : String(rank);
+                      const rowBg = rank === 1 ? 'bg-amber-50/60' : rank === 2 ? 'bg-slate-50/60' : rank === 3 ? 'bg-orange-50/40' : '';
+                      const levelColors: Record<string, string> = {
+                        Bronze: 'bg-amber-50 text-amber-800 border-amber-200',
+                        Argent: 'bg-slate-100 text-slate-700 border-slate-300',
+                        Or: 'bg-yellow-50 text-yellow-800 border-yellow-300',
+                        Platine: 'bg-blue-50 text-blue-800 border-blue-200',
+                      };
+                      return (
+                        <tr key={m.id} className={`hover:bg-slate-50 transition-colors ${rowBg}`}>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex w-8 h-8 rounded-xl items-center justify-center text-sm font-black ${rank <= 3 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}`}>{medal}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <img src={m.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.full_name)}&background=007bff&color=fff&size=64`}
+                                alt={m.full_name} className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0" />
+                              <div>
+                                <div className="text-xs font-bold text-slate-900">{m.full_name}</div>
+                                <div className="text-[10px] text-slate-400">{m.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-600">{m.department || '—'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${levelColors[m.level] || levelColors.Bronze}`}>{m.level}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="text-base font-black text-slate-900">{m.points ?? 0}</span>
+                            <span className="text-[10px] text-slate-400 ml-1">pts</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
