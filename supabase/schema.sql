@@ -17,7 +17,8 @@ create table if not exists public.club_settings (
   partners jsonb default '[]'::jsonb,
   about_data jsonb default '{}'::jsonb,
   form_config jsonb default '{}'::jsonb,
-  social_links jsonb default '{"instagram": "https://www.instagram.com/joker_esen/", "facebook": "https://www.facebook.com/joker.esen", "tiktok": "https://www.tiktok.com/@joker.esen", "linkedin": "https://www.linkedin.com/company/jokeresen/"}'::jsonb,
+  social_links jsonb default '{"instagram": "https://www.instagram.com/jokeresen/", "facebook": "https://www.facebook.com/JokerEsen.JE", "tiktok": "https://www.tiktok.com/@jokeresen", "linkedin": "https://www.linkedin.com/company/joker-esen/posts/?feedView=all"}'::jsonb,
+  albums_meta jsonb default '[]'::jsonb,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -27,7 +28,8 @@ values ('default', true, 'Bienvenue sur la plateforme officielle du Club Joker E
 on conflict (id) do nothing;
 
 -- Add social_links column if table already exists
-alter table public.club_settings add column if not exists social_links jsonb default '{"instagram": "https://www.instagram.com/joker_esen/", "facebook": "https://www.facebook.com/joker.esen", "tiktok": "https://www.tiktok.com/@joker.esen", "linkedin": "https://www.linkedin.com/company/jokeresen/"}'::jsonb;
+alter table public.club_settings add column if not exists social_links jsonb default '{"instagram": "https://www.instagram.com/jokeresen/", "facebook": "https://www.facebook.com/JokerEsen.JE", "tiktok": "https://www.tiktok.com/@jokeresen", "linkedin": "https://www.linkedin.com/company/joker-esen/posts/?feedView=all"}'::jsonb;
+alter table public.club_settings add column if not exists albums_meta jsonb default '[]'::jsonb;
 
 
 -- ------------------------------------------------------------------------------
