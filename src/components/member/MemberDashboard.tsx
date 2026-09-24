@@ -9,6 +9,11 @@ import {
   Star,
   TrendingUp,
   Medal,
+  Lightbulb,
+  ThumbsUp,
+  Plus,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 import type { EventRecord } from '../../types/database';
 import type {
@@ -16,9 +21,15 @@ import type {
   MemberEventRegistration,
   AgendaItem,
   EventFeedback,
+  EventIdea,
 } from '../../types/member';
 import { fetchAllAgendaItems, volunteerForRole, withdrawFromRole } from '../../services/agendaService';
 import { fetchAllFeedbacks, submitFeedback } from '../../services/feedbackService';
+import {
+  fetchAllEventIdeas,
+  createEventIdea,
+  toggleVoteIdea,
+} from '../../services/ideaService';
 import {
   logoutMemberSession,
   fetchEventRegistrationsFromDb,
@@ -51,7 +62,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   onGoToPublic: _onGoToPublic,
 }) => {
   const [currentMember, setCurrentMember] = useState<ClubMember>(initialMember);
-  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'points'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'events' | 'points' | 'ideas'>('overview');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [selectedRegForJustification, setSelectedRegForJustification] = useState<MemberEventRegistration | null>(null);
   const [justificationText, setJustificationText] = useState('');
@@ -76,6 +87,20 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   });
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
+  // Event Ideas State
+  const [ideas, setIdeas] = useState<EventIdea[]>([]);
+  const [isIdeaModalOpen, setIsIdeaModalOpen] = useState(false);
+  const [ideaFilter, setIdeaFilter] = useState<'all' | 'my'>('all');
+  const [ideaForm, setIdeaForm] = useState({
+    title: '',
+    category: 'Formation & Workshop',
+    description: '',
+    targetAudience: 'Tous les membres',
+    speakerSuggestion: '',
+    estimatedDuration: '2 heures',
+  });
+  const [isSubmittingIdea, setIsSubmittingIdea] = useState(false);
+
   useEffect(() => {
     fetchEventRegistrationsFromDb().then((all) => {
       setRegistrations(all.filter((r) => r.member_id === currentMember.id));
@@ -83,6 +108,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     fetchAllAgendaItems().then(setAgendaItems);
     fetchMembersFromDb().then(setAllMembers).catch(() => {});
     fetchAllFeedbacks().then(setFeedbacks).catch(() => {});
+    fetchAllEventIdeas().then(setIdeas).catch(() => {});
   }, [currentMember.id]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -187,6 +213,61 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     }
   };
 
+  // Idea handlers
+  const handleVoteIdea = async (ideaId: string) => {
+    const updated = await toggleVoteIdea(ideaId, currentMember.id);
+    if (updated) {
+      setIdeas((prev) => prev.map((i) => (i.id === ideaId ? updated : i)));
+      const hasVotedNow = updated.votes.includes(currentMember.id);
+      showToast(hasVotedNow ? 'Vote enregistré ! Merci pour votre soutien.' : 'Vote retiré.', 'info');
+    }
+  };
+
+  const handleOpenIdeaModal = () => {
+    setIdeaForm({
+      title: '',
+      category: 'Formation & Workshop',
+      description: '',
+      targetAudience: 'Tous les membres',
+      speakerSuggestion: '',
+      estimatedDuration: '2 heures',
+    });
+    setIsIdeaModalOpen(true);
+  };
+
+  const handleSubmitIdea = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ideaForm.title.trim() || !ideaForm.description.trim()) {
+      showToast('Veuillez renseigner un titre et une description.', 'error');
+      return;
+    }
+
+    setIsSubmittingIdea(true);
+    try {
+      const created = await createEventIdea({
+        title: ideaForm.title.trim(),
+        category: ideaForm.category,
+        description: ideaForm.description.trim(),
+        target_audience: ideaForm.targetAudience.trim(),
+        speaker_suggestion: ideaForm.speakerSuggestion.trim(),
+        estimated_duration: ideaForm.estimatedDuration.trim(),
+        member_id: currentMember.id,
+        member_name: currentMember.full_name,
+        member_email: currentMember.email,
+        member_avatar: currentMember.avatar_url,
+      });
+
+      setIdeas((prev) => [created, ...prev.filter((i) => i.id !== created.id)]);
+      setIsIdeaModalOpen(false);
+      showToast('Votre idée a été soumise avec succès au bureau !', 'success');
+      setActiveTab('ideas');
+    } catch (_) {
+      showToast("Erreur lors de l'envoi de votre proposition.", 'error');
+    } finally {
+      setIsSubmittingIdea(false);
+    }
+  };
+
   // Points helpers
   const pts = currentMember.points ?? 0;
   const lvlCfg = LEVEL_CONFIG[currentMember.level] || LEVEL_CONFIG.Bronze;
@@ -223,6 +304,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                 { id: 'overview', label: 'Tableau de Bord', short: 'Bord',   icon: LayoutDashboard },
                 { id: 'events',   label: 'Agenda Formations', short: 'Agenda', icon: Calendar, badge: agendaItems.length },
                 { id: 'points',   label: 'Points & Classement', short: 'Points', icon: Trophy },
+                { id: 'ideas',    label: 'Boîte à Idées', short: 'Idées', icon: Lightbulb, badge: ideas.length },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -287,10 +369,21 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
         {/* TAB 2: AGENDA */}
         {activeTab === 'events' && (
           <div className="space-y-4 animate-in fade-in">
-            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs">
-              <h2 className="text-lg font-black text-slate-900">Agenda des Formations &amp; Reunions ({agendaItems.length})</h2>
-              <p className="text-xs text-slate-500 mt-1">Inscrivez-vous aux sessions pour obtenir vos acces visio.</p>
+            <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black text-slate-900">Agenda des Formations &amp; Réunions ({agendaItems.length})</h2>
+                <p className="text-xs text-slate-500 mt-1">Inscrivez-vous aux sessions pour obtenir vos accès et participer activement.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenIdeaModal}
+                className="px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0 w-fit"
+              >
+                <Lightbulb className="w-3.5 h-3.5" />
+                <span>Proposer une idée</span>
+              </button>
             </div>
+
             {agendaItems.length === 0 ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 space-y-3">
                 <Calendar className="w-12 h-12 text-slate-300 mx-auto" />
@@ -651,6 +744,221 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
           </div>
         )}
 
+        {/* TAB 4: BOÎTE À IDÉES */}
+        {activeTab === 'ideas' && (() => {
+          const myIdeas = ideas.filter((i) => i.member_id === currentMember.id);
+          const displayedIdeas = ideaFilter === 'my' ? myIdeas : ideas;
+          const totalVotes = ideas.reduce((acc, curr) => acc + (curr.votes?.length || 0), 0);
+          const approvedCount = ideas.filter((i) => i.status === 'approved' || i.status === 'planned').length;
+
+          return (
+            <div className="space-y-6 animate-in fade-in">
+              {/* Header card with action */}
+              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">💡</span>
+                    <h2 className="text-lg font-black text-slate-900">Boîte à Idées &amp; Propositions d'Événements</h2>
+                  </div>
+                  <p className="text-xs text-slate-500 max-w-xl">
+                    Chaque membre peut suggérer un atelier, un challenge, une conférence ou un projet. Votez pour vos idées préférées pour aider le bureau à planifier les prochains événements !
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenIdeaModal}
+                  className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-extrabold flex items-center gap-2 transition-all shadow-md shadow-amber-500/20 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Proposer une Idée</span>
+                </button>
+              </div>
+
+              {/* Stats Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Proposées</div>
+                  <div className="text-xl font-black text-slate-900 mt-0.5">{ideas.length}</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Retenues / Planifiées</div>
+                  <div className="text-xl font-black text-emerald-700 mt-0.5">{approvedCount}</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-amber-600">Vos Propositions</div>
+                  <div className="text-xl font-black text-amber-700 mt-0.5">{myIdeas.length}</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-blue-600">Total Votes Membres</div>
+                  <div className="text-xl font-black text-blue-700 mt-0.5">{totalVotes}</div>
+                </div>
+              </div>
+
+              {/* Filter Sub-nav */}
+              <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-100 w-fit">
+                <button
+                  type="button"
+                  onClick={() => setIdeaFilter('all')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    ideaFilter === 'all'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Toutes les Idées ({ideas.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIdeaFilter('my')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    ideaFilter === 'my'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Mes Propositions ({myIdeas.length})
+                </button>
+              </div>
+
+              {/* Ideas Cards Grid */}
+              {displayedIdeas.length === 0 ? (
+                <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 space-y-3">
+                  <Lightbulb className="w-12 h-12 text-slate-300 mx-auto" />
+                  <p className="text-sm font-bold text-slate-700">
+                    {ideaFilter === 'my' ? "Vous n'avez pas encore proposé d'idée." : "Aucune proposition d'événement pour le moment."}
+                  </p>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    Soyez le premier à partager une suggestion d'atelier ou d'activité qui ferait grandir les membres !
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleOpenIdeaModal}
+                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-xs cursor-pointer mt-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Proposer une idée maintenant</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {displayedIdeas.map((idea) => {
+                    const votesCount = idea.votes?.length || 0;
+                    const hasVoted = idea.votes?.includes(currentMember.id);
+                    const isMyIdea = idea.member_id === currentMember.id;
+
+                    const statusConfig = {
+                      pending: { label: 'En étude ⏳', bg: 'bg-amber-100 text-amber-900 border-amber-200' },
+                      approved: { label: 'Retenue 🚀', bg: 'bg-emerald-100 text-emerald-900 border-emerald-200' },
+                      planned: { label: 'Planifiée à l\'Agenda 📅', bg: 'bg-blue-100 text-blue-900 border-blue-200' },
+                      rejected: { label: 'Non retenue', bg: 'bg-slate-100 text-slate-600 border-slate-200' },
+                    }[idea.status] || { label: 'En étude ⏳', bg: 'bg-amber-100 text-amber-900 border-amber-200' };
+
+                    return (
+                      <div
+                        key={idea.id}
+                        className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between gap-4 hover:border-amber-300 transition-all"
+                      >
+                        <div className="space-y-3">
+                          {/* Badges & Status */}
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[10px] font-extrabold uppercase tracking-wider">
+                              🏷️ {idea.category}
+                            </span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${statusConfig.bg}`}>
+                              {statusConfig.label}
+                            </span>
+                          </div>
+
+                          {/* Title & Description */}
+                          <div>
+                            <h3 className="text-base font-black text-slate-900 leading-snug">
+                              {idea.title}
+                            </h3>
+                            <p className="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
+                              {idea.description}
+                            </p>
+                          </div>
+
+                          {/* Pill Details */}
+                          <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 font-semibold pt-1">
+                            {idea.target_audience && (
+                              <span className="px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80">
+                                🎯 {idea.target_audience}
+                              </span>
+                            )}
+                            {idea.estimated_duration && (
+                              <span className="px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80">
+                                ⏱️ {idea.estimated_duration}
+                              </span>
+                            )}
+                            {idea.speaker_suggestion && (
+                              <span className="px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/80">
+                                🎤 {idea.speaker_suggestion}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Admin Note if any */}
+                          {idea.admin_notes && (
+                            <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 space-y-1">
+                              <span className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1 text-amber-700">
+                                <MessageSquare className="w-3 h-3" />
+                                <span>Note de l'Administration</span>
+                              </span>
+                              <p className="italic">"{idea.admin_notes}"</p>
+                            </div>
+                          )}
+
+                          {/* Points reward if awarded */}
+                          {Boolean(idea.points_awarded && idea.points_awarded > 0) && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-black">
+                              <span>🏆</span>
+                              <span>+{idea.points_awarded} points attribués pour cette contribution !</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Footer: Creator & Vote Button */}
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                              {idea.member_name ? idea.member_name.charAt(0).toUpperCase() : 'M'}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate">
+                                {isMyIdea ? 'Vous' : idea.member_name}
+                              </p>
+                              <p className="text-[10px] text-slate-400">
+                                {idea.created_at ? new Date(idea.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : ''}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Upvote Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleVoteIdea(idea.id)}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              hasVoted
+                                ? 'bg-amber-500 text-white shadow-xs scale-105'
+                                : 'bg-slate-100 hover:bg-amber-50 text-slate-700 hover:text-amber-700 border border-slate-200/80 hover:border-amber-200'
+                            }`}
+                            title={hasVoted ? 'Cliquez pour retirer votre vote' : 'Voter pour cette idée'}
+                          >
+                            <ThumbsUp className={`w-3.5 h-3.5 ${hasVoted ? 'fill-white' : ''}`} />
+                            <span>{votesCount}</span>
+                            <span className="hidden sm:inline">{hasVoted ? 'Voté' : 'Voter'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
       </main>
 
       {/* Justification Modal */}
@@ -811,6 +1119,141 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                   className="px-6 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-xs disabled:opacity-50"
                 >
                   {isSubmittingFeedback ? 'Envoi en cours...' : 'Transmettre mon avis'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Proposer une Idée ── */}
+      {isIdeaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => setIsIdeaModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center text-xl shadow-md shadow-amber-500/20">
+                💡
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase text-amber-600 tracking-wider">
+                  Boîte à Idées du Club
+                </span>
+                <h3 className="text-lg font-black text-slate-900 leading-tight">
+                  Proposer une Idée d'Événement
+                </h3>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitIdea} className="space-y-4 pt-2">
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Titre ou thème de l'événement <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={ideaForm.title}
+                  onChange={(e) => setIdeaForm({ ...ideaForm, title: e.target.value })}
+                  placeholder="Ex: Workshop Prompt Engineering & Claude AI, Soirée E-Sport..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold text-slate-900 outline-none focus:border-amber-500 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Catégorie
+                </label>
+                <select
+                  value={ideaForm.category}
+                  onChange={(e) => setIdeaForm({ ...ideaForm, category: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold text-slate-800 outline-none focus:border-amber-500 focus:bg-white transition-all"
+                >
+                  <option value="Formation & Workshop">🎓 Formation &amp; Workshop Technique</option>
+                  <option value="Hackathon & Challenge">💻 Hackathon &amp; Challenge</option>
+                  <option value="Teambuilding & Divertissement">🎉 Teambuilding &amp; Divertissement</option>
+                  <option value="Conférence & Table Ronde">🎤 Conférence &amp; Table Ronde</option>
+                  <option value="Projet & Action Solidaire">🤝 Projet &amp; Action Solidaire</option>
+                  <option value="Autre">✨ Autre suggestion</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                  Description &amp; Objectif <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={ideaForm.description}
+                  onChange={(e) => setIdeaForm({ ...ideaForm, description: e.target.value })}
+                  placeholder="De quoi s'agit-il ? Quels bénéfices pour les membres ? Que va-t-on créer ou apprendre ?"
+                  className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-300 text-xs text-slate-800 outline-none focus:border-amber-500 focus:bg-white transition-all resize-none font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                    Public ciblé
+                  </label>
+                  <input
+                    type="text"
+                    value={ideaForm.targetAudience}
+                    onChange={(e) => setIdeaForm({ ...ideaForm, targetAudience: e.target.value })}
+                    placeholder="Ex: Tous les membres, Débutants..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-800 outline-none focus:border-amber-500 focus:bg-white transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                    Durée estimée
+                  </label>
+                  <input
+                    type="text"
+                    value={ideaForm.estimatedDuration}
+                    onChange={(e) => setIdeaForm({ ...ideaForm, estimatedDuration: e.target.value })}
+                    placeholder="Ex: 2 heures, Demi-journée, 1 week-end..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-800 outline-none focus:border-amber-500 focus:bg-white transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                  Intervenant ou Formateur suggéré (Optionnel)
+                </label>
+                <input
+                  type="text"
+                  value={ideaForm.speakerSuggestion}
+                  onChange={(e) => setIdeaForm({ ...ideaForm, speakerSuggestion: e.target.value })}
+                  placeholder="Ex: Moi-même, un expert externe, un ancien membre..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-800 outline-none focus:border-amber-500 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsIdeaModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingIdea}
+                  className="px-6 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{isSubmittingIdea ? 'Envoi en cours...' : 'Soumettre l\'idée'}</span>
                 </button>
               </div>
             </form>

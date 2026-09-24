@@ -1,6 +1,7 @@
 -- ==============================================================================
 -- JOKER ESEN - MIGRATION : TABLE EVENT FEEDBACKS (AVIS MEMBRES POST-ÉVÉNEMENT)
 -- ==============================================================================
+-- Sans Realtime (Requêtes directes REST standard)
 -- 100% SÉCURISÉ : Ne supprime aucune table ni aucune donnée existante.
 -- Ce script crée uniquement la NOUVELLE table pour enregistrer les avis.
 -- ==============================================================================
@@ -22,7 +23,7 @@ create table if not exists public.event_feedbacks (
 -- Activation de la sécurité RLS
 alter table public.event_feedbacks enable row level security;
 
--- Création sécurisée des politiques (sans commande DROP)
+-- Création sécurisée des politiques d'accès (sans commande DROP)
 do $$
 begin
   if not exists (
@@ -53,15 +54,3 @@ $$;
 
 -- Permissions d'accès pour l'application
 grant all on public.event_feedbacks to anon, authenticated, postgres, service_role;
-
--- Synchronisation en temps réel (Realtime)
-do $$
-begin
-  if not exists (
-    select 1 from pg_publication_tables 
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'event_feedbacks'
-  ) then
-    alter publication supabase_realtime add table public.event_feedbacks;
-  end if;
-end
-$$;

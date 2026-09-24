@@ -141,3 +141,25 @@ export interface EventFeedback {
   };
   created_at?: string;
 }
+
+export type EventIdeaStatus = 'pending' | 'approved' | 'planned' | 'rejected';
+
+export interface EventIdea {
+  id: string;
+  title: string;
+  category: string; // 'Formation' | 'Workshop' | 'Hackathon' | 'Teambuilding' | 'Conférence' | 'Autre'
+  description: string;
+  target_audience?: string;
+  speaker_suggestion?: string;
+  estimated_duration?: string;
+  member_id: string;
+  member_name: string;
+  member_email?: string;
+  member_avatar?: string;
+  votes: string[]; // member IDs who upvoted
+  status: EventIdeaStatus;
+  admin_notes?: string;
+  points_awarded?: number;
+  created_at?: string;
+}
+

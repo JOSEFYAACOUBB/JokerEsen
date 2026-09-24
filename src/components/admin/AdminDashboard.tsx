@@ -39,6 +39,8 @@ import {
   ChevronRight,
   Sparkles,
   Star,
+  Lightbulb,
+  ThumbsUp,
 } from 'lucide-react';
 
 import type { TeamMember } from '../Team';
@@ -51,7 +53,7 @@ import type {
   FormConfig,
   EventRecord
 } from '../../types/database';
-import type { AgendaItem, AgendaHelperRole, EventFeedback } from '../../types/member';
+import type { AgendaItem, AgendaHelperRole, EventFeedback, EventIdea, EventIdeaStatus } from '../../types/member';
 import {
   fetchAllAgendaItems,
   createAgendaItem,
@@ -68,6 +70,12 @@ import {
   deleteFeedback,
   computeEventRatingSummary,
 } from '../../services/feedbackService';
+import {
+  fetchAllEventIdeas,
+  getCachedIdeas,
+  updateIdeaStatus,
+  deleteEventIdea,
+} from '../../services/ideaService';
 import {
   fetchRecruitmentApplications,
   updateRecruitmentStatus,
@@ -457,7 +465,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [agendaList, setAgendaList] = useState<AgendaItem[]>([]);
   const [selectedAgendaEvent, setSelectedAgendaEvent] = useState<AgendaItem | null>(null);
   const [attendanceRemark, setAttendanceRemark] = useState<Record<string, string>>({});
-  const [agendaActiveSubTab, setAgendaActiveSubTab] = useState<'sessions' | 'history' | 'feedbacks'>('sessions');
+  const [agendaActiveSubTab, setAgendaActiveSubTab] = useState<'sessions' | 'history' | 'feedbacks' | 'ideas'>('sessions');
   const [selectedRegForPresent, setSelectedRegForPresent] = useState<MemberEventRegistration | null>(null);
   const [selectedRegForAbsence, setSelectedRegForAbsence] = useState<MemberEventRegistration | null>(null);
   const [absenceRemarkInput, setAbsenceRemarkInput] = useState('');
@@ -474,6 +482,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // All Feedbacks State
   const [allFeedbacks, setAllFeedbacks] = useState<EventFeedback[]>(() => getCachedFeedbacks());
   const [feedbackRatingFilter, setFeedbackRatingFilter] = useState<'all' | '5' | '4' | '3' | '2' | '1'>('all');
+
+  // Event Ideas State
+  const [allIdeas, setAllIdeas] = useState<EventIdea[]>(() => getCachedIdeas());
+  const [ideaStatusFilter, setIdeaStatusFilter] = useState<'all' | 'pending' | 'approved' | 'planned' | 'rejected'>('all');
 
   // Agenda Modal state
   const [isAgendaModalOpen, setIsAgendaModalOpen] = useState(false);
@@ -493,6 +505,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     fetchAllAgendaItems().then(setAgendaList);
     fetchAllFeedbacks().then(setAllFeedbacks).catch(() => {});
+    fetchAllEventIdeas().then(setAllIdeas).catch(() => {});
   }, []);
 
   const handleRefreshAgendaData = async () => {
@@ -501,6 +514,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setAllRegistrations(getAllEventRegistrations());
     setCancellationLogs(getCancellationLogs());
     fetchAllFeedbacks().then(setAllFeedbacks).catch(() => {});
+    fetchAllEventIdeas().then(setAllIdeas).catch(() => {});
     if (selectedAgendaEvent) {
       const refreshedSel = items.find((i) => i.id === selectedAgendaEvent.id);
       if (refreshedSel) setSelectedAgendaEvent(refreshedSel);
@@ -512,6 +526,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     await deleteFeedback(id);
     const updated = await fetchAllFeedbacks();
     setAllFeedbacks(updated);
+  };
+
+  const handleUpdateIdeaStatusAction = async (
+    ideaId: string,
+    status: EventIdeaStatus,
+    note?: string,
+    points?: number
+  ) => {
+    await updateIdeaStatus(ideaId, status, note, points);
+    const updated = await fetchAllEventIdeas();
+    setAllIdeas(updated);
+  };
+
+  const handleDeleteIdeaAction = async (ideaId: string) => {
+    if (!window.confirm("Voulez-vous vraiment supprimer cette proposition d'événement ?")) return;
+    await deleteEventIdea(ideaId);
+    const updated = await fetchAllEventIdeas();
+    setAllIdeas(updated);
+  };
+
+  const handleConvertIdeaToAgenda = (idea: EventIdea) => {
+    setEditingAgendaItem(null);
+    setAgendaForm({
+      title: idea.title,
+      edition: 'Édition Spéciale 2026',
+      date: `Samedi prochain · 14h00`,
+      location: 'Campus ESEN Manouba / Salle Multimédia',
+      program: idea.description + (idea.speaker_suggestion ? `\n\nIntervenant suggéré: ${idea.speaker_suggestion}` : ''),
+      meeting_url: '',
+      event_type: idea.category.toLowerCase().includes('réunion') ? 'reunion' : 'formation',
+      max_seats: 50,
+      helper_roles: [
+        { id: `role-1-${Date.now()}`, role_name: 'Logistique & Matériel', max_spots: 3, points_reward: 20, helpers: [] },
+        { id: `role-2-${Date.now()}`, role_name: 'Accueil & Émargement', max_spots: 2, points_reward: 15, helpers: [] }
+      ],
+    });
+    setIsAgendaModalOpen(true);
+    handleUpdateIdeaStatusAction(idea.id, 'planned', 'Converti en événement officiel dans l\'agenda.');
   };
 
   const handleOpenNewAgendaModal = () => {
@@ -3089,8 +3141,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 {/* Sub-tabs */}
-                <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-100 w-fit">
-                  {(['sessions', 'history', 'feedbacks'] as const).map(st => (
+                <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-100 w-fit flex-wrap">
+                  {(['sessions', 'history', 'feedbacks', 'ideas'] as const).map(st => (
                     <button
                       key={st}
                       onClick={() => setAgendaActiveSubTab(st)}
@@ -3098,7 +3150,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         agendaActiveSubTab === st ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      {st === 'sessions' ? '📋 Sessions & Présences' : st === 'history' ? '📜 Historique Inscriptions' : `⭐ Tous les Avis & Feedbacks (${allFeedbacks.length})`}
+                      {st === 'sessions'
+                        ? '📋 Sessions & Présences'
+                        : st === 'history'
+                        ? '📜 Historique Inscriptions'
+                        : st === 'feedbacks'
+                        ? `⭐ Avis Membres (${allFeedbacks.length})`
+                        : `💡 Boîte à Idées (${allIdeas.length})`}
                     </button>
                   ))}
                 </div>
@@ -4228,6 +4286,278 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               </div>
                             </div>
                           ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Sub-tab: Boîte à Idées des Membres */}
+                {agendaActiveSubTab === 'ideas' && (() => {
+                  const filteredIdeas = allIdeas.filter((idea) => {
+                    if (ideaStatusFilter === 'all') return true;
+                    return idea.status === ideaStatusFilter;
+                  });
+
+                  const totalVotes = allIdeas.reduce((sum, i) => sum + (i.votes?.length || 0), 0);
+                  const pendingCount = allIdeas.filter((i) => i.status === 'pending').length;
+                  const approvedCount = allIdeas.filter((i) => i.status === 'approved' || i.status === 'planned').length;
+
+                  return (
+                    <div className="space-y-6 animate-in fade-in">
+                      {/* Top banner / stats */}
+                      <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                              <Lightbulb className="w-5 h-5 text-amber-500 shrink-0" />
+                              <span>Boîte à Idées &amp; Suggestions d'Événements ({allIdeas.length})</span>
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Examinez les propositions soumises par les membres, retenez les meilleures idées et convertissez-les en sessions officielles.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRefreshAgendaData}
+                            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer w-fit"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Actualiser</span>
+                          </button>
+                        </div>
+
+                        {/* KPI Cards */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-xs">
+                              💡
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-amber-900/60">Total Proposées</div>
+                              <div className="text-xl font-black text-amber-950">{allIdeas.length}</div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 rounded-2xl bg-orange-50/70 border border-orange-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-xs">
+                              ⏳
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-orange-900/60">En Examen</div>
+                              <div className="text-xl font-black text-orange-950">{pendingCount}</div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-xs">
+                              🚀
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-emerald-900/60">Retenues / Planifiées</div>
+                              <div className="text-xl font-black text-emerald-950">{approvedCount}</div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-xs">
+                              👍
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-blue-900/60">Votes Membres</div>
+                              <div className="text-xl font-black text-blue-950">{totalVotes}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status Filter Bar */}
+                        <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100">
+                          <span className="text-xs font-bold text-slate-500 mr-1">Filtrer par statut :</span>
+                          {[
+                            { key: 'all', label: `Toutes (${allIdeas.length})` },
+                            { key: 'pending', label: `En attente (${allIdeas.filter((i) => i.status === 'pending').length})` },
+                            { key: 'approved', label: `Retenues (${allIdeas.filter((i) => i.status === 'approved').length})` },
+                            { key: 'planned', label: `Planifiées (${allIdeas.filter((i) => i.status === 'planned').length})` },
+                            { key: 'rejected', label: `Refusées (${allIdeas.filter((i) => i.status === 'rejected').length})` },
+                          ].map((f) => (
+                            <button
+                              key={f.key}
+                              type="button"
+                              onClick={() => setIdeaStatusFilter(f.key as any)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                ideaStatusFilter === f.key
+                                  ? 'bg-slate-900 text-white shadow-xs'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                              }`}
+                            >
+                              {f.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Ideas List */}
+                      {filteredIdeas.length === 0 ? (
+                        <div className="py-16 px-6 rounded-3xl bg-white border border-slate-200/80 text-center space-y-3">
+                          <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl">
+                            💡
+                          </div>
+                          <h4 className="text-base font-bold text-slate-900">Aucune idée trouvée</h4>
+                          <p className="text-xs text-slate-400 max-w-md mx-auto">
+                            {ideaStatusFilter === 'all'
+                              ? "Les membres n'ont pas encore soumis de proposition d'événement."
+                              : `Aucune idée avec le statut "${ideaStatusFilter}".`}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {filteredIdeas.map((idea) => {
+                            const votesCount = idea.votes?.length || 0;
+                            const statusColor = {
+                              pending: 'bg-amber-100 text-amber-900 border-amber-200',
+                              approved: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+                              planned: 'bg-blue-100 text-blue-900 border-blue-200',
+                              rejected: 'bg-slate-100 text-slate-600 border-slate-200',
+                            }[idea.status] || 'bg-slate-100 text-slate-600';
+
+                            return (
+                              <div
+                                key={idea.id}
+                                className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between gap-5 hover:border-amber-300 transition-all"
+                              >
+                                <div className="space-y-3">
+                                  {/* Header: Proposer info & badges */}
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                        {idea.member_name ? idea.member_name.charAt(0).toUpperCase() : 'M'}
+                                      </div>
+                                      <div>
+                                        <h5 className="text-xs font-black text-slate-900">{idea.member_name}</h5>
+                                        <p className="text-[10px] text-slate-400">{idea.member_email || 'Membre du club'}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <span className="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-black flex items-center gap-1">
+                                        <ThumbsUp className="w-3 h-3 fill-amber-500 text-amber-500" />
+                                        <span>{votesCount}</span>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteIdeaAction(idea.id)}
+                                        className="p-1 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                                        title="Supprimer cette idée"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Category & Status */}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-extrabold uppercase">
+                                      🏷️ {idea.category}
+                                    </span>
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${statusColor}`}>
+                                      {idea.status === 'pending'
+                                        ? '⏳ En attente d\'examen'
+                                        : idea.status === 'approved'
+                                        ? '🚀 Retenue par le bureau'
+                                        : idea.status === 'planned'
+                                        ? '📅 Planifiée à l\'agenda'
+                                        : '❌ Non retenue'}
+                                    </span>
+                                    {idea.points_awarded ? (
+                                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black">
+                                        🏆 +{idea.points_awarded} pts
+                                      </span>
+                                    ) : null}
+                                  </div>
+
+                                  {/* Title & Description */}
+                                  <div>
+                                    <h4 className="text-sm font-black text-slate-900 leading-snug">{idea.title}</h4>
+                                    <p className="text-xs text-slate-600 mt-1 leading-relaxed font-medium">
+                                      {idea.description}
+                                    </p>
+                                  </div>
+
+                                  {/* Details */}
+                                  <div className="flex flex-wrap gap-1.5 text-[11px] text-slate-500 font-semibold pt-1">
+                                    {idea.target_audience && (
+                                      <span className="px-2 py-0.5 rounded-lg bg-slate-50 border border-slate-200/80">
+                                        🎯 {idea.target_audience}
+                                      </span>
+                                    )}
+                                    {idea.estimated_duration && (
+                                      <span className="px-2 py-0.5 rounded-lg bg-slate-50 border border-slate-200/80">
+                                        ⏱️ {idea.estimated_duration}
+                                      </span>
+                                    )}
+                                    {idea.speaker_suggestion && (
+                                      <span className="px-2 py-0.5 rounded-lg bg-slate-50 border border-slate-200/80">
+                                        🎤 {idea.speaker_suggestion}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Admin Note display or edit */}
+                                  {idea.admin_notes && (
+                                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/80 text-xs text-amber-900">
+                                      <span className="font-bold text-[10px] uppercase block text-amber-700">Note Bureau :</span>
+                                      <p className="italic">"{idea.admin_notes}"</p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Actions Toolbar */}
+                                <div className="pt-3 border-t border-slate-100 space-y-2">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {idea.status !== 'approved' && idea.status !== 'planned' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateIdeaStatusAction(idea.id, 'approved', 'Idée retenue par le bureau pour la prochaine session.')}
+                                        className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-colors cursor-pointer"
+                                      >
+                                        ✅ Retenir
+                                      </button>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleConvertIdeaToAgenda(idea)}
+                                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                                      title="Créer un événement officiel dans l'agenda à partir de cette idée"
+                                    >
+                                      <Calendar className="w-3.5 h-3.5" />
+                                      <span>Convertir en Session</span>
+                                    </button>
+
+                                    {!idea.points_awarded && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateIdeaStatusAction(idea.id, idea.status, idea.admin_notes, 15)}
+                                        className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition-colors cursor-pointer"
+                                        title="Récompenser le membre avec 15 points pour sa bonne idée"
+                                      >
+                                        🏆 +15 pts
+                                      </button>
+                                    )}
+
+                                    {idea.status !== 'rejected' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateIdeaStatusAction(idea.id, 'rejected', 'Non retenue pour cette édition.')}
+                                        className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-700 text-xs font-bold transition-colors cursor-pointer"
+                                      >
+                                        ❌ Refuser
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
