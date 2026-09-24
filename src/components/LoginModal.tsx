@@ -89,7 +89,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
         }, 1000);
       } else {
         setErrorMessage(
-          'Email ou mot de passe incorrect. (Conseil: vous pouvez aussi utiliser le mot de passe maître joker2026)'
+          'Email ou mot de passe incorrect.'
         );
       }
     } catch (err: any) {

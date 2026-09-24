@@ -787,7 +787,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         localStorage.setItem('joker_admin_auth', 'true');
         showToast('Bienvenue dans l\'administration Joker ESEN !', 'success');
       } else {
-        setLoginError('Identifiants incorrects. Mot de passe maître: joker2026');
+        setLoginError('Identifiants incorrects.');
       }
     } catch (err: any) {
       setLoginError(err?.message || 'Erreur lors de la connexion.');
@@ -1813,7 +1813,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <label className="block text-xs font-bold uppercase tracking-wider text-blue-900">
                   Mot de Passe
                 </label>
-                <span className="text-[10px] text-slate-400">Défaut: joker2026</span>
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
