@@ -3502,27 +3502,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <span>Voir Réponses</span>
                               </button>
                               {app.status === 'accepted' && (
-                                <button
-                                  onClick={() => {
-                                    const appRecord = app as Record<string, any>;
-                                    createMemberByAdmin({
-                                      full_name: app.full_name,
-                                      email: app.email,
-                                      cin: appRecord.cin || '09001122',
-                                      phone: app.phone || '22 000 000',
-                                      major: app.major || 'Licence Business Computing (LBC)',
-                                      department: app.department || 'Développement Web & IA',
-                                      role: 'member',
-                                      bio: app.motivation || app.why_join || 'Membre accepté via recrutement.',
-                                    });
-                                    showToast(`Compte membre généré pour ${app.full_name} !`, 'success');
-                                  }}
-                                  className="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                                  title="Générer compte membre"
-                                >
-                                  <UserPlus className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                  <span>Créer Membre</span>
-                                </button>
+                                (app as any).converted_to_member ? (
+                                  <span className="px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                    <span>Membre Créé</span>
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={async () => {
+                                      const appRecord = app as Record<string, any>;
+                                      createMemberByAdmin({
+                                        full_name: app.full_name,
+                                        email: app.email,
+                                        cin: appRecord.cin || '09001122',
+                                        phone: app.phone || '22 000 000',
+                                        major: app.major || 'Licence Business Computing (LBC)',
+                                        department: app.department || 'Développement Web & IA',
+                                        role: 'member',
+                                        bio: app.motivation || app.why_join || 'Membre accepté via recrutement.',
+                                      });
+                                      // Mark as converted in local state immediately
+                                      setApplications((prev) =>
+                                        prev.map((a) =>
+                                          a.id === app.id ? { ...a, converted_to_member: true } as any : a
+                                        )
+                                      );
+                                      // Persist flag to Supabase
+                                      try {
+                                        await supabase
+                                          .from('recruitment_applications')
+                                          .update({ converted_to_member: true })
+                                          .eq('id', app.id!);
+                                      } catch (_) {}
+                                      showToast(`Compte membre généré pour ${app.full_name} !`, 'success');
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                    title="Générer compte membre"
+                                  >
+                                    <UserPlus className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                    <span>Créer Membre</span>
+                                  </button>
+                                )
                               )}
                               <button
                                 onClick={() => handleDeleteApplication(app.id!, app.full_name)}

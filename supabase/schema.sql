@@ -125,8 +125,12 @@ create table if not exists public.recruitment_applications (
   activity_axes text[] default array[]::text[],
   desired_trainings text[] default array[]::text[],
   status text default 'pending' check (status in ('pending', 'accepted', 'rejected', 'contacted')) not null,
+  converted_to_member boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Add converted_to_member column if table already exists
+alter table public.recruitment_applications add column if not exists converted_to_member boolean default false not null;
 
 -- ------------------------------------------------------------------------------
 -- 6. GALLERY IMAGES (Cloudinary + Supabase metadata)
