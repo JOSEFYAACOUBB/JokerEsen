@@ -15,6 +15,7 @@ create table if not exists public.member_agenda (
   meeting_url text default '',
   event_type text default 'formation',
   max_seats integer default 50,
+  helper_roles jsonb default '[]'::jsonb,
   is_active boolean default true,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()

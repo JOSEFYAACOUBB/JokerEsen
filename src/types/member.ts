@@ -2,6 +2,22 @@ export type MemberRole = 'member' | 'moderator' | 'staff';
 export type MemberLevel = 'Bronze' | 'Argent' | 'Or' | 'Platine';
 export type MemberStatus = 'active' | 'suspended';
 
+export interface AgendaHelperSpot {
+  member_id: string;
+  member_name: string;
+  member_email?: string;
+  member_phone?: string;
+  assigned_at: string;
+}
+
+export interface AgendaHelperRole {
+  id: string;
+  role_name: string;
+  max_spots: number;
+  points_reward?: number;
+  helpers: AgendaHelperSpot[];
+}
+
 export interface AgendaItem {
   id: string;
   title: string;
@@ -13,6 +29,7 @@ export interface AgendaItem {
   event_type: 'formation' | 'reunion' | 'evenement';
   max_seats?: number;
   is_active?: boolean;
+  helper_roles?: AgendaHelperRole[];
   created_at?: string;
   updated_at?: string;
 }

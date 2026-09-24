@@ -37,6 +37,7 @@ import {
   Cake,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react';
 
 import type { TeamMember } from '../Team';
@@ -49,12 +50,16 @@ import type {
   FormConfig,
   EventRecord
 } from '../../types/database';
-import type { AgendaItem } from '../../types/member';
+import type { AgendaItem, AgendaHelperRole } from '../../types/member';
 import {
   fetchAllAgendaItems,
   createAgendaItem,
   updateAgendaItem,
-  deleteAgendaItem
+  deleteAgendaItem,
+  addHelperRoleToAgenda,
+  removeHelperRoleFromAgenda,
+  assignMemberToHelperRole,
+  removeMemberFromHelperRole,
 } from '../../services/agendaService';
 import {
   fetchRecruitmentApplications,
@@ -450,6 +455,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [selectedRegForAbsence, setSelectedRegForAbsence] = useState<MemberEventRegistration | null>(null);
   const [absenceRemarkInput, setAbsenceRemarkInput] = useState('');
 
+  // Agenda Helper Roles State
+  const [selectedSessionTab, setSelectedSessionTab] = useState<'attendance' | 'helpers'>('attendance');
+  const [isAddRoleInlineOpen, setIsAddRoleInlineOpen] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('Logistique & Matériel');
+  const [newRoleSpots, setNewRoleSpots] = useState(3);
+  const [newRolePoints, setNewRolePoints] = useState(25);
+  const [assigningRoleId, setAssigningRoleId] = useState<string | null>(null);
+  const [selectedMemberIdToAssign, setSelectedMemberIdToAssign] = useState<string>('');
+
   // Agenda Modal state
   const [isAgendaModalOpen, setIsAgendaModalOpen] = useState(false);
   const [editingAgendaItem, setEditingAgendaItem] = useState<AgendaItem | null>(null);
@@ -462,6 +476,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     meeting_url: '',
     event_type: 'formation' as 'formation' | 'reunion' | 'evenement',
     max_seats: 50,
+    helper_roles: [] as AgendaHelperRole[],
   });
 
   useEffect(() => {
@@ -473,6 +488,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setAgendaList(items);
     setAllRegistrations(getAllEventRegistrations());
     setCancellationLogs(getCancellationLogs());
+    if (selectedAgendaEvent) {
+      const refreshedSel = items.find((i) => i.id === selectedAgendaEvent.id);
+      if (refreshedSel) setSelectedAgendaEvent(refreshedSel);
+    }
   };
 
   const handleOpenNewAgendaModal = () => {
@@ -486,6 +505,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       meeting_url: '',
       event_type: 'formation',
       max_seats: 50,
+      helper_roles: [],
     });
     setIsAgendaModalOpen(true);
   };
@@ -501,6 +521,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       meeting_url: item.meeting_url || '',
       event_type: item.event_type || 'formation',
       max_seats: item.max_seats ?? 50,
+      helper_roles: item.helper_roles ? [...item.helper_roles] : [],
     });
     setIsAgendaModalOpen(true);
   };
@@ -517,6 +538,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     const refreshed = await fetchAllAgendaItems();
     setAgendaList(refreshed);
+    if (selectedAgendaEvent) {
+      const updatedSel = refreshed.find(e => e.id === (editingAgendaItem?.id || selectedAgendaEvent.id));
+      if (updatedSel) setSelectedAgendaEvent(updatedSel);
+    }
     setIsAgendaModalOpen(false);
     setEditingAgendaItem(null);
   };
@@ -528,6 +553,66 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const refreshed = await fetchAllAgendaItems();
       setAgendaList(refreshed);
     }
+  };
+
+  const handleAddHelperRoleInline = async (presetName?: string, defaultSpots?: number) => {
+    if (!selectedAgendaEvent) return;
+    const nameToAdd = presetName || newRoleName;
+    const spotsToAdd = defaultSpots || newRoleSpots;
+    if (!nameToAdd.trim()) return;
+
+    const updated = await addHelperRoleToAgenda(selectedAgendaEvent.id, nameToAdd, spotsToAdd, newRolePoints);
+    if (updated) {
+      setSelectedAgendaEvent(updated);
+      const all = await fetchAllAgendaItems();
+      setAgendaList(all);
+    }
+    setIsAddRoleInlineOpen(false);
+    setNewRoleName('Logistique & Matériel');
+    setNewRoleSpots(3);
+    setNewRolePoints(25);
+  };
+
+  const handleRemoveHelperRoleAction = async (roleId: string) => {
+    if (!selectedAgendaEvent) return;
+    if (!window.confirm('Voulez-vous vraiment supprimer ce poste d\'aide ?')) return;
+    const updated = await removeHelperRoleFromAgenda(selectedAgendaEvent.id, roleId);
+    if (updated) {
+      setSelectedAgendaEvent(updated);
+      const all = await fetchAllAgendaItems();
+      setAgendaList(all);
+    }
+  };
+
+  const handleRemoveMemberFromRoleAction = async (roleId: string, memberId: string) => {
+    if (!selectedAgendaEvent) return;
+    const updated = await removeMemberFromHelperRole(selectedAgendaEvent.id, roleId, memberId);
+    if (updated) {
+      setSelectedAgendaEvent(updated);
+      const all = await fetchAllAgendaItems();
+      setAgendaList(all);
+    }
+  };
+
+  const handleAssignMemberToRoleAction = async (roleId: string) => {
+    if (!selectedAgendaEvent || !selectedMemberIdToAssign) return;
+    const allMembers = getStoredMembers();
+    const foundMember = allMembers.find((m) => m.id === selectedMemberIdToAssign);
+    if (!foundMember) return;
+
+    const updated = await assignMemberToHelperRole(selectedAgendaEvent.id, roleId, {
+      id: foundMember.id,
+      full_name: foundMember.full_name,
+      email: foundMember.email,
+      phone: foundMember.phone,
+    });
+    if (updated) {
+      setSelectedAgendaEvent(updated);
+      const all = await fetchAllAgendaItems();
+      setAgendaList(all);
+    }
+    setAssigningRoleId(null);
+    setSelectedMemberIdToAssign('');
   };
 
   // ── 5. Form Config State ──
@@ -3124,98 +3209,486 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </button>
                           </div>
 
-                          {/* Registered members table */}
-                          {sessionRegs.length === 0 ? (
-                            <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/70 shadow-xs space-y-2">
-                              <Users className="w-10 h-10 text-slate-300 mx-auto" />
-                              <p className="text-xs font-bold text-slate-600">Aucun membre inscrit</p>
-                              <p className="text-[11px] text-slate-400">Les membres peuvent s'inscrire depuis leur espace personnel.</p>
-                            </div>
-                          ) : (
-                            <div className="rounded-3xl bg-white border border-slate-200/70 overflow-hidden shadow-xs">
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs">
-                                  <thead className="bg-slate-50 text-slate-500 font-bold text-[11px] uppercase tracking-wider border-b border-slate-200/80">
-                                    <tr>
-                                      <th className="p-4">Membre</th>
-                                      <th className="p-4">Inscrit le</th>
-                                      <th className="p-4">Statut Présence</th>
-                                      <th className="p-4">Remarque d'absence</th>
-                                      <th className="p-4 text-right">Action</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100 text-slate-800">
-                                    {sessionRegs.map(reg => (
-                                      <tr key={reg.id} className="hover:bg-slate-50/70 transition-colors">
-                                        <td className="p-4">
-                                          <p className="font-bold text-slate-900">{reg.member_name || '—'}</p>
-                                          <p className="text-[11px] text-slate-500">{reg.member_email || ''}</p>
-                                          {reg.justification_reason && (
-                                            <div className="text-[10px] text-amber-800 font-medium bg-amber-50 px-2 py-0.5 rounded-md mt-1 border border-amber-200 inline-block">
-                                              💬 Motif : "{reg.justification_reason}"
-                                            </div>
-                                          )}
-                                        </td>
-                                        <td className="p-4 text-slate-600 font-mono text-[11px]">{reg.registered_at}</td>
-                                        <td className="p-4">
-                                          {reg.attendance_status === 'present' && (
-                                            <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase">✅ Présent</span>
-                                          )}
-                                          {reg.attendance_status === 'absent' && (
-                                            <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 text-[10px] font-extrabold uppercase">⚠️ Absent</span>
-                                          )}
-                                          {(!reg.attendance_status || reg.attendance_status === 'pending') && (
-                                            <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-extrabold uppercase">⏳ En attente</span>
-                                          )}
-                                        </td>
-                                        <td className="p-4">
-                                          <input
-                                            type="text"
-                                            disabled={reg.attendance_status === 'present' || reg.attendance_status === 'absent'}
-                                            value={attendanceRemark[reg.id] ?? (reg.absence_remark || '')}
-                                            onChange={(e) => setAttendanceRemark(prev => ({ ...prev, [reg.id]: e.target.value }))}
-                                            placeholder="Ex: Absent sans justification..."
-                                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none focus:border-rose-400 focus:bg-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                          />
-                                        </td>
-                                        <td className="p-4">
-                                          <div className="flex items-center justify-end gap-1.5">
-                                            {reg.attendance_status === 'present' ? (
-                                              <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-300">
-                                                ✅ Présence Confirmée (Verrouillé)
-                                              </span>
-                                            ) : reg.attendance_status === 'absent' ? (
-                                              <span className="px-3 py-1.5 rounded-xl bg-rose-100 text-rose-800 text-[10px] font-extrabold border border-rose-300">
-                                                ⚠️ Absence Marquée (Verrouillé)
-                                              </span>
-                                            ) : (
-                                              <>
-                                                <button
-                                                  onClick={() => setSelectedRegForPresent(reg)}
-                                                  className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200 cursor-pointer transition-all"
-                                                >
-                                                  Présent ✅
-                                                </button>
-                                                <button
-                                                  onClick={() => {
-                                                    setSelectedRegForAbsence(reg);
-                                                    setAbsenceRemarkInput(attendanceRemark[reg.id] || reg.absence_remark || 'Absent(e) non justifié(e) à la formation / réunion.');
-                                                  }}
-                                                  className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200 cursor-pointer transition-all"
-                                                >
-                                                  Absent ⚠️
-                                                </button>
-                                              </>
-                                            )}
+                          {(() => {
+                            const helperRoles = selectedAgendaEvent.helper_roles || [];
+                            const totalHelperSpots = helperRoles.reduce((sum, r) => sum + (r.max_spots || 0), 0);
+                            const totalFilledHelpers = helperRoles.reduce((sum, r) => sum + (r.helpers?.length || 0), 0);
+                            const activeClubMembers = getStoredMembers().filter((m) => m.status === 'active');
+
+                            return (
+                              <div className="space-y-4">
+                                {/* Sub-tab selector: Présences vs Postes d'Aide */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedSessionTab('attendance')}
+                                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                        selectedSessionTab === 'attendance'
+                                          ? 'bg-slate-900 text-white shadow-xs'
+                                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                      }`}
+                                    >
+                                      <UserCheck className="w-3.5 h-3.5" />
+                                      <span>📋 Présences ({sessionRegs.length})</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedSessionTab('helpers')}
+                                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                        selectedSessionTab === 'helpers'
+                                          ? 'bg-blue-600 text-white shadow-xs'
+                                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                                      }`}
+                                    >
+                                      <Users className="w-3.5 h-3.5" />
+                                      <span>🤝 Postes d'Aide &amp; Bénévoles ({totalFilledHelpers}/{totalHelperSpots} places)</span>
+                                    </button>
+                                  </div>
+                                  {selectedSessionTab === 'helpers' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsAddRoleInlineOpen((prev) => !prev)}
+                                      className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      <span>{isAddRoleInlineOpen ? 'Fermer' : 'Ouvrir un poste d\'aide'}</span>
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* ── SUB-TAB 1: ATTENDANCE ── */}
+                                {selectedSessionTab === 'attendance' && (
+                                  <>
+                                    {sessionRegs.length === 0 ? (
+                                      <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/70 shadow-xs space-y-2">
+                                        <Users className="w-10 h-10 text-slate-300 mx-auto" />
+                                        <p className="text-xs font-bold text-slate-600">Aucun membre inscrit</p>
+                                        <p className="text-[11px] text-slate-400">Les membres peuvent s'inscrire depuis leur espace personnel.</p>
+                                      </div>
+                                    ) : (
+                                      <div className="rounded-3xl bg-white border border-slate-200/70 overflow-hidden shadow-xs">
+                                        <div className="overflow-x-auto">
+                                          <table className="w-full text-left text-xs">
+                                            <thead className="bg-slate-50 text-slate-500 font-bold text-[11px] uppercase tracking-wider border-b border-slate-200/80">
+                                              <tr>
+                                                <th className="p-4">Membre</th>
+                                                <th className="p-4">Inscrit le</th>
+                                                <th className="p-4">Statut Présence</th>
+                                                <th className="p-4">Remarque d'absence</th>
+                                                <th className="p-4 text-right">Action</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 text-slate-800">
+                                              {sessionRegs.map(reg => (
+                                                <tr key={reg.id} className="hover:bg-slate-50/70 transition-colors">
+                                                  <td className="p-4">
+                                                    <p className="font-bold text-slate-900">{reg.member_name || '—'}</p>
+                                                    <p className="text-[11px] text-slate-500">{reg.member_email || ''}</p>
+                                                    {reg.justification_reason && (
+                                                      <div className="text-[10px] text-amber-800 font-medium bg-amber-50 px-2 py-0.5 rounded-md mt-1 border border-amber-200 inline-block">
+                                                        💬 Motif : "{reg.justification_reason}"
+                                                      </div>
+                                                    )}
+                                                  </td>
+                                                  <td className="p-4 text-slate-600 font-mono text-[11px]">{reg.registered_at}</td>
+                                                  <td className="p-4">
+                                                    {reg.attendance_status === 'present' && (
+                                                      <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase">✅ Présent</span>
+                                                    )}
+                                                    {reg.attendance_status === 'absent' && (
+                                                      <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 text-[10px] font-extrabold uppercase">⚠️ Absent</span>
+                                                    )}
+                                                    {(!reg.attendance_status || reg.attendance_status === 'pending') && (
+                                                      <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-extrabold uppercase">⏳ En attente</span>
+                                                    )}
+                                                  </td>
+                                                  <td className="p-4">
+                                                    <input
+                                                      type="text"
+                                                      disabled={reg.attendance_status === 'present' || reg.attendance_status === 'absent'}
+                                                      value={attendanceRemark[reg.id] ?? (reg.absence_remark || '')}
+                                                      onChange={(e) => setAttendanceRemark(prev => ({ ...prev, [reg.id]: e.target.value }))}
+                                                      placeholder="Ex: Absent sans justification..."
+                                                      className="w-full px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none focus:border-rose-400 focus:bg-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    />
+                                                  </td>
+                                                  <td className="p-4">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                      {reg.attendance_status === 'present' ? (
+                                                        <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-300">
+                                                          ✅ Présence Confirmée (Verrouillé)
+                                                        </span>
+                                                      ) : reg.attendance_status === 'absent' ? (
+                                                        <span className="px-3 py-1.5 rounded-xl bg-rose-100 text-rose-800 text-[10px] font-extrabold border border-rose-300">
+                                                          ⚠️ Absence Marquée (Verrouillé)
+                                                        </span>
+                                                      ) : (
+                                                        <>
+                                                          <button
+                                                            onClick={() => setSelectedRegForPresent(reg)}
+                                                            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200 cursor-pointer transition-all"
+                                                          >
+                                                            Présent ✅
+                                                          </button>
+                                                          <button
+                                                            onClick={() => {
+                                                              setSelectedRegForAbsence(reg);
+                                                              setAbsenceRemarkInput(attendanceRemark[reg.id] || reg.absence_remark || 'Absent(e) non justifié(e) à la formation / réunion.');
+                                                            }}
+                                                            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200 cursor-pointer transition-all"
+                                                          >
+                                                            Absent ⚠️
+                                                          </button>
+                                                        </>
+                                                      )}
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+
+                                {/* ── SUB-TAB 2: POSTES D'AIDE & BÉNÉVOLAT ── */}
+                                {selectedSessionTab === 'helpers' && (
+                                  <div className="space-y-4 animate-in fade-in">
+                                    {/* Helper stats banner */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                      <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0 text-base">
+                                          📦
+                                        </div>
+                                        <div>
+                                          <div className="text-[10px] font-black uppercase text-slate-400">Postes Ouverts</div>
+                                          <div className="text-lg font-black text-slate-900">{helperRoles.length} poste(s)</div>
+                                        </div>
+                                      </div>
+
+                                      <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0 text-base">
+                                          🤝
+                                        </div>
+                                        <div>
+                                          <div className="text-[10px] font-black uppercase text-slate-400">Volontaires Inscrits</div>
+                                          <div className="text-lg font-black text-slate-900">{totalFilledHelpers} membre(s)</div>
+                                        </div>
+                                      </div>
+
+                                      <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0 text-base">
+                                          🎟️
+                                        </div>
+                                        <div>
+                                          <div className="text-[10px] font-black uppercase text-slate-400">Places Restantes</div>
+                                          <div className="text-lg font-black text-slate-900">{Math.max(0, totalHelperSpots - totalFilledHelpers)} place(s)</div>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Inline form to open role */}
+                                    {isAddRoleInlineOpen && (
+                                      <div className="p-5 rounded-3xl bg-blue-50/70 border-2 border-blue-200 shadow-sm space-y-4 animate-in fade-in">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <Sparkles className="w-4 h-4 text-blue-600" />
+                                            <h4 className="text-sm font-black text-slate-900">Ouvrir un nouveau poste d'aide pour cette session</h4>
                                           </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                                          <button
+                                            type="button"
+                                            onClick={() => setIsAddRoleInlineOpen(false)}
+                                            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </button>
+                                        </div>
+
+                                        {/* Presets */}
+                                        <div className="space-y-1.5">
+                                          <span className="text-[11px] font-bold text-slate-600">Suggestions rapides :</span>
+                                          <div className="flex flex-wrap gap-2">
+                                            {[
+                                              { name: 'Logistique & Matériel', icon: '📦', defaultSpots: 3 },
+                                              { name: 'Décoration & Ambiance', icon: '🎨', defaultSpots: 2 },
+                                              { name: 'Accueil & Émargement', icon: '🎟️', defaultSpots: 2 },
+                                              { name: 'Photo & Vidéo', icon: '📸', defaultSpots: 2 },
+                                              { name: 'Technique & Régie Son', icon: '🔊', defaultSpots: 2 },
+                                              { name: 'Ravitaillement & Pause', icon: '🥤', defaultSpots: 2 },
+                                            ].map((preset) => (
+                                              <button
+                                                key={preset.name}
+                                                type="button"
+                                                onClick={() => handleAddHelperRoleInline(preset.name, preset.defaultSpots)}
+                                                className="px-3 py-1.5 rounded-xl bg-white hover:bg-blue-600 hover:text-white text-slate-700 border border-blue-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                                              >
+                                                <span>{preset.icon}</span>
+                                                <span>{preset.name} ({preset.defaultSpots} pl.)</span>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        {/* Custom inputs */}
+                                        <div className="pt-3 border-t border-blue-200/60 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                          <div className="sm:col-span-1">
+                                            <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                                              Nom du poste personnalisé
+                                            </label>
+                                            <input
+                                              type="text"
+                                              value={newRoleName}
+                                              onChange={(e) => setNewRoleName(e.target.value)}
+                                              placeholder="Ex: Logistique, Décoration..."
+                                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900 outline-none focus:border-blue-600"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                                              Nombre de places
+                                            </label>
+                                            <input
+                                              type="number"
+                                              min={1}
+                                              max={50}
+                                              value={newRoleSpots}
+                                              onChange={(e) => setNewRoleSpots(Math.max(1, parseInt(e.target.value) || 1))}
+                                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900 outline-none focus:border-blue-600 text-center"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                                              Bonus Membre (XP / Points)
+                                            </label>
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              max={500}
+                                              value={newRolePoints}
+                                              onChange={(e) => setNewRolePoints(Math.max(0, parseInt(e.target.value) || 0))}
+                                              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-900 outline-none focus:border-blue-600 text-center"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        <div className="flex justify-end gap-2 pt-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => setIsAddRoleInlineOpen(false)}
+                                            className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 cursor-pointer"
+                                          >
+                                            Annuler
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleAddHelperRoleInline()}
+                                            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer shadow-xs"
+                                          >
+                                            Créer ce poste
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Helper Roles Cards */}
+                                    {helperRoles.length === 0 ? (
+                                      <div className="p-10 text-center bg-white rounded-3xl border border-slate-200/70 shadow-xs space-y-4">
+                                        <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl mx-auto">
+                                          🤝
+                                        </div>
+                                        <div className="space-y-1">
+                                          <h4 className="font-bold text-slate-800 text-sm">Aucun poste d'aide ouvert pour cette session</h4>
+                                          <p className="text-xs text-slate-500 max-w-md mx-auto">
+                                            Ouvrez des places en logistique, décoration ou accueil pour que les membres puissent vous aider dans l'organisation.
+                                          </p>
+                                        </div>
+                                        <div className="flex flex-wrap justify-center gap-2 pt-2">
+                                          {[
+                                            { name: 'Logistique & Matériel', icon: '📦', defaultSpots: 3 },
+                                            { name: 'Décoration & Ambiance', icon: '🎨', defaultSpots: 2 },
+                                            { name: 'Accueil & Émargement', icon: '🎟️', defaultSpots: 2 },
+                                          ].map((preset) => (
+                                            <button
+                                              key={preset.name}
+                                              type="button"
+                                              onClick={() => handleAddHelperRoleInline(preset.name, preset.defaultSpots)}
+                                              className="px-4 py-2 rounded-xl bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+                                            >
+                                              <span>{preset.icon}</span>
+                                              <span>+ {preset.name} ({preset.defaultSpots} places)</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-4">
+                                        {helperRoles.map((role) => {
+                                          const helpers = role.helpers || [];
+                                          const isFull = helpers.length >= role.max_spots;
+                                          const percent = Math.min(100, Math.round((helpers.length / role.max_spots) * 100));
+
+                                          return (
+                                            <div
+                                              key={role.id}
+                                              className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4"
+                                            >
+                                              {/* Role Header */}
+                                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                                                <div className="space-y-1">
+                                                  <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-base font-black text-slate-900">{role.role_name}</span>
+                                                    <span
+                                                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                                                        isFull
+                                                          ? 'bg-rose-100 text-rose-800'
+                                                          : helpers.length > 0
+                                                          ? 'bg-amber-100 text-amber-800'
+                                                          : 'bg-blue-100 text-blue-800'
+                                                      }`}
+                                                    >
+                                                      {helpers.length} / {role.max_spots} places {isFull ? '(Complet)' : ''}
+                                                    </span>
+                                                    {role.points_reward ? (
+                                                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black">
+                                                        🏆 +{role.points_reward} pts
+                                                      </span>
+                                                    ) : null}
+                                                  </div>
+                                                  {/* Progress bar */}
+                                                  <div className="w-48 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                                    <div
+                                                      className={`h-full transition-all ${
+                                                        isFull ? 'bg-rose-500' : 'bg-blue-600'
+                                                      }`}
+                                                      style={{ width: `${percent}%` }}
+                                                    />
+                                                  </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      if (assigningRoleId === role.id) {
+                                                        setAssigningRoleId(null);
+                                                      } else {
+                                                        setAssigningRoleId(role.id);
+                                                        setSelectedMemberIdToAssign('');
+                                                      }
+                                                    }}
+                                                    disabled={isFull}
+                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                                      isFull
+                                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                        : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200'
+                                                    }`}
+                                                  >
+                                                    <UserPlus className="w-3.5 h-3.5" />
+                                                    <span>Assigner un membre</span>
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveHelperRoleAction(role.id)}
+                                                    className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer"
+                                                    title="Supprimer ce poste d'aide"
+                                                  >
+                                                    <Trash2 className="w-4 h-4" />
+                                                  </button>
+                                                </div>
+                                              </div>
+
+                                              {/* Assign member drawer */}
+                                              {assigningRoleId === role.id && (
+                                                <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200 space-y-3 animate-in fade-in">
+                                                  <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-blue-900">
+                                                      Sélectionner un membre du club pour ce poste :
+                                                    </span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => setAssigningRoleId(null)}
+                                                      className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                                                    >
+                                                      <X className="w-4 h-4" />
+                                                    </button>
+                                                  </div>
+                                                  <div className="flex flex-col sm:flex-row items-center gap-2">
+                                                    <select
+                                                      value={selectedMemberIdToAssign}
+                                                      onChange={(e) => setSelectedMemberIdToAssign(e.target.value)}
+                                                      className="w-full sm:flex-1 px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-800 outline-none focus:border-blue-600"
+                                                    >
+                                                      <option value="">-- Choisir un membre actif --</option>
+                                                      {activeClubMembers
+                                                        .filter((m) => !helpers.some((h) => h.member_id === m.id))
+                                                        .map((m) => (
+                                                          <option key={m.id} value={m.id}>
+                                                            {m.full_name} ({m.department || m.major || 'Membre'})
+                                                          </option>
+                                                        ))}
+                                                    </select>
+                                                    <button
+                                                      type="button"
+                                                      disabled={!selectedMemberIdToAssign}
+                                                      onClick={() => handleAssignMemberToRoleAction(role.id)}
+                                                      className="w-full sm:w-auto px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-xs font-bold cursor-pointer disabled:cursor-not-allowed shadow-xs"
+                                                    >
+                                                      Confirmer
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {/* Helpers List */}
+                                              {helpers.length === 0 ? (
+                                                <div className="py-4 text-center text-xs text-slate-400 italic">
+                                                  Aucun membre n'a encore pris de place sur ce poste. Les membres peuvent s'inscrire depuis leur espace.
+                                                </div>
+                                              ) : (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                  {helpers.map((helper) => (
+                                                    <div
+                                                      key={helper.member_id}
+                                                      className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-3"
+                                                    >
+                                                      <div className="flex items-center gap-2.5 min-w-0">
+                                                        <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                                          {helper.member_name ? helper.member_name.charAt(0).toUpperCase() : 'M'}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                          <p className="text-xs font-bold text-slate-900 truncate">
+                                                            {helper.member_name}
+                                                          </p>
+                                                          <p className="text-[10px] text-slate-500 truncate">
+                                                            {helper.member_email || helper.member_phone || 'Bénévole confirmé'}
+                                                          </p>
+                                                        </div>
+                                                      </div>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveMemberFromRoleAction(role.id, helper.member_id)}
+                                                        className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-all cursor-pointer"
+                                                        title="Retirer ce bénévole du poste"
+                                                      >
+                                                        <X className="w-4 h-4" />
+                                                      </button>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -6114,6 +6587,142 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   onChange={(e) => setAgendaForm((prev) => ({ ...prev, program: e.target.value }))}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-blue-600 font-medium resize-none"
                 />
+              </div>
+
+              {/* ── Postes d'Aide & Bénévolat (Organisation) ── */}
+              <div className="pt-3 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-800">
+                      🤝 Postes d'Aide &amp; Bénévolat Membres
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Ouvrez des places pour que les membres puissent vous aider (logistique, déco, accueil...)
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                    {(agendaForm.helper_roles || []).length} poste(s)
+                  </span>
+                </div>
+
+                {/* Quick preset buttons */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ajouter rapidement :</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { name: 'Logistique & Matériel', icon: '📦', defaultSpots: 3 },
+                      { name: 'Décoration & Ambiance', icon: '🎨', defaultSpots: 2 },
+                      { name: 'Accueil & Émargement', icon: '🎟️', defaultSpots: 2 },
+                      { name: 'Photo & Vidéo', icon: '📸', defaultSpots: 2 },
+                      { name: 'Technique & Régie Son', icon: '🔊', defaultSpots: 2 },
+                      { name: 'Ravitaillement & Pause', icon: '🥤', defaultSpots: 2 },
+                    ].map((preset) => {
+                      const alreadyExists = (agendaForm.helper_roles || []).some(
+                        (r) => r.role_name.toLowerCase() === preset.name.toLowerCase()
+                      );
+                      return (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          disabled={alreadyExists}
+                          onClick={() => {
+                            const newRole: AgendaHelperRole = {
+                              id: `role-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+                              role_name: preset.name,
+                              max_spots: preset.defaultSpots,
+                              points_reward: 25,
+                              helpers: [],
+                            };
+                            setAgendaForm((prev) => ({
+                              ...prev,
+                              helper_roles: [...(prev.helper_roles || []), newRole],
+                            }));
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                            alreadyExists
+                              ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                              : 'bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-300 shadow-2xs'
+                          }`}
+                        >
+                          <span>{preset.icon}</span>
+                          <span>+ {preset.name.split(' ')[0]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* List of configured roles in modal */}
+                {(agendaForm.helper_roles || []).length > 0 && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {(agendaForm.helper_roles || []).map((role, idx) => (
+                      <div
+                        key={role.id || idx}
+                        className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"
+                      >
+                        <div className="flex-1 w-full sm:w-auto">
+                          <input
+                            type="text"
+                            value={role.role_name}
+                            onChange={(e) => {
+                              const updated = [...(agendaForm.helper_roles || [])];
+                              updated[idx] = { ...updated[idx], role_name: e.target.value };
+                              setAgendaForm((prev) => ({ ...prev, helper_roles: updated }));
+                            }}
+                            className="w-full px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-blue-500"
+                            placeholder="Nom du poste (ex: Logistique)"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-slate-500 font-bold">Places:</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={50}
+                              value={role.max_spots}
+                              onChange={(e) => {
+                                const spots = Math.max(1, parseInt(e.target.value) || 1);
+                                const updated = [...(agendaForm.helper_roles || [])];
+                                updated[idx] = { ...updated[idx], max_spots: spots };
+                                setAgendaForm((prev) => ({ ...prev, helper_roles: updated }));
+                              }}
+                              className="w-14 px-2 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold text-center text-slate-800 outline-none focus:border-blue-500"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-slate-500 font-bold">Bonus:</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={500}
+                              value={role.points_reward ?? 25}
+                              onChange={(e) => {
+                                const pts = Math.max(0, parseInt(e.target.value) || 0);
+                                const updated = [...(agendaForm.helper_roles || [])];
+                                updated[idx] = { ...updated[idx], points_reward: pts };
+                                setAgendaForm((prev) => ({ ...prev, helper_roles: updated }));
+                              }}
+                              className="w-14 px-2 py-1 rounded-lg bg-white border border-slate-200 text-xs font-bold text-center text-slate-800 outline-none focus:border-blue-500"
+                            />
+                            <span className="text-[10px] text-blue-600 font-bold">pts</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = (agendaForm.helper_roles || []).filter((_, i) => i !== idx);
+                              setAgendaForm((prev) => ({ ...prev, helper_roles: updated }));
+                            }}
+                            className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 cursor-pointer"
+                            title="Supprimer ce poste"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">

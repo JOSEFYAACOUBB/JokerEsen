@@ -16,7 +16,7 @@ import type {
   MemberEventRegistration,
   AgendaItem,
 } from '../../types/member';
-import { fetchAllAgendaItems } from '../../services/agendaService';
+import { fetchAllAgendaItems, volunteerForRole, withdrawFromRole } from '../../services/agendaService';
 import {
   logoutMemberSession,
   fetchEventRegistrationsFromDb,
@@ -96,6 +96,28 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
     const latestSelf = getStoredMembers().find((m) => m.id === currentMember.id);
     if (latestSelf) setCurrentMember(latestSelf);
     showToast(isRegistered ? 'Inscription reussie !' : 'Inscription annulee.', isRegistered ? 'success' : 'info');
+  };
+
+  const handleVolunteerRole = async (agendaId: string, roleId: string) => {
+    const res = await volunteerForRole(agendaId, roleId, currentMember);
+    if (res.success) {
+      showToast(res.message, 'success');
+      const updated = await fetchAllAgendaItems();
+      setAgendaItems(updated);
+    } else {
+      showToast(res.message, 'error');
+    }
+  };
+
+  const handleLeaveRole = async (agendaId: string, roleId: string) => {
+    const res = await withdrawFromRole(agendaId, roleId, currentMember.id);
+    if (res.success) {
+      showToast(res.message, 'info');
+      const updated = await fetchAllAgendaItems();
+      setAgendaItems(updated);
+    } else {
+      showToast(res.message, 'error');
+    }
   };
 
   // Points helpers
@@ -244,6 +266,100 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                             <p>"{userReg.absence_remark || 'Absent non justifie.'}"</p>
                           </div>
                         )}
+
+                        {/* ── Section Bénévolat / Postes d'aide ── */}
+                        {evt.helper_roles && evt.helper_roles.length > 0 && (() => {
+                          const myHelperRole = evt.helper_roles.find((r) =>
+                            r.helpers?.some((h) => h.member_id === currentMember.id)
+                          );
+
+                          return (
+                            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-blue-50/90 to-indigo-50/70 border border-blue-200/80 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm">🤝</span>
+                                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-950">
+                                    Appel aux Bénévoles ({evt.helper_roles.length} postes)
+                                  </span>
+                                </div>
+                                {myHelperRole && (
+                                  <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-extrabold">
+                                    Inscrit(e) ✅
+                                  </span>
+                                )}
+                              </div>
+
+                              {myHelperRole ? (
+                                <div className="p-3 rounded-xl bg-white border border-blue-200 shadow-2xs flex items-center justify-between gap-2">
+                                  <div className="space-y-0.5 min-w-0">
+                                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
+                                      <span>🌟 Poste : {myHelperRole.role_name}</span>
+                                      {myHelperRole.points_reward ? (
+                                        <span className="text-[10px] text-emerald-700 font-extrabold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200">
+                                          +{myHelperRole.points_reward} pts
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="text-[10px] text-slate-500">
+                                      Merci pour votre implication dans l'organisation de l'événement !
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => handleLeaveRole(evt.id, myHelperRole.id)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200 cursor-pointer transition-colors shrink-0"
+                                  >
+                                    Se désister
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {evt.helper_roles.map((role) => {
+                                    const spotsLeft = role.max_spots - (role.helpers?.length || 0);
+                                    const isFull = spotsLeft <= 0;
+
+                                    return (
+                                      <div
+                                        key={role.id}
+                                        className="p-2.5 rounded-xl bg-white/95 border border-blue-100 flex items-center justify-between gap-2"
+                                      >
+                                        <div className="min-w-0">
+                                          <div className="text-xs font-bold text-slate-800 truncate">
+                                            {role.role_name}
+                                          </div>
+                                          <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                                            <span
+                                              className={
+                                                isFull
+                                                  ? 'text-rose-600 font-bold'
+                                                  : spotsLeft === 1
+                                                  ? 'text-amber-600 font-bold'
+                                                  : 'text-blue-600 font-bold'
+                                              }
+                                            >
+                                              {isFull ? 'Complet' : `${spotsLeft} place(s) restante(s)`}
+                                            </span>
+                                            {role.points_reward ? (
+                                              <span>· 🏆 +{role.points_reward} pts bonus</span>
+                                            ) : null}
+                                          </div>
+                                        </div>
+
+                                        {!isFull && (
+                                          <button
+                                            onClick={() => handleVolunteerRole(evt.id, role.id)}
+                                            className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shrink-0 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                                          >
+                                            <span>Participer</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
                         <button onClick={() => {
