@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   UserPlus,
@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import {
   getStoredMembers,
+  fetchMembersFromDb,
+  fetchEventRegistrationsFromDb,
   createMemberByAdmin,
   updateMemberStatus,
   addPointsToMember,
@@ -53,6 +55,12 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
   const [members, setMembers] = useState<ClubMember[]>(() => getStoredMembers());
   const [registrations, setRegistrations] = useState<MemberEventRegistration[]>(() => getAllEventRegistrations());
   const [cancellationLogs, setCancellationLogs] = useState<CancellationLog[]>(() => getCancellationLogs());
+
+  // ── Load live data from Supabase on mount ──
+  useEffect(() => {
+    fetchMembersFromDb().then(setMembers).catch(() => {});
+    fetchEventRegistrationsFromDb().then(setRegistrations).catch(() => {});
+  }, []);
 
   // Absence & Present Modal state
   const [selectedRegForAbsence, setSelectedRegForAbsence] = useState<MemberEventRegistration | null>(null);
@@ -123,7 +131,9 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
       skills: ['Autonomie', 'Travail en Équipe'],
     });
 
-    setMembers(getStoredMembers());
+    // Refresh from DB so other devices' data is included
+    const latest = await fetchMembersFromDb().catch(() => getStoredMembers());
+    setMembers(latest);
     setMemberCreated(created);
     setIsSubmitting(false);
     onShowToast(`Compte créé pour ${created.full_name} !`, 'success');
@@ -204,7 +214,9 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
         </button>
         <button
           onClick={() => {
-            setRegistrations(getAllEventRegistrations());
+            fetchEventRegistrationsFromDb()
+              .then(setRegistrations)
+              .catch(() => setRegistrations(getAllEventRegistrations()));
             setSubTab('attendance');
           }}
           className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
