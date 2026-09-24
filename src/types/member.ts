@@ -18,6 +18,21 @@ export interface AgendaHelperRole {
   helpers: AgendaHelperSpot[];
 }
 
+export interface AgendaTrainerContact {
+  name: string;
+  phone?: string;
+  email?: string;
+  formation_type?: string; // Type de formation (ex: 'Développement Web', 'IA & Data', 'Design UI/UX', etc.)
+  bio?: string;
+  avatar_url?: string;
+  links?: {
+    linkedin?: string;
+    github?: string;
+    portfolio?: string;
+    instagram?: string;
+  };
+}
+
 export interface AgendaItem {
   id: string;
   title: string;
@@ -30,6 +45,7 @@ export interface AgendaItem {
   max_seats?: number;
   is_active?: boolean;
   helper_roles?: AgendaHelperRole[];
+  trainer?: AgendaTrainerContact;
   created_at?: string;
   updated_at?: string;
 }

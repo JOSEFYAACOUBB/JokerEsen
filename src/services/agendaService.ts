@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import type { AgendaItem, AgendaHelperRole, AgendaHelperSpot } from '../types/member';
+import type { AgendaItem, AgendaHelperRole, AgendaHelperSpot, AgendaTrainerContact } from '../types/member';
 
 const LOCAL_STORAGE_AGENDA_KEY = 'joker_member_agenda_items';
 
@@ -15,6 +15,18 @@ function parseHelperRoles(raw: any): AgendaHelperRole[] {
   return [];
 }
 
+function parseTrainer(raw: any): AgendaTrainerContact | undefined {
+  if (!raw) return undefined;
+  if (typeof raw === 'object' && raw.name) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.name) return parsed;
+    } catch (_) {}
+  }
+  return undefined;
+}
+
 export function getCachedAgendaItems(): AgendaItem[] {
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_AGENDA_KEY);
@@ -24,6 +36,7 @@ export function getCachedAgendaItems(): AgendaItem[] {
         return parsed.map((item) => ({
           ...item,
           helper_roles: parseHelperRoles(item.helper_roles),
+          trainer: parseTrainer(item.trainer),
         }));
       }
     }
@@ -67,6 +80,7 @@ export async function fetchAllAgendaItems(): Promise<AgendaItem[]> {
         max_seats: item.max_seats ?? 50,
         is_active: item.is_active ?? true,
         helper_roles: parseHelperRoles(item.helper_roles),
+        trainer: parseTrainer(item.trainer),
         created_at: item.created_at,
         updated_at: item.updated_at,
       }));
@@ -96,6 +110,7 @@ export async function createAgendaItem(
     max_seats: item.max_seats ?? 50,
     is_active: item.is_active ?? true,
     helper_roles: item.helper_roles || [],
+    trainer: item.trainer,
     created_at: new Date().toISOString(),
   };
 
@@ -119,6 +134,7 @@ export async function createAgendaItem(
       max_seats: newItem.max_seats,
       is_active: newItem.is_active,
       helper_roles: newItem.helper_roles,
+      trainer: newItem.trainer,
     };
 
     let { data, error } = await supabase
@@ -127,9 +143,10 @@ export async function createAgendaItem(
       .select()
       .maybeSingle();
 
-    // If helper_roles column does not exist yet on remote table, fallback without it
-    if (error && error.message?.includes('helper_roles')) {
-      delete payload.helper_roles;
+    // If helper_roles or trainer column does not exist yet on remote table, fallback gracefully
+    if (error && (error.message?.includes('helper_roles') || error.message?.includes('trainer'))) {
+      if (error.message?.includes('helper_roles')) delete payload.helper_roles;
+      if (error.message?.includes('trainer')) delete payload.trainer;
       const res = await supabase
         .from('member_agenda')
         .insert([payload])
@@ -144,6 +161,7 @@ export async function createAgendaItem(
         ...newItem,
         ...data,
         helper_roles: newItem.helper_roles,
+        trainer: newItem.trainer,
       };
       const refreshed = updatedList.map((i) => (i.id === newId ? saved : i));
       cacheAgendaItems(refreshed);
@@ -189,6 +207,7 @@ export async function updateAgendaItem(
       ...(updates.max_seats !== undefined && { max_seats: updates.max_seats }),
       ...(updates.is_active !== undefined && { is_active: updates.is_active }),
       ...(updates.helper_roles !== undefined && { helper_roles: updates.helper_roles }),
+      ...(updates.trainer !== undefined && { trainer: updates.trainer }),
       updated_at: new Date().toISOString(),
     };
 
@@ -197,9 +216,10 @@ export async function updateAgendaItem(
       .update(payload)
       .eq('id', id);
 
-    // If helper_roles column not present in DB, fallback without it
-    if (error && error.message?.includes('helper_roles')) {
-      delete payload.helper_roles;
+    // If helper_roles or trainer column not present in DB, fallback without it
+    if (error && (error.message?.includes('helper_roles') || error.message?.includes('trainer'))) {
+      if (error.message?.includes('helper_roles')) delete payload.helper_roles;
+      if (error.message?.includes('trainer')) delete payload.trainer;
       const res = await supabase.from('member_agenda').update(payload).eq('id', id);
       error = res.error;
     }

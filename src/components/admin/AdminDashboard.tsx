@@ -53,7 +53,7 @@ import type {
   FormConfig,
   EventRecord
 } from '../../types/database';
-import type { AgendaItem, AgendaHelperRole, EventFeedback, EventIdea, EventIdeaStatus } from '../../types/member';
+import type { AgendaItem, AgendaHelperRole, AgendaTrainerContact, EventFeedback, EventIdea, EventIdeaStatus } from '../../types/member';
 import {
   fetchAllAgendaItems,
   createAgendaItem,
@@ -500,6 +500,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     event_type: 'formation' as 'formation' | 'reunion' | 'evenement',
     max_seats: 50,
     helper_roles: [] as AgendaHelperRole[],
+    trainer: {
+      name: '',
+      phone: '',
+      email: '',
+      formation_type: 'Développement Web & Mobile',
+      bio: '',
+      links: {
+        linkedin: '',
+        github: '',
+        portfolio: '',
+      },
+    } as AgendaTrainerContact,
   });
 
   useEffect(() => {
@@ -561,6 +573,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         { id: `role-1-${Date.now()}`, role_name: 'Logistique & Matériel', max_spots: 3, points_reward: 20, helpers: [] },
         { id: `role-2-${Date.now()}`, role_name: 'Accueil & Émargement', max_spots: 2, points_reward: 15, helpers: [] }
       ],
+      trainer: {
+        name: idea.speaker_suggestion || '',
+        phone: '',
+        email: '',
+        formation_type: idea.category,
+        bio: 'Formateur suggéré par un membre du club',
+        links: {
+          linkedin: '',
+          github: '',
+          portfolio: '',
+        },
+      },
     });
     setIsAgendaModalOpen(true);
     handleUpdateIdeaStatusAction(idea.id, 'planned', 'Converti en événement officiel dans l\'agenda.');
@@ -578,6 +602,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       event_type: 'formation',
       max_seats: 50,
       helper_roles: [],
+      trainer: {
+        name: '',
+        phone: '',
+        email: '',
+        formation_type: 'Développement Web & Mobile',
+        bio: '',
+        links: {
+          linkedin: '',
+          github: '',
+          portfolio: '',
+        },
+      },
     });
     setIsAgendaModalOpen(true);
   };
@@ -594,6 +630,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       event_type: item.event_type || 'formation',
       max_seats: item.max_seats ?? 50,
       helper_roles: item.helper_roles ? [...item.helper_roles] : [],
+      trainer: item.trainer || {
+        name: '',
+        phone: '',
+        email: '',
+        formation_type: 'Développement Web & Mobile',
+        bio: '',
+        links: {
+          linkedin: '',
+          github: '',
+          portfolio: '',
+        },
+      },
     });
     setIsAgendaModalOpen(true);
   };
@@ -3220,6 +3268,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 </div>
                                 <p className={`text-xs font-bold line-clamp-1 ${isSelected ? 'text-white' : 'text-slate-900'}`}>{evt.title}</p>
                                 <p className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>{evt.date}</p>
+                                {evt.trainer?.name && (
+                                  <p className={`text-[10px] font-medium flex items-center gap-1 truncate ${isSelected ? 'text-indigo-200' : 'text-indigo-600'}`}>
+                                    <span>👨‍🏫 {evt.trainer.name}</span>
+                                    {evt.trainer.formation_type && <span>({evt.trainer.formation_type})</span>}
+                                  </p>
+                                )}
                               </div>
 
                               <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100/20">
@@ -3286,6 +3340,121 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               <X className="w-4 h-4" />
                             </button>
                           </div>
+
+                          {/* Trainer / Formateur contact banner */}
+                          {selectedAgendaEvent.trainer && (selectedAgendaEvent.trainer.name || selectedAgendaEvent.trainer.phone || selectedAgendaEvent.trainer.email) ? (
+                            <div className="p-4 rounded-3xl bg-gradient-to-r from-indigo-50 via-white to-blue-50 border border-indigo-100 shadow-xs space-y-3">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white font-extrabold flex items-center justify-center text-sm shadow-xs">
+                                    {selectedAgendaEvent.trainer.name ? selectedAgendaEvent.trainer.name.charAt(0).toUpperCase() : '🎓'}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs font-black text-slate-900">
+                                        {selectedAgendaEvent.trainer.name || 'Formateur / Intervenant'}
+                                      </span>
+                                      {selectedAgendaEvent.trainer.formation_type && (
+                                        <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-black border border-indigo-200">
+                                          {selectedAgendaEvent.trainer.formation_type}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {selectedAgendaEvent.trainer.bio && (
+                                      <p className="text-[11px] text-slate-600 mt-0.5">{selectedAgendaEvent.trainer.bio}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditAgendaModal(selectedAgendaEvent)}
+                                  className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-indigo-700 text-xs font-bold border border-indigo-200 shadow-2xs cursor-pointer self-start sm:self-center transition-all flex items-center gap-1"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                  <span>Modifier contact</span>
+                                </button>
+                              </div>
+
+                              <div className="pt-2.5 border-t border-indigo-100 flex flex-wrap items-center gap-2 text-xs">
+                                {selectedAgendaEvent.trainer.phone && (
+                                  <>
+                                    <a
+                                      href={`tel:${selectedAgendaEvent.trainer.phone}`}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-800 hover:text-blue-600 hover:border-blue-300 font-bold text-xs shadow-2xs transition-colors"
+                                      title="Appeler directement"
+                                    >
+                                      <span>📞</span>
+                                      <span>{selectedAgendaEvent.trainer.phone}</span>
+                                    </a>
+                                    <a
+                                      href={`https://wa.me/${selectedAgendaEvent.trainer.phone.replace(/[^0-9]/g, '')}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-colors"
+                                      title="Écrire sur WhatsApp"
+                                    >
+                                      <span>💬 WhatsApp</span>
+                                    </a>
+                                  </>
+                                )}
+
+                                {selectedAgendaEvent.trainer.email && (
+                                  <a
+                                    href={`mailto:${selectedAgendaEvent.trainer.email}`}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-800 hover:text-indigo-600 hover:border-indigo-300 font-medium text-xs shadow-2xs transition-colors"
+                                    title="Envoyer un email"
+                                  >
+                                    <span>✉️</span>
+                                    <span>{selectedAgendaEvent.trainer.email}</span>
+                                  </a>
+                                )}
+
+                                {selectedAgendaEvent.trainer.links?.linkedin && (
+                                  <a
+                                    href={selectedAgendaEvent.trainer.links.linkedin}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white font-bold text-xs transition-colors border border-blue-200"
+                                  >
+                                    <span>🔗 LinkedIn</span>
+                                  </a>
+                                )}
+
+                                {selectedAgendaEvent.trainer.links?.github && (
+                                  <a
+                                    href={selectedAgendaEvent.trainer.links.github}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-bold text-xs transition-colors shadow-2xs"
+                                  >
+                                    <span>💻 GitHub</span>
+                                  </a>
+                                )}
+
+                                {selectedAgendaEvent.trainer.links?.portfolio && (
+                                  <a
+                                    href={selectedAgendaEvent.trainer.links.portfolio}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white font-bold text-xs transition-colors border border-indigo-200"
+                                  >
+                                    <span>🌐 Portfolio</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex items-center justify-between text-xs">
+                              <span className="text-slate-500 font-medium">Aucun formateur / intervenant spécifié pour cette session.</span>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditAgendaModal(selectedAgendaEvent)}
+                                className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-blue-400 text-slate-700 hover:text-blue-600 font-bold text-[11px] cursor-pointer"
+                              >
+                                + Ajouter formateur
+                              </button>
+                            </div>
+                          )}
 
                           {(() => {
                             const helperRoles = selectedAgendaEvent.helper_roles || [];
@@ -7346,6 +7515,179 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   onChange={(e) => setAgendaForm((prev) => ({ ...prev, program: e.target.value }))}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-blue-600 font-medium resize-none"
                 />
+              </div>
+
+              {/* ── Formateur / Intervenant & Contacts ── */}
+              <div className="pt-3 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-800">
+                      👨‍🏫 Formateur / Intervenant &amp; Contacts
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Coordonnées, numéro de contact et liens professionnels du formateur
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                        Nom complet du formateur
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Mohamed Ben Salah"
+                        value={agendaForm.trainer?.name || ''}
+                        onChange={(e) =>
+                          setAgendaForm((prev) => ({
+                            ...prev,
+                            trainer: { ...(prev.trainer || { name: '' }), name: e.target.value },
+                          }))
+                        }
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-blue-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                        Numéro Téléphone / WhatsApp
+                      </label>
+                      <input
+                        type="tel"
+                        placeholder="Ex: +216 22 123 456"
+                        value={agendaForm.trainer?.phone || ''}
+                        onChange={(e) =>
+                          setAgendaForm((prev) => ({
+                            ...prev,
+                            trainer: { ...(prev.trainer || { name: '' }), phone: e.target.value },
+                          }))
+                        }
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-blue-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                        Email du formateur
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="formateur@esen.tn"
+                        value={agendaForm.trainer?.email || ''}
+                        onChange={(e) =>
+                          setAgendaForm((prev) => ({
+                            ...prev,
+                            trainer: { ...(prev.trainer || { name: '' }), email: e.target.value },
+                          }))
+                        }
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-blue-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                        Type de Formation animée
+                      </label>
+                      <select
+                        value={agendaForm.trainer?.formation_type || 'Développement Web & Mobile'}
+                        onChange={(e) =>
+                          setAgendaForm((prev) => ({
+                            ...prev,
+                            trainer: { ...(prev.trainer || { name: '' }), formation_type: e.target.value },
+                          }))
+                        }
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-blue-600"
+                      >
+                        <option value="Développement Web & Mobile">💻 Développement Web &amp; Mobile</option>
+                        <option value="Intelligence Artificielle & Data">🤖 Intelligence Artificielle &amp; Data</option>
+                        <option value="UI/UX Design & Prototypage">🎨 UI/UX Design &amp; Prototypage</option>
+                        <option value="Marketing Digital & Croissance">📈 Marketing Digital &amp; Croissance</option>
+                        <option value="Soft Skills & Prise de Parole">🎤 Soft Skills &amp; Prise de Parole</option>
+                        <option value="Cybersécurité & Réseaux">🛡️ Cybersécurité &amp; Réseaux</option>
+                        <option value="Autre Spécialité">✨ Autre Spécialité</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase text-slate-700 mb-1">
+                      Bio / Titre du formateur (Optionnel)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Senior Fullstack Engineer @ Google, Ancien ESEN..."
+                      value={agendaForm.trainer?.bio || ''}
+                      onChange={(e) =>
+                        setAgendaForm((prev) => ({
+                          ...prev,
+                          trainer: { ...(prev.trainer || { name: '' }), bio: e.target.value },
+                        }))
+                      }
+                      className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-900 outline-none focus:border-blue-600"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-slate-200/60">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-600 mb-0.5">LinkedIn (URL)</label>
+                      <input
+                        type="url"
+                        placeholder="https://linkedin.com/in/..."
+                        value={agendaForm.trainer?.links?.linkedin || ''}
+                        onChange={(e) =>
+                          setAgendaForm((prev) => ({
+                            ...prev,
+                            trainer: {
+                              ...(prev.trainer || { name: '' }),
+                              links: { ...(prev.trainer?.links || {}), linkedin: e.target.value },
+                            },
+                          }))
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-medium text-slate-800 outline-none focus:border-blue-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-600 mb-0.5">GitHub (URL)</label>
+                      <input
+                        type="url"
+                        placeholder="https://github.com/..."
+                        value={agendaForm.trainer?.links?.github || ''}
+                        onChange={(e) =>
+                          setAgendaForm((prev) => ({
+                            ...prev,
+                            trainer: {
+                              ...(prev.trainer || { name: '' }),
+                              links: { ...(prev.trainer?.links || {}), github: e.target.value },
+                            },
+                          }))
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-medium text-slate-800 outline-none focus:border-blue-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-600 mb-0.5">Portfolio / Site (URL)</label>
+                      <input
+                        type="url"
+                        placeholder="https://mon-portfolio.tn"
+                        value={agendaForm.trainer?.links?.portfolio || ''}
+                        onChange={(e) =>
+                          setAgendaForm((prev) => ({
+                            ...prev,
+                            trainer: {
+                              ...(prev.trainer || { name: '' }),
+                              links: { ...(prev.trainer?.links || {}), portfolio: e.target.value },
+                            },
+                          }))
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-medium text-slate-800 outline-none focus:border-blue-600"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* ── Postes d'Aide & Bénévolat (Organisation) ── */}

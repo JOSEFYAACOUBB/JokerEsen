@@ -407,6 +407,104 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                         <h3 className="text-base font-bold text-slate-900">{evt.title}</h3>
                         {evt.program && <p className="text-xs text-slate-600 line-clamp-2">{evt.program}</p>}
                         <p className="text-xs text-slate-500">📍 {evt.location} · Capacite: {evt.max_seats ?? 50} places</p>
+
+                        {/* ── Contact Formateur / Intervenant ── */}
+                        {evt.trainer && (evt.trainer.name || evt.trainer.phone || evt.trainer.email) && (
+                          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-blue-50/70 border border-indigo-100 shadow-2xs space-y-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 text-white font-extrabold text-sm flex items-center justify-center shadow-xs shrink-0">
+                                  {evt.trainer.name ? evt.trainer.name.charAt(0).toUpperCase() : '👨‍🏫'}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-xs font-black text-slate-900 truncate">
+                                      {evt.trainer.name || 'Formateur Intervenant'}
+                                    </span>
+                                    {evt.trainer.formation_type && (
+                                      <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-black border border-indigo-200">
+                                        {evt.trainer.formation_type}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {evt.trainer.bio && (
+                                    <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">{evt.trainer.bio}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Contact details & direct action buttons */}
+                            <div className="pt-2 border-t border-indigo-100/70 flex flex-wrap items-center gap-2 text-xs">
+                              {evt.trainer.phone && (
+                                <>
+                                  <a
+                                    href={`tel:${evt.trainer.phone}`}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-700 hover:text-blue-600 hover:border-blue-300 font-bold text-[11px] shadow-2xs transition-all"
+                                    title="Appeler le formateur"
+                                  >
+                                    <span>📞</span>
+                                    <span>{evt.trainer.phone}</span>
+                                  </a>
+                                  <a
+                                    href={`https://wa.me/${evt.trainer.phone.replace(/[^0-9]/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-2xs transition-all"
+                                    title="Contacter sur WhatsApp"
+                                  >
+                                    <span>💬</span>
+                                    <span>WhatsApp</span>
+                                  </a>
+                                </>
+                              )}
+
+                              {evt.trainer.email && (
+                                <a
+                                  href={`mailto:${evt.trainer.email}`}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200/80 text-slate-700 hover:text-indigo-600 hover:border-indigo-300 font-medium text-[11px] shadow-2xs transition-all"
+                                  title="Envoyer un email"
+                                >
+                                  <span>✉️</span>
+                                  <span>{evt.trainer.email}</span>
+                                </a>
+                              )}
+
+                              {evt.trainer.links?.linkedin && (
+                                <a
+                                  href={evt.trainer.links.linkedin}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white font-bold text-[10px] transition-all border border-blue-200"
+                                >
+                                  <span>LinkedIn</span>
+                                </a>
+                              )}
+
+                              {evt.trainer.links?.github && (
+                                <a
+                                  href={evt.trainer.links.github}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-bold text-[10px] transition-all shadow-2xs"
+                                >
+                                  <span>GitHub</span>
+                                </a>
+                              )}
+
+                              {evt.trainer.links?.portfolio && (
+                                <a
+                                  href={evt.trainer.links.portfolio}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white font-bold text-[10px] transition-all border border-indigo-200"
+                                >
+                                  <span>Portfolio</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         {isReg && evt.meeting_url && (
                           <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-between gap-2">
                             <span className="text-xs font-bold text-blue-900">Lien Visio disponible</span>
