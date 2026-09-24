@@ -453,6 +453,14 @@ export const AdminMembersTab: React.FC<AdminMembersTabProps> = ({ onShowToast })
                       <td className="py-3 px-5">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
+                            onClick={() => { setSelectedMemberForPoints(m); setIsPointsModalOpen(true); }}
+                            className="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Attribuer des points"
+                          >
+                            <Award className="w-3.5 h-3.5" />
+                            <span>+ Points</span>
+                          </button>
+                          <button
                             onClick={() => handleToggleStatus(m)}
                             className={`p-1.5 rounded-lg cursor-pointer transition-colors ${m.status === 'active' ? 'bg-amber-50 hover:bg-amber-100 text-amber-600' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'}`}
                             title={m.status === 'active' ? 'Suspendre' : 'Activer'}
