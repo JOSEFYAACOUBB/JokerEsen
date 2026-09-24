@@ -1,8 +1,8 @@
 -- ==============================================================================
 -- JOKER ESEN - MIGRATION : TABLE EVENT FEEDBACKS (AVIS MEMBRES POST-ÉVÉNEMENT)
 -- ==============================================================================
--- Exécutez ce script dans Supabase SQL Editor pour enregistrer et synchroniser
--- les avis et évaluations laissés par les membres après chaque événement / formation.
+-- 100% SÉCURISÉ : Ne supprime aucune table ni aucune donnée existante.
+-- Ce script crée uniquement la NOUVELLE table pour enregistrer les avis.
 -- ==============================================================================
 
 create table if not exists public.event_feedbacks (
@@ -19,25 +19,49 @@ create table if not exists public.event_feedbacks (
   created_at timestamp with time zone default now()
 );
 
--- Enable RLS
+-- Activation de la sécurité RLS
 alter table public.event_feedbacks enable row level security;
 
--- Policies
-drop policy if exists "Allow read access to everyone" on public.event_feedbacks;
-drop policy if exists "Allow insert for everyone" on public.event_feedbacks;
-drop policy if exists "Allow full management for admin" on public.event_feedbacks;
+-- Création sécurisée des politiques (sans commande DROP)
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies 
+    where schemaname = 'public' and tablename = 'event_feedbacks' and policyname = 'Allow read access to everyone'
+  ) then
+    create policy "Allow read access to everyone" on public.event_feedbacks
+      for select using (true);
+  end if;
 
-create policy "Allow read access to everyone" on public.event_feedbacks
-  for select using (true);
+  if not exists (
+    select 1 from pg_policies 
+    where schemaname = 'public' and tablename = 'event_feedbacks' and policyname = 'Allow insert for everyone'
+  ) then
+    create policy "Allow insert for everyone" on public.event_feedbacks
+      for insert with check (true);
+  end if;
 
-create policy "Allow insert for everyone" on public.event_feedbacks
-  for insert with check (true);
+  if not exists (
+    select 1 from pg_policies 
+    where schemaname = 'public' and tablename = 'event_feedbacks' and policyname = 'Allow full management for admin'
+  ) then
+    create policy "Allow full management for admin" on public.event_feedbacks
+      for all using (true) with check (true);
+  end if;
+end
+$$;
 
-create policy "Allow full management for admin" on public.event_feedbacks
-  for all using (true) with check (true);
-
--- Permissions
+-- Permissions d'accès pour l'application
 grant all on public.event_feedbacks to anon, authenticated, postgres, service_role;
 
--- Realtime replication
-alter publication supabase_realtime add table public.event_feedbacks;
+-- Synchronisation en temps réel (Realtime)
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'event_feedbacks'
+  ) then
+    alter publication supabase_realtime add table public.event_feedbacks;
+  end if;
+end
+$$;
