@@ -123,3 +123,21 @@ export interface CancellationLog {
   member_email: string;
   cancelled_at: string;
 }
+
+export interface EventFeedback {
+  id: string;
+  event_id: string;
+  event_title: string;
+  member_id: string;
+  member_name: string;
+  member_email?: string;
+  member_avatar?: string;
+  rating: number; // 1 to 5
+  comment: string;
+  aspects?: {
+    organization?: number;
+    content?: number;
+    ambiance?: number;
+  };
+  created_at?: string;
+}

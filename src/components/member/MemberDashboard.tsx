@@ -15,8 +15,10 @@ import type {
   ClubMember,
   MemberEventRegistration,
   AgendaItem,
+  EventFeedback,
 } from '../../types/member';
 import { fetchAllAgendaItems, volunteerForRole, withdrawFromRole } from '../../services/agendaService';
+import { fetchAllFeedbacks, submitFeedback } from '../../services/feedbackService';
 import {
   logoutMemberSession,
   fetchEventRegistrationsFromDb,
@@ -61,12 +63,26 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [allMembers, setAllMembers] = useState<ClubMember[]>(() => getStoredMembers());
 
+  // Feedback State
+  const [feedbacks, setFeedbacks] = useState<EventFeedback[]>([]);
+  const [selectedEventForFeedback, setSelectedEventForFeedback] = useState<AgendaItem | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState<number>(5);
+  const [feedbackHoverRating, setFeedbackHoverRating] = useState<number>(0);
+  const [feedbackComment, setFeedbackComment] = useState<string>('');
+  const [feedbackAspects, setFeedbackAspects] = useState<{ organization: number; content: number; ambiance: number }>({
+    organization: 5,
+    content: 5,
+    ambiance: 5,
+  });
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
   useEffect(() => {
     fetchEventRegistrationsFromDb().then((all) => {
       setRegistrations(all.filter((r) => r.member_id === currentMember.id));
     });
     fetchAllAgendaItems().then(setAgendaItems);
     fetchMembersFromDb().then(setAllMembers).catch(() => {});
+    fetchAllFeedbacks().then(setFeedbacks).catch(() => {});
   }, [currentMember.id]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -117,6 +133,57 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
       setAgendaItems(updated);
     } else {
       showToast(res.message, 'error');
+    }
+  };
+
+  const handleOpenFeedbackModal = (evt: AgendaItem) => {
+    setSelectedEventForFeedback(evt);
+    const existing = feedbacks.find(
+      (f) => f.event_id === evt.id && f.member_id === currentMember.id
+    );
+    if (existing) {
+      setFeedbackRating(existing.rating);
+      setFeedbackComment(existing.comment || '');
+      setFeedbackAspects({
+        organization: existing.aspects?.organization ?? 5,
+        content: existing.aspects?.content ?? 5,
+        ambiance: existing.aspects?.ambiance ?? 5,
+      });
+    } else {
+      setFeedbackRating(5);
+      setFeedbackComment('');
+      setFeedbackAspects({ organization: 5, content: 5, ambiance: 5 });
+    }
+  };
+
+  const handleSubmitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEventForFeedback) return;
+    setIsSubmittingFeedback(true);
+    try {
+      const saved = await submitFeedback({
+        event_id: selectedEventForFeedback.id,
+        event_title: selectedEventForFeedback.title,
+        member_id: currentMember.id,
+        member_name: currentMember.full_name,
+        member_email: currentMember.email,
+        member_avatar: currentMember.avatar_url,
+        rating: feedbackRating,
+        comment: feedbackComment.trim(),
+        aspects: feedbackAspects,
+      });
+      setFeedbacks((prev) => [
+        saved,
+        ...prev.filter(
+          (f) => !(f.event_id === saved.event_id && f.member_id === saved.member_id)
+        ),
+      ]);
+      setSelectedEventForFeedback(null);
+      showToast('Votre avis a été transmis avec succès ! Merci pour votre retour.', 'success');
+    } catch (_) {
+      showToast("Erreur lors de l'enregistrement de votre avis.", 'error');
+    } finally {
+      setIsSubmittingFeedback(false);
     }
   };
 
@@ -360,19 +427,79 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                             </div>
                           );
                         })()}
+                        {/* ── Avis / Feedback Membre ── */}
+                        {(() => {
+                          const myFeedback = feedbacks.find(
+                            (f) => f.event_id === evt.id && f.member_id === currentMember.id
+                          );
+                          if (!myFeedback) return null;
+                          return (
+                            <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs flex items-start justify-between gap-2 animate-in fade-in">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                                  <span>Votre avis :</span>
+                                  <div className="flex items-center">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                      <Star
+                                        key={s}
+                                        className={`w-3.5 h-3.5 ${
+                                          s <= myFeedback.rating
+                                            ? 'fill-amber-400 text-amber-400'
+                                            : 'text-slate-300'
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-[11px] text-amber-800 font-extrabold">({myFeedback.rating}/5)</span>
+                                </div>
+                                {myFeedback.comment && (
+                                  <p className="text-[11px] text-amber-900/80 italic font-medium line-clamp-2">
+                                    "{myFeedback.comment}"
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenFeedbackModal(evt)}
+                                className="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[10px] cursor-pointer shrink-0 transition-colors"
+                              >
+                                Modifier
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </div>
-                      <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100">
-                        <button onClick={() => {
-                          let reg = userReg;
-                          if (!reg) {
-                            const { registrations: regs } = toggleEventRegistration(currentMember, evt);
-                            setRegistrations(regs);
-                            reg = regs.find((r) => r.event_id === evt.id && r.member_id === currentMember.id);
-                          }
-                          if (reg) { setSelectedRegForJustification(reg); setJustificationText(reg.justification_reason || ''); }
-                        }} className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold cursor-pointer">
-                          {userReg?.justification_reason ? '✏️ Modifier motif' : '💬 Ne peut pas assister ?'}
-                        </button>
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button onClick={() => {
+                            let reg = userReg;
+                            if (!reg) {
+                              const { registrations: regs } = toggleEventRegistration(currentMember, evt);
+                              setRegistrations(regs);
+                              reg = regs.find((r) => r.event_id === evt.id && r.member_id === currentMember.id);
+                            }
+                            if (reg) { setSelectedRegForJustification(reg); setJustificationText(reg.justification_reason || ''); }
+                          }} className="px-2.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold cursor-pointer">
+                            {userReg?.justification_reason ? '✏️ Motif' : '💬 Absence ?'}
+                          </button>
+                          {(() => {
+                            const myFb = feedbacks.find((f) => f.event_id === evt.id && f.member_id === currentMember.id);
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenFeedbackModal(evt)}
+                                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                  myFb
+                                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                                }`}
+                              >
+                                <Star className={`w-3.5 h-3.5 ${myFb ? 'fill-amber-500 text-amber-500' : 'text-amber-500'}`} />
+                                <span>{myFb ? `Avis ${myFb.rating}★` : 'Donner mon avis'}</span>
+                              </button>
+                            );
+                          })()}
+                        </div>
                         <button onClick={() => handleToggleRegistration(evt)}
                           className={'px-4 py-2 rounded-xl text-xs font-bold cursor-pointer ' + (isReg ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800')}>
                           {isReg ? 'Se desinscrire' : "S'inscrire"}
@@ -548,6 +675,143 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({
                   className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer">Annuler</button>
                 <button type="submit"
                   className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white cursor-pointer">Envoyer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Feedback Modal ══ */}
+      {selectedEventForFeedback && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 sm:p-8 space-y-5 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setSelectedEventForFeedback(null)}
+              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div>
+              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase text-amber-600 tracking-wider">
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                <span>Évaluation &amp; Avis Événement</span>
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mt-1">Votre avis nous aide à grandir !</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Session : <strong className="text-slate-700">{selectedEventForFeedback.title}</strong>
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmitFeedback} className="space-y-5">
+              {/* Overall Star Rating */}
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-center space-y-2">
+                <span className="text-xs font-bold text-amber-950 block">Note globale de la session</span>
+                <div className="flex items-center justify-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const activeRating = feedbackHoverRating || feedbackRating;
+                    const isFilled = star <= activeRating;
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onMouseEnter={() => setFeedbackHoverRating(star)}
+                        onMouseLeave={() => setFeedbackHoverRating(0)}
+                        onClick={() => setFeedbackRating(star)}
+                        className="p-1 cursor-pointer transition-transform hover:scale-125 focus:outline-none"
+                      >
+                        <Star
+                          className={`w-8 h-8 transition-colors ${
+                            isFilled
+                              ? 'fill-amber-400 text-amber-400 drop-shadow-xs'
+                              : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="text-xs font-black text-amber-800">
+                  {feedbackRating === 1 && '😞 Décevant'}
+                  {feedbackRating === 2 && '😐 Passable'}
+                  {feedbackRating === 3 && '👍 Bien / Correct'}
+                  {feedbackRating === 4 && '🌟 Très satisfaisant !'}
+                  {feedbackRating === 5 && '🚀 Exceptionnel, au top !'}
+                </div>
+              </div>
+
+              {/* Aspect criteria ratings */}
+              <div className="space-y-3">
+                <span className="text-[11px] font-bold uppercase text-slate-600 block">
+                  Détail par critère (sur 5) :
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { key: 'organization', label: 'Organisation', icon: '📦' },
+                    { key: 'content', label: 'Contenu / Format', icon: '🎓' },
+                    { key: 'ambiance', label: 'Ambiance & Échange', icon: '🎉' },
+                  ].map((aspect) => (
+                    <div
+                      key={aspect.key}
+                      className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5 text-center"
+                    >
+                      <div className="text-xs font-bold text-slate-700">
+                        {aspect.icon} {aspect.label}
+                      </div>
+                      <div className="flex items-center justify-center gap-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() =>
+                              setFeedbackAspects((prev) => ({ ...prev, [aspect.key]: s }))
+                            }
+                            className="p-0.5 cursor-pointer hover:scale-110"
+                          >
+                            <Star
+                              className={`w-4 h-4 ${
+                                s <= ((feedbackAspects as any)[aspect.key] || 5)
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'text-slate-300'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comment textarea */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold uppercase text-slate-700">
+                  Commentaires &amp; Suggestions
+                </label>
+                <textarea
+                  rows={4}
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  placeholder="Qu'avez-vous particulièrement apprécié ? Des remarques ou idées pour améliorer les prochaines sessions ?"
+                  className="w-full p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800 outline-none focus:border-amber-400 focus:bg-white transition-all resize-none font-medium"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setSelectedEventForFeedback(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingFeedback}
+                  className="px-6 py-2.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {isSubmittingFeedback ? 'Envoi en cours...' : 'Transmettre mon avis'}
+                </button>
               </div>
             </form>
           </div>

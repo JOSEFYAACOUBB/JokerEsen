@@ -38,6 +38,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Star,
 } from 'lucide-react';
 
 import type { TeamMember } from '../Team';
@@ -50,7 +51,7 @@ import type {
   FormConfig,
   EventRecord
 } from '../../types/database';
-import type { AgendaItem, AgendaHelperRole } from '../../types/member';
+import type { AgendaItem, AgendaHelperRole, EventFeedback } from '../../types/member';
 import {
   fetchAllAgendaItems,
   createAgendaItem,
@@ -61,6 +62,12 @@ import {
   assignMemberToHelperRole,
   removeMemberFromHelperRole,
 } from '../../services/agendaService';
+import {
+  fetchAllFeedbacks,
+  getCachedFeedbacks,
+  deleteFeedback,
+  computeEventRatingSummary,
+} from '../../services/feedbackService';
 import {
   fetchRecruitmentApplications,
   updateRecruitmentStatus,
@@ -450,19 +457,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [agendaList, setAgendaList] = useState<AgendaItem[]>([]);
   const [selectedAgendaEvent, setSelectedAgendaEvent] = useState<AgendaItem | null>(null);
   const [attendanceRemark, setAttendanceRemark] = useState<Record<string, string>>({});
-  const [agendaActiveSubTab, setAgendaActiveSubTab] = useState<'sessions' | 'history'>('sessions');
+  const [agendaActiveSubTab, setAgendaActiveSubTab] = useState<'sessions' | 'history' | 'feedbacks'>('sessions');
   const [selectedRegForPresent, setSelectedRegForPresent] = useState<MemberEventRegistration | null>(null);
   const [selectedRegForAbsence, setSelectedRegForAbsence] = useState<MemberEventRegistration | null>(null);
   const [absenceRemarkInput, setAbsenceRemarkInput] = useState('');
 
-  // Agenda Helper Roles State
-  const [selectedSessionTab, setSelectedSessionTab] = useState<'attendance' | 'helpers'>('attendance');
+  // Agenda Helper Roles & Feedback State
+  const [selectedSessionTab, setSelectedSessionTab] = useState<'attendance' | 'helpers' | 'feedbacks'>('attendance');
   const [isAddRoleInlineOpen, setIsAddRoleInlineOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('Logistique & Matériel');
   const [newRoleSpots, setNewRoleSpots] = useState(3);
   const [newRolePoints, setNewRolePoints] = useState(25);
   const [assigningRoleId, setAssigningRoleId] = useState<string | null>(null);
   const [selectedMemberIdToAssign, setSelectedMemberIdToAssign] = useState<string>('');
+
+  // All Feedbacks State
+  const [allFeedbacks, setAllFeedbacks] = useState<EventFeedback[]>(() => getCachedFeedbacks());
+  const [feedbackRatingFilter, setFeedbackRatingFilter] = useState<'all' | '5' | '4' | '3' | '2' | '1'>('all');
 
   // Agenda Modal state
   const [isAgendaModalOpen, setIsAgendaModalOpen] = useState(false);
@@ -481,6 +492,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   useEffect(() => {
     fetchAllAgendaItems().then(setAgendaList);
+    fetchAllFeedbacks().then(setAllFeedbacks).catch(() => {});
   }, []);
 
   const handleRefreshAgendaData = async () => {
@@ -488,10 +500,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setAgendaList(items);
     setAllRegistrations(getAllEventRegistrations());
     setCancellationLogs(getCancellationLogs());
+    fetchAllFeedbacks().then(setAllFeedbacks).catch(() => {});
     if (selectedAgendaEvent) {
       const refreshedSel = items.find((i) => i.id === selectedAgendaEvent.id);
       if (refreshedSel) setSelectedAgendaEvent(refreshedSel);
     }
+  };
+
+  const handleDeleteFeedbackAction = async (id: string) => {
+    if (!window.confirm('Voulez-vous vraiment supprimer cet avis membre ?')) return;
+    await deleteFeedback(id);
+    const updated = await fetchAllFeedbacks();
+    setAllFeedbacks(updated);
   };
 
   const handleOpenNewAgendaModal = () => {
@@ -3070,7 +3090,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 {/* Sub-tabs */}
                 <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-100 w-fit">
-                  {(['sessions', 'history'] as const).map(st => (
+                  {(['sessions', 'history', 'feedbacks'] as const).map(st => (
                     <button
                       key={st}
                       onClick={() => setAgendaActiveSubTab(st)}
@@ -3078,7 +3098,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         agendaActiveSubTab === st ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                       }`}
                     >
-                      {st === 'sessions' ? '📋 Sessions & Présences' : '📜 Historique Inscriptions'}
+                      {st === 'sessions' ? '📋 Sessions & Présences' : st === 'history' ? '📜 Historique Inscriptions' : `⭐ Tous les Avis & Feedbacks (${allFeedbacks.length})`}
                     </button>
                   ))}
                 </div>
@@ -3214,12 +3234,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             const totalHelperSpots = helperRoles.reduce((sum, r) => sum + (r.max_spots || 0), 0);
                             const totalFilledHelpers = helperRoles.reduce((sum, r) => sum + (r.helpers?.length || 0), 0);
                             const activeClubMembers = getStoredMembers().filter((m) => m.status === 'active');
+                            const sessionFeedbacks = allFeedbacks.filter((f) => f.event_id === selectedAgendaEvent.id);
+                            const sessionRatingSummary = computeEventRatingSummary(sessionFeedbacks);
 
                             return (
                               <div className="space-y-4">
-                                {/* Sub-tab selector: Présences vs Postes d'Aide */}
+                                {/* Sub-tab selector: Présences vs Postes d'Aide vs Avis */}
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <button
                                       type="button"
                                       onClick={() => setSelectedSessionTab('attendance')}
@@ -3242,7 +3264,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                       }`}
                                     >
                                       <Users className="w-3.5 h-3.5" />
-                                      <span>🤝 Postes d'Aide &amp; Bénévoles ({totalFilledHelpers}/{totalHelperSpots} places)</span>
+                                      <span>🤝 Postes d'Aide ({totalFilledHelpers}/{totalHelperSpots})</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedSessionTab('feedbacks')}
+                                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                        selectedSessionTab === 'feedbacks'
+                                          ? 'bg-amber-500 text-white shadow-xs'
+                                          : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200'
+                                      }`}
+                                    >
+                                      <Star className={`w-3.5 h-3.5 ${selectedSessionTab === 'feedbacks' ? 'fill-white text-white' : 'fill-amber-500 text-amber-500'}`} />
+                                      <span>⭐ Avis Membres ({sessionFeedbacks.length}{sessionRatingSummary.total > 0 ? ` · ${sessionRatingSummary.average}★` : ''})</span>
                                     </button>
                                   </div>
                                   {selectedSessionTab === 'helpers' && (
@@ -3686,6 +3720,164 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     )}
                                   </div>
                                 )}
+
+                                {/* Sub-tab 3: Avis & Feedbacks de la Session */}
+                                {selectedSessionTab === 'feedbacks' && (
+                                  <div className="space-y-6 animate-in fade-in">
+                                    {/* Stats & Rating Summary Card */}
+                                    <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border border-amber-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 rounded-2xl bg-amber-500 text-white flex flex-col items-center justify-center shadow-md shadow-amber-500/20 shrink-0">
+                                          <span className="text-2xl font-black leading-none">{sessionRatingSummary.average || '0.0'}</span>
+                                          <span className="text-[10px] font-bold opacity-80 mt-0.5">/ 5</span>
+                                        </div>
+                                        <div>
+                                          <div className="flex items-center gap-1 mb-1">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                              <Star
+                                                key={star}
+                                                className={`w-4 h-4 ${
+                                                  star <= Math.round(sessionRatingSummary.average)
+                                                    ? 'fill-amber-400 text-amber-400'
+                                                    : 'text-slate-300'
+                                                }`}
+                                              />
+                                            ))}
+                                            <span className="text-xs font-black text-slate-700 ml-1.5">
+                                              ({sessionRatingSummary.total} avis)
+                                            </span>
+                                          </div>
+                                          <h4 className="text-base font-black text-slate-900">
+                                            Avis & Retours Membres
+                                          </h4>
+                                          <p className="text-xs text-slate-500">
+                                            Évaluations directes laissées par les participants de cette session.
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* Breakdown Bars */}
+                                      <div className="w-full md:w-64 space-y-1 bg-white/80 backdrop-blur-xs p-3.5 rounded-2xl border border-amber-200/60">
+                                        {[5, 4, 3, 2, 1].map((ratingVal) => {
+                                          const count = sessionRatingSummary.counts[ratingVal] || 0;
+                                          const pct = sessionRatingSummary.total > 0 ? Math.round((count / sessionRatingSummary.total) * 100) : 0;
+                                          return (
+                                            <div key={ratingVal} className="flex items-center gap-2 text-xs">
+                                              <span className="w-6 font-bold text-slate-600 flex items-center gap-0.5">
+                                                {ratingVal}<Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                                              </span>
+                                              <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                                <div
+                                                  className="h-full bg-amber-400 rounded-full transition-all"
+                                                  style={{ width: `${pct}%` }}
+                                                />
+                                              </div>
+                                              <span className="w-8 text-[11px] text-slate-400 text-right font-semibold">
+                                                {count}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    {/* Feedbacks List */}
+                                    {sessionFeedbacks.length === 0 ? (
+                                      <div className="py-12 px-6 rounded-3xl bg-white border border-slate-200/80 text-center space-y-3">
+                                        <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
+                                          ⭐
+                                        </div>
+                                        <h4 className="text-sm font-bold text-slate-800">Aucun avis pour cette session</h4>
+                                        <p className="text-xs text-slate-400 max-w-md mx-auto">
+                                          Les membres ayant participé à cet événement peuvent soumettre leur note et leurs remarques depuis leur espace membre.
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {sessionFeedbacks.map((fb) => (
+                                          <div
+                                            key={fb.id}
+                                            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between gap-4 hover:border-amber-200 transition-all"
+                                          >
+                                            <div className="space-y-3">
+                                              <div className="flex items-start justify-between gap-3">
+                                                <div className="flex items-center gap-3">
+                                                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white font-black text-sm flex items-center justify-center shadow-xs">
+                                                    {fb.member_name ? fb.member_name.charAt(0).toUpperCase() : 'M'}
+                                                  </div>
+                                                  <div>
+                                                    <h5 className="text-sm font-black text-slate-900 leading-tight">
+                                                      {fb.member_name}
+                                                    </h5>
+                                                    <p className="text-[11px] text-slate-400">{fb.member_email}</p>
+                                                  </div>
+                                                </div>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleDeleteFeedbackAction(fb.id)}
+                                                  className="p-1.5 rounded-xl text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                                                  title="Supprimer cet avis"
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </button>
+                                              </div>
+
+                                              {/* Stars & Date */}
+                                              <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-1">
+                                                  {[1, 2, 3, 4, 5].map((s) => (
+                                                    <Star
+                                                      key={s}
+                                                      className={`w-4 h-4 ${
+                                                        s <= fb.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'
+                                                      }`}
+                                                    />
+                                                  ))}
+                                                  <span className="ml-1 text-xs font-black text-slate-700">
+                                                    {fb.rating}/5
+                                                  </span>
+                                                </div>
+                                                <span className="text-[11px] text-slate-400 font-medium">
+                                                  {fb.created_at ? new Date(fb.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                                                </span>
+                                              </div>
+
+                                              {/* Aspects tags */}
+                                              {fb.aspects && (
+                                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                                  {fb.aspects.organization && (
+                                                    <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                                      Org. {fb.aspects.organization}★
+                                                    </span>
+                                                  )}
+                                                  {fb.aspects.content && (
+                                                    <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                                      Contenu {fb.aspects.content}★
+                                                    </span>
+                                                  )}
+                                                  {fb.aspects.ambiance && (
+                                                    <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                                      Ambiance {fb.aspects.ambiance}★
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              )}
+
+                                              {/* Comment text */}
+                                              {fb.comment ? (
+                                                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700 leading-relaxed font-medium">
+                                                  "{fb.comment}"
+                                                </div>
+                                              ) : (
+                                                <p className="text-[11px] text-slate-400 italic">Aucun commentaire textuel rédigé.</p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             );
                           })()}
@@ -3804,6 +3996,243 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Sub-tab: Tous les Avis & Feedbacks Globaux */}
+                {agendaActiveSubTab === 'feedbacks' && (() => {
+                  const globalSummary = computeEventRatingSummary(allFeedbacks);
+                  const filteredFeedbacks = allFeedbacks.filter((fb) => {
+                    if (feedbackRatingFilter === 'all') return true;
+                    return fb.rating === Number(feedbackRatingFilter);
+                  });
+                  const positivePercentage = allFeedbacks.length > 0
+                    ? Math.round((allFeedbacks.filter((f) => f.rating >= 4).length / allFeedbacks.length) * 100)
+                    : 0;
+                  const uniqueEventsCount = new Set(allFeedbacks.map((f) => f.event_id)).size;
+
+                  return (
+                    <div className="space-y-6 animate-in fade-in">
+                      {/* Top banner / stats */}
+                      <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div>
+                            <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                              <span>⭐</span>
+                              <span>Retours d'Expérience & Avis Membres ({allFeedbacks.length})</span>
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Consultez l'ensemble des évaluations laissées par les membres après chaque événement ou formation.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRefreshAgendaData}
+                            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer w-fit"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>Actualiser</span>
+                          </button>
+                        </div>
+
+                        {/* Summary KPI Cards */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
+                              ★
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-amber-900/60">Note Globale Moyenne</div>
+                              <div className="text-xl font-black text-amber-950">
+                                {globalSummary.average || '0.0'} <span className="text-xs font-bold text-amber-700">/ 5</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
+                              💬
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-blue-900/60">Total des Avis</div>
+                              <div className="text-xl font-black text-blue-950">{allFeedbacks.length}</div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
+                              👍
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-emerald-900/60">Satisfaction (≥4★)</div>
+                              <div className="text-xl font-black text-emerald-950">{positivePercentage}%</div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200/80 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
+                              📅
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-black uppercase text-purple-900/60">Sessions Évaluées</div>
+                              <div className="text-xl font-black text-purple-950">{uniqueEventsCount}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Rating Filter Bar */}
+                        <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-100">
+                          <span className="text-xs font-bold text-slate-500 mr-1">Filtrer par note :</span>
+                          <button
+                            type="button"
+                            onClick={() => setFeedbackRatingFilter('all')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              feedbackRatingFilter === 'all'
+                                ? 'bg-slate-900 text-white shadow-xs'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            Tous ({allFeedbacks.length})
+                          </button>
+                          {(['5', '4', '3', '2', '1'] as const).map((r) => {
+                            const count = globalSummary.counts[Number(r)] || 0;
+                            const isActive = feedbackRatingFilter === r;
+                            return (
+                              <button
+                                key={r}
+                                type="button"
+                                onClick={() => setFeedbackRatingFilter(r)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                                  isActive
+                                    ? 'bg-amber-500 text-white shadow-xs'
+                                    : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/70'
+                                }`}
+                              >
+                                <span>{r}</span>
+                                <Star className={`w-3 h-3 ${isActive ? 'fill-white text-white' : 'fill-amber-500 text-amber-500'}`} />
+                                <span className="opacity-70 text-[10px]">({count})</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Feedbacks Grid */}
+                      {filteredFeedbacks.length === 0 ? (
+                        <div className="py-16 px-6 rounded-3xl bg-white border border-slate-200/80 text-center space-y-3">
+                          <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl">
+                            ⭐
+                          </div>
+                          <h4 className="text-base font-bold text-slate-900">Aucun avis trouvé</h4>
+                          <p className="text-xs text-slate-400 max-w-md mx-auto">
+                            {feedbackRatingFilter === 'all'
+                              ? "Les membres n'ont pas encore déposé d'avis après leurs événements."
+                              : `Aucun avis avec une note de ${feedbackRatingFilter} étoiles.`}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {filteredFeedbacks.map((fb) => (
+                            <div
+                              key={fb.id}
+                              className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:border-amber-300 transition-all flex flex-col justify-between gap-4"
+                            >
+                              <div className="space-y-3">
+                                {/* Event Badge & Delete */}
+                                <div className="flex items-start justify-between gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const found = agendaList.find((i) => i.id === fb.event_id);
+                                      if (found) {
+                                        setSelectedAgendaEvent(found);
+                                        setSelectedSessionTab('feedbacks');
+                                        setAgendaActiveSubTab('sessions');
+                                      }
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-bold truncate max-w-[200px] text-left transition-colors cursor-pointer"
+                                    title="Cliquer pour afficher cette session"
+                                  >
+                                    📅 {fb.event_title || 'Session'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteFeedbackAction(fb.id)}
+                                    className="p-1 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+                                    title="Supprimer cet avis"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+
+                                {/* Member Header */}
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                                    {fb.member_name ? fb.member_name.charAt(0).toUpperCase() : 'M'}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h5 className="text-xs font-black text-slate-900 truncate">
+                                      {fb.member_name}
+                                    </h5>
+                                    <p className="text-[10px] text-slate-400 truncate">{fb.member_email}</p>
+                                  </div>
+                                </div>
+
+                                {/* Stars & Date */}
+                                <div className="flex items-center justify-between pt-1">
+                                  <div className="flex items-center gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                      <Star
+                                        key={s}
+                                        className={`w-3.5 h-3.5 ${
+                                          s <= fb.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'
+                                        }`}
+                                      />
+                                    ))}
+                                    <span className="ml-1 text-xs font-black text-slate-800">
+                                      {fb.rating}/5
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    {fb.created_at ? new Date(fb.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : ''}
+                                  </span>
+                                </div>
+
+                                {/* Aspects Breakdown if any */}
+                                {fb.aspects && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {fb.aspects.organization && (
+                                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                        Org. {fb.aspects.organization}★
+                                      </span>
+                                    )}
+                                    {fb.aspects.content && (
+                                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                        Contenu {fb.aspects.content}★
+                                      </span>
+                                    )}
+                                    {fb.aspects.ambiance && (
+                                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                        Ambiance {fb.aspects.ambiance}★
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Comment */}
+                                {fb.comment ? (
+                                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700 leading-relaxed font-medium">
+                                    "{fb.comment}"
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-slate-400 italic">Sans commentaire écrit</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
