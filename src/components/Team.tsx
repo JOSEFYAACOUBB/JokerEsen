@@ -158,7 +158,7 @@ export const Team: React.FC<TeamProps> = ({ teamMembers = [] }) => {
               const clubSocials = getCachedClubSocials();
               const instaUrl = member.socials?.instagram && member.socials.instagram !== '#' && member.socials.instagram.trim() !== ''
                 ? member.socials.instagram
-                : (clubSocials.instagram || 'https://www.instagram.com/joker_esen/');
+                : (clubSocials.instagram || 'https://www.instagram.com/jokeresen/');
               const linkedinUrl = member.socials?.linkedin && member.socials.linkedin !== '#' && member.socials.linkedin.trim() !== ''
                 ? member.socials.linkedin
                 : (clubSocials.linkedin || 'https://www.linkedin.com/company/jokeresen/');

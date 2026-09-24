@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <!-- Main Landing Page (Update with your exact domain if needed) -->
+  <url>
+    <loc>https://jokeresen.tn/</loc>
+    <lastmod>2026-09-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://res.cloudinary.com/qvnoo1cy/image/upload/v1788313989/background-image.png</image:loc>
+      <image:title>Joker ESEN - Club Étudiant ESEN Manouba</image:title>
+      <image:caption>Club étudiant festif et créatif de l'École Supérieure d'Économie Numérique</image:caption>
+    </image:image>
+  </url>
+</urlset>

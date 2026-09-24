@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /#admin
+Disallow: /#member
+
+# Replace https://jokeresen.tn with your actual production domain
+Sitemap: https://jokeresen.tn/sitemap.xml

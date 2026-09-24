@@ -116,10 +116,10 @@ export async function updateClubSettings(settings: Partial<ClubSettings>): Promi
 }
 
 export const defaultClubSocials = {
-  instagram: 'https://www.instagram.com/joker_esen/',
-  facebook: 'https://www.facebook.com/joker.esen',
-  tiktok: 'https://www.tiktok.com/@joker.esen',
-  linkedin: 'https://www.linkedin.com/company/jokeresen/',
+  instagram: 'https://www.instagram.com/jokeresen/',
+  facebook: 'https://www.facebook.com/JokerEsen.JE',
+  tiktok: 'https://www.tiktok.com/@jokeresen',
+  linkedin: 'https://www.linkedin.com/company/joker-esen/posts/?feedView=all',
 };
 
 export function getCachedClubSocials() {
