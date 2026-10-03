@@ -131,6 +131,7 @@ export interface RecruitmentApplication {
   activity_axes?: string[];
   desired_trainings?: string[];
   status?: 'pending' | 'accepted' | 'rejected' | 'contacted';
+  converted_to_member?: boolean;
   created_at?: string;
 }
 

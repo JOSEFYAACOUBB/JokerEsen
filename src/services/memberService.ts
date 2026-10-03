@@ -7,7 +7,7 @@ import type {
   CancellationLog,
   MemberLevel,
 } from '../types/member';
-import { supabaseDb, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, supabaseDb, isSupabaseConfigured } from '../lib/supabase';
 
 const STORAGE_KEYS = {
   MEMBERS: 'joker_members_list',
@@ -159,6 +159,21 @@ export function saveStoredMembers(members: ClubMember[]) {
 export async function fetchMembersFromDb(): Promise<ClubMember[]> {
   if (isSupabaseConfigured) {
     try {
+      const { data: sdkData, error: sdkError } = await supabase
+        .from('club_members')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!sdkError && Array.isArray(sdkData) && sdkData.length > 0) {
+        const cleaned = sdkData.filter((m) => m && m.full_name && !FAKE_DEMO_NAMES.includes(m.full_name));
+        saveStoredMembers(cleaned);
+        return cleaned;
+      }
+    } catch (e) {
+      console.warn('SDK fetch members warning, trying REST fallback:', e);
+    }
+
+    try {
       const { data, error } = await supabaseDb.members.getAll();
       if (!error && Array.isArray(data) && data.length > 0) {
         const cleaned = data.filter((m) => m && m.full_name && !FAKE_DEMO_NAMES.includes(m.full_name));
@@ -247,11 +262,13 @@ export function logoutMemberSession() {
 // Admin Member Management (CRUD & Database Sync)
 // ------------------------------------------------------------------------------
 
-export function createMemberByAdmin(memberData: Omit<ClubMember, 'id' | 'points' | 'level' | 'badges' | 'join_date' | 'status'>): ClubMember {
+export async function createMemberByAdmin(
+  memberData: Omit<ClubMember, 'id' | 'points' | 'level' | 'badges' | 'join_date' | 'status'>
+): Promise<ClubMember> {
   const members = getStoredMembers();
   const newMember: ClubMember = {
     ...memberData,
-    id: `mem-${Date.now().toString().slice(-4)}`,
+    id: `mem-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     password: memberData.password || 'joker2024',
     points: 50, // Welcome bonus points!
     level: 'Bronze',
@@ -263,41 +280,104 @@ export function createMemberByAdmin(memberData: Omit<ClubMember, 'id' | 'points'
     streak_months: 1,
   };
 
-  members.unshift(newMember);
-  saveStoredMembers(members);
+  // 1. Immediately store in local cache
+  const updated = [newMember, ...members.filter((m) => m.id !== newMember.id && m.email !== newMember.email)];
+  saveStoredMembers(updated);
 
+  // 2. Persist to Supabase
+  // Note: birth_date column doesn't exist in the live club_members table — strip it from the DB payload
   if (isSupabaseConfigured) {
-    supabaseDb.members.upsert(newMember).catch((err) => console.warn('Supabase member upsert warning:', err));
+    const { birth_date: _bd, ...dbPayload } = newMember as any;
+    try {
+      const { error: sdkError } = await supabase
+        .from('club_members')
+        .upsert(dbPayload, { onConflict: 'id' });
+
+      if (sdkError) {
+        console.warn('Supabase SDK member upsert warning, trying REST:', sdkError);
+        const { error: restError } = await supabaseDb.members.upsert(dbPayload);
+        if (restError) {
+          console.error('Supabase REST member upsert also failed:', restError);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to upsert member via SDK, trying REST:', err);
+      try {
+        await supabaseDb.members.upsert(dbPayload);
+      } catch (fallbackErr) {
+        console.error('Fallback member upsert failed:', fallbackErr);
+      }
+    }
   }
 
   return newMember;
 }
 
-export function updateMemberStatus(memberId: string, status: 'active' | 'suspended'): ClubMember[] {
+export async function updateMemberStatus(memberId: string, status: 'active' | 'suspended'): Promise<ClubMember[]> {
   const members = getStoredMembers();
   const updated = members.map((m) => (m.id === memberId ? { ...m, status } : m));
   saveStoredMembers(updated);
 
   if (isSupabaseConfigured) {
-    supabaseDb.members.update(memberId, { status }).catch((err) => console.warn('Supabase member update status warning:', err));
+    try {
+      await supabase.from('club_members').update({ status }).eq('id', memberId);
+    } catch (err) {
+      supabaseDb.members.update(memberId, { status }).catch((e) => console.warn('Supabase member update status warning:', e));
+    }
   }
 
   return updated;
 }
 
-export function deleteMemberByAdmin(memberId: string): ClubMember[] {
+/**
+ * Update member's own profile: avatar photo (Cloudinary URL) and/or nickname.
+ * nickname is stored locally only (not shown to other members or admin).
+ */
+export async function updateMemberProfile(
+  memberId: string,
+  updates: { avatar_url?: string; nickname?: string }
+): Promise<ClubMember | null> {
+  const members = getStoredMembers();
+  const updated = members.map((m) =>
+    m.id === memberId ? { ...m, ...updates } : m
+  );
+  saveStoredMembers(updated);
+
+  const updatedMember = updated.find((m) => m.id === memberId) || null;
+
+  if (isSupabaseConfigured && updatedMember) {
+    try {
+      // Only push avatar_url to DB (nickname stays local/private)
+      const dbPayload: Record<string, string> = {};
+      if (updates.avatar_url !== undefined) dbPayload.avatar_url = updates.avatar_url;
+      if (Object.keys(dbPayload).length > 0) {
+        await supabase.from('club_members').update(dbPayload).eq('id', memberId);
+      }
+    } catch (err) {
+      console.warn('Supabase profile update warning:', err);
+    }
+  }
+
+  return updatedMember;
+}
+
+export async function deleteMemberByAdmin(memberId: string): Promise<ClubMember[]> {
   const members = getStoredMembers();
   const updated = members.filter((m) => m.id !== memberId);
   saveStoredMembers(updated);
 
   if (isSupabaseConfigured) {
-    supabaseDb.members.delete(memberId).catch((err) => console.warn('Supabase member delete warning:', err));
+    try {
+      await supabase.from('club_members').delete().eq('id', memberId);
+    } catch (err) {
+      supabaseDb.members.delete(memberId).catch((e) => console.warn('Supabase member delete warning:', e));
+    }
   }
 
   return updated;
 }
 
-export function addPointsToMember(memberId: string, amount: number, _reason?: string): ClubMember[] {
+export async function addPointsToMember(memberId: string, amount: number, _reason?: string): Promise<ClubMember[]> {
   const members = getStoredMembers();
   const updated = members.map((m) => {
     if (m.id === memberId) {
@@ -311,9 +391,13 @@ export function addPointsToMember(memberId: string, amount: number, _reason?: st
 
   const updatedMember = updated.find((m) => m.id === memberId);
   if (isSupabaseConfigured && updatedMember) {
-    supabaseDb.members
-      .update(memberId, { points: updatedMember.points, level: updatedMember.level })
-      .catch((err) => console.warn('Supabase points update warning:', err));
+    try {
+      await supabase.from('club_members').update({ points: updatedMember.points, level: updatedMember.level }).eq('id', memberId);
+    } catch (err) {
+      supabaseDb.members
+        .update(memberId, { points: updatedMember.points, level: updatedMember.level })
+        .catch((e) => console.warn('Supabase points update warning:', e));
+    }
   }
 
   return updated;
@@ -419,10 +503,22 @@ export function getAllEventRegistrations(): MemberEventRegistration[] {
 export async function fetchEventRegistrationsFromDb(): Promise<MemberEventRegistration[]> {
   if (isSupabaseConfigured) {
     try {
-      const { data, error } = await supabaseDb.registrations.getAll();
-      if (!error && Array.isArray(data) && data.length > 0) {
+      // 1. Query via official Supabase client
+      const { data, error } = await supabase
+        .from('member_registrations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
         localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(data));
         return data as MemberEventRegistration[];
+      }
+
+      // 2. Fallback to REST client
+      const { data: restData, error: restError } = await supabaseDb.registrations.getAll();
+      if (!restError && Array.isArray(restData)) {
+        localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(restData));
+        return restData as MemberEventRegistration[];
       }
     } catch (e) {
       console.warn('Could not fetch registrations from Supabase database:', e);
@@ -448,10 +544,10 @@ export function saveCancellationLogs(logs: CancellationLog[]) {
   localStorage.setItem(STORAGE_KEYS.CANCELLATIONS, JSON.stringify(logs));
 }
 
-export function toggleEventRegistration(
+export async function toggleEventRegistration(
   member: ClubMember,
-  event: { id: string; title: string; max_seats?: number; meeting_url?: string; event_type?: string }
-): { registrations: MemberEventRegistration[]; isRegistered: boolean; error?: string } {
+  event: { id: string; title: string; max_seats?: number; meeting_url?: string; event_type?: string; category?: string }
+): Promise<{ registrations: MemberEventRegistration[]; isRegistered: boolean; error?: string }> {
   let allRegs = getAllEventRegistrations();
   const eventId = event.id || 'evt-demo';
   const existingIndex = allRegs.findIndex((r) => r.member_id === member.id && r.event_id === eventId);
@@ -464,7 +560,14 @@ export function toggleEventRegistration(
     isRegistered = false;
 
     if (isSupabaseConfigured && removedReg?.id) {
-      supabaseDb.registrations.delete(removedReg.id).catch(() => {});
+      try {
+        const { error } = await supabase.from('member_registrations').delete().eq('id', removedReg.id);
+        if (error) {
+          await supabaseDb.registrations.delete(removedReg.id);
+        }
+      } catch (err) {
+        supabaseDb.registrations.delete(removedReg.id).catch(() => {});
+      }
     }
 
     // Log the cancellation event in Audit Log
@@ -496,6 +599,7 @@ export function toggleEventRegistration(
     }
 
     // Register member
+    const eventType = (event.event_type || event.category || 'formation') as 'formation' | 'reunion' | 'evenement';
     const newReg: MemberEventRegistration = {
       id: `reg-${Date.now()}`,
       event_id: eventId,
@@ -505,15 +609,24 @@ export function toggleEventRegistration(
       member_email: member.email,
       status: 'confirmed',
       attendance_status: 'pending',
-      meeting_url: event.meeting_url,
-      event_type: (event.event_type as 'formation' | 'reunion' | 'evenement') || 'evenement',
+      meeting_url: event.meeting_url || '',
+      event_type: eventType,
       registered_at: new Date().toISOString().split('T')[0],
     };
     allRegs.push(newReg);
     isRegistered = true;
 
     if (isSupabaseConfigured) {
-      supabaseDb.registrations.upsert(newReg).catch(() => {});
+      try {
+        const { error } = await supabase.from('member_registrations').upsert(newReg);
+        if (error) {
+          console.warn('Supabase SDK upsert error, trying REST client:', error);
+          await supabaseDb.registrations.upsert(newReg);
+        }
+      } catch (err) {
+        console.warn('Supabase upsert error, trying REST client:', err);
+        await supabaseDb.registrations.upsert(newReg).catch((e2) => console.error('REST fallback failed:', e2));
+      }
     }
   }
 
@@ -524,10 +637,10 @@ export function toggleEventRegistration(
   };
 }
 
-export function submitMemberJustification(
+export async function submitMemberJustification(
   registrationId: string,
   justification: string
-): MemberEventRegistration[] {
+): Promise<MemberEventRegistration[]> {
   let allRegs = getAllEventRegistrations();
   allRegs = allRegs.map((r) => {
     if (r.id === registrationId) {
@@ -542,29 +655,29 @@ export function submitMemberJustification(
   localStorage.setItem(STORAGE_KEYS.REGISTRATIONS, JSON.stringify(allRegs));
 
   if (isSupabaseConfigured) {
-    supabaseDb.registrations.update(registrationId, {
-      justification_reason: justification.trim(),
-    }).catch(() => {});
+    try {
+      await supabase.from('member_registrations').update({ justification_reason: justification.trim() }).eq('id', registrationId);
+    } catch (_) {
+      supabaseDb.registrations.update(registrationId, {
+        justification_reason: justification.trim(),
+      }).catch(() => {});
+    }
   }
 
   return allRegs;
 }
 
-export function updateAttendanceStatus(
+export async function updateAttendanceStatus(
   registrationId: string,
-  attendance_status: 'present' | 'absent',
+  attendance_status: 'present' | 'absent' | 'pending',
   remark?: string
-): MemberEventRegistration[] {
+): Promise<MemberEventRegistration[]> {
   let allRegs = getAllEventRegistrations();
   allRegs = allRegs.map((r) => {
     if (r.id === registrationId) {
-      // Irreversible lock: Once marked present or absent, prevent further status changes
-      if (r.attendance_status === 'present' || r.attendance_status === 'absent') {
-        return r;
-      }
       return {
         ...r,
-        attendance_status,
+        attendance_status: attendance_status === 'pending' ? undefined : attendance_status,
         absence_remark: attendance_status === 'absent' ? (remark || 'Absent non justifié à la formation / réunion.') : undefined,
       };
     }
@@ -576,10 +689,15 @@ export function updateAttendanceStatus(
   if (isSupabaseConfigured) {
     const updatedItem = allRegs.find((r) => r.id === registrationId);
     if (updatedItem) {
-      supabaseDb.registrations.update(registrationId, {
-        attendance_status: updatedItem.attendance_status,
+      const updates = {
+        attendance_status: updatedItem.attendance_status || null,
         absence_remark: updatedItem.absence_remark || '',
-      }).catch(() => {});
+      };
+      try {
+        await supabase.from('member_registrations').update(updates).eq('id', registrationId);
+      } catch (_) {
+        supabaseDb.registrations.update(registrationId, updates).catch(() => {});
+      }
     }
   }
 

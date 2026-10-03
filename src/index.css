@@ -99,6 +99,24 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
   }
 
+  /* Member panel typography consistency across all elements */
+  [data-member-panel],
+  [data-member-panel] *,
+  [data-member-panel] input,
+  [data-member-panel] select,
+  [data-member-panel] textarea,
+  [data-member-panel] button,
+  [data-member-panel] label,
+  [data-member-panel] h1,
+  [data-member-panel] h2,
+  [data-member-panel] h3,
+  [data-member-panel] h4,
+  [data-member-panel] p,
+  [data-member-panel] span,
+  [data-member-panel] div {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  }
+
   h1, h2, h3, .font-display, .font-normal-text {
     font-family: 'Plus Jakarta Sans', 'Bebas Neue', sans-serif;
     letter-spacing: -0.02em;

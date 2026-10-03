@@ -67,6 +67,7 @@ export interface ClubMember {
   join_date: string;
   birth_date?: string;
   avatar_url?: string;
+  nickname?: string;   // Private – visible only to the member themselves
   bio?: string;
   skills?: string[];
   status: MemberStatus;
