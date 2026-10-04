@@ -26,13 +26,13 @@ export function App() {
   // App View State with persistent caching across refresh & hash navigation
   const [currentView, setCurrentView] = useState<'public' | 'admin' | 'member'>(() => {
     const isAuth = localStorage.getItem('joker_admin_auth') === 'true';
-    const savedView = localStorage.getItem('joker_view');
     const memberSession = getCurrentMemberSession();
 
-    if (isAuth && (window.location.hash === '#admin' || savedView === 'admin')) {
+    // Opening public website in new tab or without hash shows public landing
+    if (isAuth && window.location.hash === '#admin') {
       return 'admin';
     }
-    if (memberSession && savedView === 'member') {
+    if (memberSession && window.location.hash === '#member') {
       return 'member';
     }
     return 'public';
@@ -105,8 +105,10 @@ export function App() {
     localStorage.setItem('joker_view', view);
     if (view === 'admin') {
       window.location.hash = '#admin';
+    } else if (view === 'member') {
+      window.location.hash = '#member';
     } else {
-      if (window.location.hash === '#admin') {
+      if (window.location.hash === '#admin' || window.location.hash === '#member') {
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
       }
     }
@@ -116,9 +118,15 @@ export function App() {
   useEffect(() => {
     const onHashChange = () => {
       const isAuth = localStorage.getItem('joker_admin_auth') === 'true';
+      const memberSession = getCurrentMemberSession();
       if (window.location.hash === '#admin' && isAuth) {
         setCurrentView('admin');
         localStorage.setItem('joker_view', 'admin');
+      } else if (window.location.hash === '#member' && memberSession) {
+        setCurrentView('member');
+        localStorage.setItem('joker_view', 'member');
+      } else if (!window.location.hash || window.location.hash === '#') {
+        setCurrentView('public');
       }
     };
     window.addEventListener('hashchange', onHashChange);

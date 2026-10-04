@@ -48,8 +48,7 @@ import type {
   FormConfig,
   EventRecord
 } from '../../types/database';
-import type { ClubMember, AgendaItem } from '../../types/member';
-import { fetchAllAgendaItems } from '../../services/agendaService';
+import type { ClubMember } from '../../types/member';
 import {
   fetchRecruitmentApplications,
   updateRecruitmentStatus,
@@ -199,6 +198,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return next;
     });
   };
+
+  // Collapsible content section in sidebar
+  const [isContentExpanded, setIsContentExpanded] = useState<boolean>(() => {
+    const saved = localStorage.getItem('joker_admin_active_tab');
+    return saved === 'about' || saved === 'team';
+  });
+
+  useEffect(() => {
+    if (activeTab === 'about' || activeTab === 'team') {
+      setIsContentExpanded(true);
+    }
+  }, [activeTab]);
+
+  // Admin user identity for pinned sidebar footer
+  const adminEmail = localStorage.getItem('joker_admin_email') || 'admin@jokeresen.tn';
+  const adminDisplayName = adminEmail.split('@')[0] || 'Admin';
+  const adminInitial = (adminDisplayName.charAt(0) || 'A').toUpperCase();
 
   // Rich Toast Notifications System
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -431,9 +447,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (eventErrors.date) setEventErrors((prev) => ({ ...prev, date: undefined }));
   };
 
-  // ── Club Members & Agenda Items for Badges ──
+  // ── Club Members Accounts State ──
   const [clubMembers, setClubMembers] = useState<ClubMember[]>(() => getStoredMembers());
-  const [agendaList, setAgendaList] = useState<AgendaItem[]>([]);
 
   const loadClubMembers = async () => {
     try {
@@ -445,9 +460,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   useEffect(() => {
-    if (activeTab === 'applications' || activeTab === 'members' || activeTab === 'agenda' || activeTab === 'dashboard') {
+    if (activeTab === 'applications' || activeTab === 'members' || activeTab === 'dashboard') {
       loadClubMembers();
-      fetchAllAgendaItems().then(setAgendaList).catch(() => {});
     }
   }, [activeTab]);
 
@@ -811,7 +825,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       const saved = await saveAboutData(aboutData);
       setAboutData(saved);
-      showToast('Section "Qui Sommes-Nous" mise à jour sur Supabase !', 'success');
+      showToast('Section "Qui sommes-nous" mise à jour sur Supabase !', 'success');
     } catch (err) {
       console.warn('Error saving about text:', err);
       showToast('Erreur lors de la sauvegarde.', 'error');
@@ -1863,112 +1877,203 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           aria-hidden="true"
         />
       )}
-
-      {/* Sidebar Navigation (Responsive & Push / Collapsible) */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col justify-between bg-white border-r border-slate-200/80 shrink-0 shadow-xl lg:shadow-none lg:sticky lg:top-0 h-screen max-h-screen overflow-y-auto overscroll-contain transition-all duration-300 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-white border-r border-slate-200/80 shrink-0 shadow-xl lg:shadow-none lg:sticky lg:top-0 h-screen max-h-screen overflow-hidden transition-all duration-300 ease-in-out ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } ${
           sidebarCollapsed
-            ? 'w-72 lg:w-20 p-3 sm:p-3'
-            : 'w-72 lg:w-64 p-4 sm:p-5'
+            ? 'w-72 lg:w-20'
+            : 'w-72 lg:w-64'
         }`}
       >
-        <div className="space-y-5">
-          {/* Sidebar Logo Header */}
-          <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
-            {sidebarCollapsed ? (
-              <div className="hidden lg:flex w-full items-center justify-center">
-                <img
-                  src="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_240/v1788317705/ltbc0dahw1uwzmcogpvs.png"
-                  alt="Joker ESEN"
-                  className="h-8 w-8 object-contain"
-                  title="Joker ESEN Admin"
-                />
-              </div>
-            ) : null}
-
-            <div className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
+        {/* Sidebar Logo Header */}
+        <div className="shrink-0 p-4 border-b border-slate-100 flex items-center justify-between">
+          {sidebarCollapsed ? (
+            <div className="hidden lg:flex w-full items-center justify-center">
               <img
                 src="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_240/v1788317705/ltbc0dahw1uwzmcogpvs.png"
                 alt="Joker ESEN"
-                className="h-9 sm:h-10 w-auto object-contain"
+                className="h-8 w-8 object-contain"
+                title="Joker ESEN Admin"
               />
             </div>
+          ) : null}
 
-            <div className="flex items-center gap-1">
-              {/* Desktop Collapse / Expand Toggle in Sidebar Header */}
-              <button
-                onClick={toggleSidebarCollapsed}
-                className="hidden lg:flex p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-                title={sidebarCollapsed ? 'Agrandir le menu' : 'Réduire le menu'}
-                aria-label={sidebarCollapsed ? 'Agrandir le menu' : 'Réduire le menu'}
-              >
-                {sidebarCollapsed ? (
-                  <ChevronRight className="w-4 h-4" />
-                ) : (
-                  <ChevronLeft className="w-4 h-4" />
-                )}
-              </button>
+          <div className={`flex items-center gap-2 ${sidebarCollapsed ? 'lg:hidden' : ''}`}>
+            <img
+              src="https://res.cloudinary.com/qvnoo1cy/image/upload/f_auto,q_auto,w_240/v1788317705/ltbc0dahw1uwzmcogpvs.png"
+              alt="Joker ESEN"
+              className="h-9 sm:h-10 w-auto object-contain"
+            />
+          </div>
 
-              {/* Mobile Close Button */}
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-                aria-label="Fermer le menu"
-              >
-                <X className="w-5 h-5" />
-              </button>
+          <div className="flex items-center gap-1">
+            {/* Desktop Collapse / Expand Toggle in Sidebar Header */}
+            <button
+              onClick={toggleSidebarCollapsed}
+              className="hidden lg:flex items-center justify-center p-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 rounded-xl transition-all cursor-pointer shadow-2xs"
+              title={sidebarCollapsed ? 'Agrandir la barre latérale' : 'Réduire la barre latérale'}
+              aria-label={sidebarCollapsed ? 'Agrandir la barre latérale' : 'Réduire la barre latérale'}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+              ) : (
+                <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+              )}
+            </button>
+
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="Fermer le menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable Navigation Menu (only this part scrolls on small laptop screens) */}
+        <nav className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-4">
+          {/* GROUP 1: MEMBRES (Daily tasks first) */}
+          <div className="space-y-1">
+            <div className={`${sidebarCollapsed ? 'lg:hidden' : ''} px-3 pt-1 pb-1`}>
+              <p className="text-[11px] font-semibold text-slate-400">
+                Membres
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              {[
+                { id: 'members', label: 'Membres & comptes', icon: Users },
+                { id: 'agenda', label: 'Agenda des formations', icon: ClipboardList },
+                {
+                  id: 'applications',
+                  label: 'Candidatures',
+                  icon: UserCheck,
+                  badge: applications.filter((a) => a.status === 'pending').length > 0
+                    ? applications.filter((a) => a.status === 'pending').length
+                    : undefined,
+                },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      handleTabSelect(tab.id as any);
+                      if (window.innerWidth < 1024) setSidebarOpen(false);
+                    }}
+                    title={tab.label}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`w-full min-h-[44px] flex items-center rounded-xl text-xs transition-all cursor-pointer relative group ${
+                      sidebarCollapsed
+                        ? 'lg:justify-center lg:px-2 px-3 justify-between'
+                        : 'px-3 justify-between'
+                    } ${
+                      isActive
+                        ? 'bg-blue-50/80 text-blue-900 font-semibold border-l-[3px] border-blue-600 rounded-l-none'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-normal border-l-[3px] border-transparent rounded-l-none'
+                    }`}
+                  >
+                    <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'lg:gap-0' : ''}`}>
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                      <span className={`${sidebarCollapsed ? 'lg:hidden' : ''} truncate`}>
+                        {tab.label}
+                      </span>
+                    </div>
+
+                    {tab.badge !== undefined && tab.badge > 0 && (
+                      sidebarCollapsed ? (
+                        <>
+                          <span className="lg:hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200/80">
+                            {tab.badge}
+                          </span>
+                          <span className="hidden lg:flex absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-extrabold items-center justify-center bg-amber-500 text-white shadow-xs">
+                            {tab.badge > 99 ? '99+' : tab.badge}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200/80">
+                          {tab.badge}
+                        </span>
+                      )
+                    )}
+
+                    {sidebarCollapsed && (
+                      <span className="pointer-events-none absolute left-full ml-3 z-50 hidden rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100 lg:block">
+                        {tab.label}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Navigation Menu */}
-          <nav className="space-y-4">
-            {[
-              {
-                category: '🌐 CONTENU DU SITE WEB',
-                shortCat: 'Site',
-                items: [
-                  { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
-                  { id: 'event', label: 'Événements', icon: Calendar, badge: allEvents.length },
-                  { id: 'partners', label: 'Partenaires', icon: Building2, badge: partners.length },
-                  { id: 'about', label: 'Qui Sommes-Nous', icon: BookOpen },
-                  { id: 'team', label: 'Équipe Exécutive', icon: Users, badge: teamMembers.length },
-                  { id: 'gallery', label: 'Galerie Photos', icon: ImageIcon, badge: photos.length },
-                  { id: 'newsletter', label: 'Newsletter Brevo', icon: Mail, badge: subscribers.length },
-                  { id: 'settings', label: 'Paramètres', icon: Settings },
-                ],
-              },
-              {
-                category: '👥 ESPACE MEMBRES & ÉMARGEMENT',
-                shortCat: 'Membres',
-                items: [
-                  { id: 'members', label: 'Membres & Comptes', icon: Users, badge: getStoredMembers().length },
-                  { id: 'agenda', label: 'Agenda Formations', icon: ClipboardList, badge: agendaList.length },
-                  { id: 'applications', label: 'Candidatures', icon: UserCheck, badge: applications.filter((a) => a.status === 'pending').length },
-                ],
-              },
-            ].map((group, groupIdx) => (
-              <div key={groupIdx} className="space-y-1 pt-2.5 border-t border-slate-100 first:pt-0 first:border-0">
-                {sidebarCollapsed ? (
-                  <>
-                    <div className="hidden lg:block my-2 border-t border-slate-100" />
-                    <div className="lg:hidden px-2.5 py-1 rounded-lg bg-slate-50/80 border border-slate-100/80 mb-1.5 w-fit">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-mono">
-                        {group.category}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <div className="px-2.5 py-1 rounded-lg bg-slate-50/80 border border-slate-100/80 mb-1.5 w-fit">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-mono">
-                      {group.category}
-                    </p>
-                  </div>
-                )}
+          {/* GROUP 2: SITE WEB */}
+          <div className="space-y-1 pt-2 border-t border-slate-100">
+            {sidebarCollapsed ? (
+              <div className="hidden lg:block my-1 border-t border-slate-100" />
+            ) : null}
 
-                <div className="space-y-1">
-                  {group.items.map((tab) => {
+            <div className={`${sidebarCollapsed ? 'lg:hidden' : ''} px-3 pt-1 pb-1`}>
+              <p className="text-[11px] font-semibold text-slate-400">
+                Site web
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              {[
+                { id: 'dashboard', label: 'Accueil', icon: LayoutDashboard },
+                { id: 'event', label: 'Événements du site', icon: Calendar },
+                { id: 'partners', label: 'Partenaires', icon: Building2 },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      handleTabSelect(tab.id as any);
+                      if (window.innerWidth < 1024) setSidebarOpen(false);
+                    }}
+                    title={tab.label}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`w-full min-h-[44px] flex items-center rounded-xl text-xs transition-all cursor-pointer relative group ${
+                      sidebarCollapsed
+                        ? 'lg:justify-center lg:px-2 px-3 justify-between'
+                        : 'px-3 justify-between'
+                    } ${
+                      isActive
+                        ? 'bg-blue-50/80 text-blue-900 font-semibold border-l-[3px] border-blue-600 rounded-l-none'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-normal border-l-[3px] border-transparent rounded-l-none'
+                    }`}
+                  >
+                    <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'lg:gap-0' : ''}`}>
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                      <span className={`${sidebarCollapsed ? 'lg:hidden' : ''} truncate`}>
+                        {tab.label}
+                      </span>
+                    </div>
+
+                    {sidebarCollapsed && (
+                      <span className="pointer-events-none absolute left-full ml-3 z-50 hidden rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100 lg:block">
+                        {tab.label}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Collapsible Contenu (Qui sommes-nous & Équipe exécutive) when expanded */}
+              {sidebarCollapsed ? (
+                <>
+                  {[
+                    { id: 'about', label: 'Qui sommes-nous', icon: BookOpen },
+                    { id: 'team', label: 'Équipe exécutive', icon: Users },
+                  ].map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
                     return (
@@ -1976,87 +2081,190 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         key={tab.id}
                         onClick={() => {
                           handleTabSelect(tab.id as any);
-                          if (window.innerWidth < 1024) {
-                            setSidebarOpen(false);
-                          }
+                          if (window.innerWidth < 1024) setSidebarOpen(false);
                         }}
                         title={tab.label}
-                        className={`w-full flex items-center rounded-2xl text-xs transition-all cursor-pointer relative ${
-                          sidebarCollapsed
-                            ? 'lg:justify-center lg:px-2 lg:py-2.5 px-3.5 py-2.5 justify-between'
-                            : 'px-3.5 py-2.5 justify-between'
-                        } ${
+                        aria-current={isActive ? 'page' : undefined}
+                        className={`w-full min-h-[44px] flex items-center justify-center rounded-xl text-xs transition-all cursor-pointer relative group px-2 ${
                           isActive
-                            ? 'bg-slate-900 text-white font-bold shadow-xs border border-slate-900'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 font-semibold border border-transparent'
+                            ? 'bg-blue-50/80 text-blue-900 font-semibold border-l-[3px] border-blue-600 rounded-l-none'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-normal border-l-[3px] border-transparent rounded-l-none'
                         }`}
                       >
-                        <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'lg:gap-0' : ''}`}>
-                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                          <span className={`${sidebarCollapsed ? 'lg:hidden' : ''} truncate`}>
-                            {tab.label}
-                          </span>
-                        </div>
-
-                        {tab.badge !== undefined && tab.badge > 0 && (
-                          sidebarCollapsed ? (
-                            <>
-                              {/* Expanded badge on mobile */}
-                              <span
-                                className={`lg:hidden px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  isActive
-                                    ? 'bg-white/20 text-white font-extrabold'
-                                    : 'bg-slate-100 text-slate-600 border border-slate-200/80'
-                                }`}
-                              >
-                                {tab.badge}
-                              </span>
-                              {/* Mini dot/pill on collapsed desktop */}
-                              <span
-                                className={`hidden lg:flex absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-extrabold items-center justify-center ${
-                                  isActive
-                                    ? 'bg-blue-400 text-slate-900'
-                                    : 'bg-slate-900 text-white'
-                                }`}
-                              >
-                                {tab.badge > 99 ? '99+' : tab.badge}
-                              </span>
-                            </>
-                          ) : (
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                isActive
-                                  ? 'bg-white/20 text-white font-extrabold'
-                                  : 'bg-slate-100 text-slate-600 border border-slate-200/80'
-                              }`}
-                            >
-                              {tab.badge}
-                            </span>
-                          )
-                        )}
+                        <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                        <span className="pointer-events-none absolute left-full ml-3 z-50 hidden rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100 lg:block">
+                          {tab.label}
+                        </span>
                       </button>
                     );
                   })}
-                </div>
-              </div>
-            ))}
-          </nav>
-        </div>
+                </>
+              ) : (
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsContentExpanded((prev) => !prev)}
+                    className={`w-full min-h-[44px] flex items-center justify-between px-3 rounded-xl text-xs transition-colors cursor-pointer border-l-[3px] rounded-l-none ${
+                      activeTab === 'about' || activeTab === 'team'
+                        ? 'text-blue-900 font-semibold bg-blue-50/50 border-blue-600'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-normal border-transparent'
+                    }`}
+                    aria-expanded={isContentExpanded}
+                  >
+                    <div className="flex items-center gap-3">
+                      <BookOpen className={`w-4 h-4 shrink-0 transition-colors ${activeTab === 'about' || activeTab === 'team' ? 'text-blue-600' : 'text-slate-400'}`} />
+                      <span className="truncate">Contenu</span>
+                    </div>
+                    <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isContentExpanded ? 'rotate-90' : ''}`} />
+                  </button>
 
-        {/* Sidebar Footer Actions */}
-        <div className="pt-3 border-t border-slate-100 space-y-2">
-          {/* Logout Button */}
+                  {isContentExpanded && (
+                    <div className="pl-4 space-y-1 my-1 border-l-2 border-slate-100 ml-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleTabSelect('about');
+                          if (window.innerWidth < 1024) setSidebarOpen(false);
+                        }}
+                        className={`w-full min-h-[40px] flex items-center px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer border-l-2 ${
+                          activeTab === 'about'
+                            ? 'bg-blue-50 text-blue-900 font-semibold border-blue-600 -ml-[2px]'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 font-normal border-transparent'
+                        }`}
+                        aria-current={activeTab === 'about' ? 'page' : undefined}
+                      >
+                        <span className="truncate">Qui sommes-nous</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleTabSelect('team');
+                          if (window.innerWidth < 1024) setSidebarOpen(false);
+                        }}
+                        className={`w-full min-h-[40px] flex items-center px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer border-l-2 ${
+                          activeTab === 'team'
+                            ? 'bg-blue-50 text-blue-900 font-semibold border-blue-600 -ml-[2px]'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 font-normal border-transparent'
+                        }`}
+                        aria-current={activeTab === 'team' ? 'page' : undefined}
+                      >
+                        <span className="truncate">Équipe exécutive</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Galerie, Newsletter, Paramètres */}
+              {[
+                { id: 'gallery', label: 'Galerie photos', icon: ImageIcon },
+                { id: 'newsletter', label: 'Newsletter', icon: Mail },
+                { id: 'settings', label: 'Paramètres du site', icon: Settings },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      handleTabSelect(tab.id as any);
+                      if (window.innerWidth < 1024) setSidebarOpen(false);
+                    }}
+                    title={tab.label}
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`w-full min-h-[44px] flex items-center rounded-xl text-xs transition-all cursor-pointer relative group ${
+                      sidebarCollapsed
+                        ? 'lg:justify-center lg:px-2 px-3 justify-between'
+                        : 'px-3 justify-between'
+                    } ${
+                      isActive
+                        ? 'bg-blue-50/80 text-blue-900 font-semibold border-l-[3px] border-blue-600 rounded-l-none'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-normal border-l-[3px] border-transparent rounded-l-none'
+                    }`}
+                  >
+                    <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'lg:gap-0' : ''}`}>
+                      <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                      <span className={`${sidebarCollapsed ? 'lg:hidden' : ''} truncate`}>
+                        {tab.label}
+                      </span>
+                    </div>
+
+                    {sidebarCollapsed && (
+                      <span className="pointer-events-none absolute left-full ml-3 z-50 hidden rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100 lg:block">
+                        {tab.label}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
+
+        {/* Pinned Sidebar Footer Actions (Always visible, never scrolls away) */}
+        <div className="shrink-0 p-3 border-t border-slate-100 bg-white space-y-1.5">
+          {/* Action: Voir le site web (opens public website in a new tab) */}
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Voir le site web"
+            className={`w-full min-h-[44px] flex items-center rounded-xl text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100/70 transition-colors group cursor-pointer relative ${
+              sidebarCollapsed ? 'lg:justify-center lg:px-2 px-3' : 'px-3 gap-2.5'
+            }`}
+          >
+            <ExternalLink className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-slate-700 transition-colors" />
+            <span className={`${sidebarCollapsed ? 'lg:hidden' : ''} truncate`}>
+              Voir le site web
+            </span>
+            {sidebarCollapsed && (
+              <span className="pointer-events-none absolute left-full ml-3 z-50 hidden rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100 lg:block">
+                Voir le site web
+              </span>
+            )}
+          </a>
+
+          {/* Admin Identity: Name with avatar and Administrateur label */}
+          <div
+            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-slate-50/90 border border-slate-100 relative group ${
+              sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''
+            }`}
+            title={`${adminEmail} (Administrateur)`}
+          >
+            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+              {adminInitial}
+            </div>
+            <div className={`${sidebarCollapsed ? 'lg:hidden' : ''} min-w-0 flex-1`}>
+              <p className="text-xs font-semibold text-slate-800 truncate" title={adminEmail}>
+                {adminDisplayName}
+              </p>
+              <p className="text-[10px] text-slate-400 font-medium">Administrateur</p>
+            </div>
+            {sidebarCollapsed && (
+              <span className="pointer-events-none absolute left-full ml-3 z-50 hidden rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100 lg:block">
+                {adminDisplayName} (Administrateur)
+              </span>
+            )}
+          </div>
+
+          {/* Logout Button (Plain text item with icon) */}
           <button
             onClick={handleLogout}
             title="Déconnexion"
-            className={`w-full py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-200/70 text-rose-700 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs ${
-              sidebarCollapsed ? 'lg:px-0 px-3.5' : 'px-3.5'
+            className={`w-full min-h-[44px] flex items-center rounded-xl text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50/70 transition-colors group cursor-pointer relative ${
+              sidebarCollapsed ? 'lg:justify-center lg:px-2 px-3' : 'px-3 gap-2.5'
             }`}
           >
-            <LogOut className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-            <span className={`${sidebarCollapsed ? 'lg:hidden' : ''} text-rose-700 font-bold truncate`}>
+            <LogOut className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-rose-600 transition-colors" />
+            <span className={`${sidebarCollapsed ? 'lg:hidden' : ''} truncate`}>
               Déconnexion
             </span>
+            {sidebarCollapsed && (
+              <span className="pointer-events-none absolute left-full ml-3 z-50 hidden rounded-md bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-lg whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100 lg:block">
+                Déconnexion
+              </span>
+            )}
           </button>
         </div>
       </aside>
@@ -2094,36 +2302,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <span className="text-xs font-bold text-slate-400 hidden sm:inline">Admin</span>
               <span className="text-xs text-slate-300 hidden sm:inline">/</span>
               <span className="text-xs sm:text-sm font-bold text-slate-800 font-sans truncate">
-                {activeTab === 'dashboard' && 'Home'}
-                {activeTab === 'event' && 'Événements'}
+                {activeTab === 'dashboard' && 'Accueil'}
+                {activeTab === 'members' && 'Membres & comptes'}
+                {activeTab === 'agenda' && 'Agenda des formations'}
+                {activeTab === 'applications' && 'Candidatures'}
+                {activeTab === 'event' && 'Événements du site'}
                 {activeTab === 'partners' && 'Partenaires'}
-                {activeTab === 'about' && 'Qui Sommes-Nous'}
-                {activeTab === 'team' && 'Équipe Exécutive'}
-                {activeTab === 'gallery' && 'Galerie Photos'}
-                {activeTab === 'newsletter' && 'Newsletter Brevo'}
-                {activeTab === 'settings' && 'Paramètres'}
-                {activeTab === 'members' && 'Membres & Comptes'}
-                {activeTab === 'agenda' && 'Agenda Formations'}
-                {activeTab === 'applications' && 'Candidatures Recrutement'}
+                {activeTab === 'about' && 'Qui sommes-nous'}
+                {activeTab === 'team' && 'Équipe exécutive'}
+                {activeTab === 'gallery' && 'Galerie photos'}
+                {activeTab === 'newsletter' && 'Newsletter'}
+                {activeTab === 'settings' && 'Paramètres du site'}
               </span>
             </div>
           </div>
 
           {/* Header Right Actions & Context */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-[11px] font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-              <span>Panneau d'administration</span>
-            </span>
-            <button
-              onClick={onBackToPublic}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
-              title="Retourner à l'espace public ou membre"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-              <span>Espace Public / Membre</span>
-            </button>
-          </div>
+          <div className="flex items-center gap-2.5 shrink-0" />
         </header>
 
         {/* Scrollable Main Content View */}
@@ -2221,7 +2416,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onClick={() => handleTabSelect('about')}
                     className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/60 text-left transition-all cursor-pointer space-y-1"
                   >
-                    <p className="text-xs font-bold text-slate-800">Modifier Qui Sommes-Nous</p>
+                    <p className="text-xs font-bold text-slate-800">Modifier Qui sommes-nous</p>
                     <p className="text-[11px] text-slate-400">Histoire, statistiques et 4 As</p>
                   </button>
 
@@ -2383,7 +2578,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="space-y-8 animate-in fade-in">
               <div>
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight font-sans">
-                  Section 01 · Qui Sommes-Nous — Édition Supabase
+                  Section 01 · Qui sommes-nous — Édition Supabase
                 </h2>
                 <p className="text-xs text-slate-500">
                   Modifiez les textes narratifs, les 4 statistiques de l'ESEN et les cartes des 4 As (Pique, Cœur, Carreau, Trèfle).
